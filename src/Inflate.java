@@ -177,7 +177,7 @@ final class Inflate{
           if(wrap == 4){
             wrap = 2;
           }
-	  z.adler=new CRC32();
+	  //z.adler=new CRC32();
           checksum(2, this.need);
 
           if(gheader==null) 
@@ -514,7 +514,7 @@ final class Inflate{
             break;
           }
         }
-        z.adler = new CRC32();
+        //z.adler = new CRC32();
 
         this.mode = BLOCKS;
         break;

@@ -1314,7 +1314,7 @@ public final class Deflate implements Cloneable {
     else if(windowBits > 15){
       wrap = 2;
       windowBits -= 16;
-      strm.adler=new CRC32();
+      //strm.adler=new CRC32();
     }
 
     if (memLevel < 1 || memLevel > MAX_MEM_LEVEL || 

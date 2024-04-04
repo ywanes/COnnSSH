@@ -18,6 +18,10 @@ final public class Adler32 implements Checksum {
     return ((s2<<16)|s1);
   }
 
+  public Adler32(){
+System.out.println(111111);
+  }
+  
   public void update(byte[] buf, int index, int len){
 
     if(len==1){

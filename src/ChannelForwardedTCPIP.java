@@ -13,7 +13,7 @@ public class ChannelForwardedTCPIP extends Channel{
   static private final int TIMEOUT=10*1000;
 
   private Socket socket=null;
-  private ForwardedTCPIPDaemon daemon=null;
+  //private ForwardedTCPIPDaemon daemon=null;
   private Config config = null;
 
   ChannelForwardedTCPIP(){
@@ -27,31 +27,7 @@ public class ChannelForwardedTCPIP extends Channel{
 
   public void run(){
     try{ 
-      if(config instanceof ConfigDaemon){
-        ConfigDaemon _config = (ConfigDaemon)config;
-        daemon=(ForwardedTCPIPDaemon)ALoadClass.getInstanceByName(_config.target);
-
-        PipedOutputStream out=new PipedOutputStream();
-        io.setInputStream(new PassiveInputStream(out
-                                                 , 32*1024
-                                                 ), false);
-
-        daemon.setChannel(this, getInputStream(), out);
-        daemon.setArg(_config.arg);
-        new Thread(daemon).start();
-      }
-      else{
-        System.out.println("Error SocketFactory ...");
-        /*
-        ConfigLHost _config = (ConfigLHost)config;
-        socket=(_config.factory==null) ? 
-           Util.createSocket(_config.target, _config.lport, TIMEOUT) : 
-          _config.factory.createSocket(_config.target, _config.lport);
-        socket.setTcpNoDelay(true);
-        io.setInputStream(socket.getInputStream());
-        io.setOutputStream(socket.getOutputStream());
-        */
-      }
+System.out.println(50000);
       sendOpenConfirmation();
     }
     catch(Exception e){

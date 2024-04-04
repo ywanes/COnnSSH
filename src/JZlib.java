@@ -51,6 +51,7 @@ final public class JZlib{
   }
 
   public static long crc32_combine(long crc1, long crc2, long len2){
-    return CRC32.combine(crc1, crc2, len2);
+    //return CRC32.combine(crc1, crc2, len2);
+    return -1;
   }
 }

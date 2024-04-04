@@ -43,10 +43,12 @@ public class ZStream{
 
   public ZStream(){
     this(new Adler32());
+System.out.println(111112);      
   }
 
-  public ZStream(Checksum adler){
+  public ZStream(Checksum adler){      
     this.adler=adler;
+System.out.println(111112);      
   }
 
   public int inflateInit(){
