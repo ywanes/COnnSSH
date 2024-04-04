@@ -29,7 +29,7 @@ public class CipherAES256CTR implements Cipher{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_70");
+        ALoadClass.DebugPrintException("ex_70");
       cipher=null;
       throw e;
     }

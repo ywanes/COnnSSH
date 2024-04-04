@@ -98,7 +98,7 @@ System.err.println("");
       sendOpenConfirmation();
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_63");
+        ALoadClass.DebugPrintException("ex_63");
       sendOpenFailure(SSH_OPEN_ADMINISTRATIVELY_PROHIBITED);
       close=true;
       disconnect();
@@ -130,7 +130,7 @@ System.err.println("");
       }
     }
     catch(Exception e){
-      LoadClass.DebugPrintException("ex_64");
+      ALoadClass.DebugPrintException("ex_64");
     }
     disconnect();
   }

@@ -158,7 +158,7 @@ public class KeyPairPKCS8 extends KeyPairA {
       return false;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_117");
+        ALoadClass.DebugPrintException("ex_117");
       return false;
     }
     return kpair != null;
@@ -188,113 +188,7 @@ public class KeyPairPKCS8 extends KeyPairA {
   }
 
   public boolean decrypt(byte[] _passphrase){
-    if(!isEncrypted()){
-      return true;
-    }
-    if(_passphrase==null){
-      return !isEncrypted();
-    }
-
-    /*
-      SEQUENCE
-        SEQUENCE
-          OBJECT            :PBES2
-          SEQUENCE
-            SEQUENCE
-              OBJECT            :PBKDF2
-              SEQUENCE
-                OCTET STRING      [HEX DUMP]:E4E24ADC9C00BD4D
-                INTEGER           :0800
-            SEQUENCE
-              OBJECT            :aes-128-cbc
-              OCTET STRING      [HEX DUMP]:5B66E6B3BF03944C92317BC370CC3AD0
-        OCTET STRING      [HEX DUMP]:
-
-or
-
-      SEQUENCE
-        SEQUENCE
-          OBJECT            :pbeWithMD5AndDES-CBC
-          SEQUENCE
-            OCTET STRING      [HEX DUMP]:DBF75ECB69E3C0FC
-            INTEGER           :0800
-        OCTET STRING      [HEX DUMP]
-    */
-
-    try{
-
-      ASN1[] contents = null;
-      ASN1 asn1 = new ASN1(data);
-
-      contents =  asn1.getContents();
-
-      byte[] _data = contents[1].getContent();
-
-      ASN1 pbes = contents[0];
-      contents = pbes.getContents();
-      byte[] pbesid = contents[0].getContent();
-      ASN1 pbesparam = contents[1];
-
-      byte[] salt = null;
-      int iterations = 0;
-      byte[] iv = null;
-      byte[] encryptfuncid = null;
-
-      if(Util.array_equals(pbesid, pbes2)){
-        contents = pbesparam.getContents();
-        ASN1 pbkdf = contents[0];
-        ASN1 encryptfunc = contents[1];
-        contents = pbkdf.getContents();
-        byte[] pbkdfid = contents[0].getContent();
-        ASN1 pbkdffunc = contents[1];
-        contents = pbkdffunc.getContents();
-        salt = contents[0].getContent();
-        iterations = 
-          Integer.parseInt((new BigInteger(contents[1].getContent())).toString());
-
-        contents = encryptfunc.getContents();
-        encryptfuncid = contents[0].getContent();
-        iv = contents[1].getContent();
-      }
-      else if(Util.array_equals(pbesid, pbeWithMD5AndDESCBC)){
-        // not supported
-        return false;
-      }
-      else {
-        return false;
-      }
-
-      Cipher cipher=getCipher(encryptfuncid);
-      if(cipher==null) return false;
-
-      byte[] key=null;
-      try{
-        PBKDF tmp=(PBKDF)LoadClass.getInstanceByConfig("pbkdf");
-        key = tmp.getKey(_passphrase, salt, iterations, cipher.getBlockSize());
-      }
-      catch(Exception ee){
-      }
-
-      if(key==null){
-        return false;
-      }
-
-      cipher.init(Cipher.DECRYPT_MODE, key, iv);
-      Util.bzero(key);
-      byte[] plain=new byte[_data.length];
-      cipher.update(_data, 0, _data.length, plain, 0);
-      if(parse(plain)){
-        encrypted=false;
-        return true;
-      }
-    }
-    catch(ASN1Exception e){
-      // System.err.println(e);
-    }
-    catch(Exception e){
-        LoadClass.DebugPrintException("ex_118");      
-    }
-
+    System.out.println("removido");
     return false;
   }
 
@@ -311,10 +205,10 @@ or
       else if(Util.array_equals(id, aes256cbc)){
         name="aes256-cbc";
       }
-      cipher=(Cipher)LoadClass.getInstanceByConfig(name);
+      cipher=(Cipher)ALoadClass.getInstanceByConfig(name);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_119");
+        ALoadClass.DebugPrintException("ex_119");
       if(JSch.getLogger().isEnabled(Logger.FATAL)){
         String message="";
         if(name==null){

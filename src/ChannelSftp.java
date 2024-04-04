@@ -276,7 +276,7 @@ public class ChannelSftp extends ChannelSession{
       lcwd=new File(".").getCanonicalPath();
     }
     catch(Exception e){
-      LoadClass.DebugPrintException("ex_21");
+      ALoadClass.DebugPrintException("ex_21");
       if(e instanceof JSchException) throw (JSchException)e;
       if(e instanceof Throwable)
         throw new JSchException(e.toString(), (Throwable)e);
@@ -292,7 +292,7 @@ public class ChannelSftp extends ChannelSession{
       try{
 	path=(new File(path)).getCanonicalPath();
       }
-      catch(Exception e){LoadClass.DebugPrintException("ex_22");}      
+      catch(Exception e){ALoadClass.DebugPrintException("ex_22");}      
       lcwd=path;
       return;
     }
@@ -321,7 +321,7 @@ public class ChannelSftp extends ChannelSession{
       setCwd(Util.byte2str(str, fEncoding));
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_23");
+        ALoadClass.DebugPrintException("ex_23");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -450,7 +450,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_24");
+        ALoadClass.DebugPrintException("ex_24");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, e.toString(), (Throwable)e);
@@ -509,7 +509,7 @@ public class ChannelSftp extends ChannelSession{
       _put(src, dst, monitor, mode);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_25");
+        ALoadClass.DebugPrintException("ex_25");
       if(e instanceof SftpException) {
         if(((SftpException)e).id == SSH_FX_FAILURE &&
            isRemoteDir(dst)) {
@@ -662,7 +662,7 @@ public class ChannelSftp extends ChannelSession{
       _sendCLOSE(handle, header);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_26");
+        ALoadClass.DebugPrintException("ex_26");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, e.toString(), (Throwable)e);
@@ -802,7 +802,7 @@ public class ChannelSftp extends ChannelSession{
           }
           catch(IOException e){ throw e; }
           catch(Exception e){ 
-              LoadClass.DebugPrintException("ex_27");
+              ALoadClass.DebugPrintException("ex_27");
               throw new IOException(e.toString());  
           }
         }
@@ -843,7 +843,7 @@ public class ChannelSftp extends ChannelSession{
           try{ _sendCLOSE(handle, header); }
           catch(IOException e){ throw e; }
           catch(Exception e){
-              LoadClass.DebugPrintException("ex_28");
+              ALoadClass.DebugPrintException("ex_28");
             throw new IOException(e.toString());
           }
           isClosed=true;
@@ -852,7 +852,7 @@ public class ChannelSftp extends ChannelSession{
       return out;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_29");
+        ALoadClass.DebugPrintException("ex_29");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -968,7 +968,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_30");
+        ALoadClass.DebugPrintException("ex_30");
       if(!_dstExist && _dst!=null){
         File _dstFile = new File(_dst);
         if(_dstFile.exists() && _dstFile.length()==0){
@@ -1007,7 +1007,7 @@ public class ChannelSftp extends ChannelSession{
       _get(src, dst, monitor, mode, skip);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_31");
+        ALoadClass.DebugPrintException("ex_31");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -1157,7 +1157,7 @@ public class ChannelSftp extends ChannelSession{
       _sendCLOSE(handle, header);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_32");
+        ALoadClass.DebugPrintException("ex_32");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -1377,7 +1377,7 @@ public class ChannelSftp extends ChannelSession{
                    sendREAD(handle, request_offset, request_len, rq);
                  }
                  catch(Exception e){
-                     LoadClass.DebugPrintException("ex_33");
+                     ALoadClass.DebugPrintException("ex_33");
                      throw new IOException("error"); 
                  }
                  request_offset += request_len;
@@ -1475,7 +1475,7 @@ public class ChannelSftp extends ChannelSession{
                             (int)(rr.length-length_of_data), rq);
                  }
                  catch(Exception e){ 
-                     LoadClass.DebugPrintException("ex_34");
+                     ALoadClass.DebugPrintException("ex_34");
                      throw new IOException("error"); 
                  }
                  request_offset=rr.offset+rr.length;
@@ -1503,7 +1503,7 @@ public class ChannelSftp extends ChannelSession{
              rq.cancel(header, buf);
              try{_sendCLOSE(handle, header);}
              catch(Exception e){
-                 LoadClass.DebugPrintException("ex_35");
+                 ALoadClass.DebugPrintException("ex_35");
                  throw new IOException("error");
              }
            }
@@ -1511,7 +1511,7 @@ public class ChannelSftp extends ChannelSession{
        return in;
      }
      catch(Exception e){
-         LoadClass.DebugPrintException("ex_36");
+         ALoadClass.DebugPrintException("ex_36");
        if(e instanceof SftpException) throw (SftpException)e;
        if(e instanceof Throwable)
          throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -1719,7 +1719,7 @@ public class ChannelSftp extends ChannelSession{
 
      }
      catch(Exception e){
-         LoadClass.DebugPrintException("ex_37");
+         ALoadClass.DebugPrintException("ex_37");
        if(e instanceof SftpException) throw (SftpException)e;
        if(e instanceof Throwable)
          throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -1769,7 +1769,7 @@ public class ChannelSftp extends ChannelSession{
        throwStatusError(buf, i);
      }
      catch(Exception e){
-         LoadClass.DebugPrintException("ex_38");
+         ALoadClass.DebugPrintException("ex_38");
        if(e instanceof SftpException) throw (SftpException)e;
        if(e instanceof Throwable)
          throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -1823,7 +1823,7 @@ public class ChannelSftp extends ChannelSession{
        throwStatusError(buf, i);
      }
      catch(Exception e){
-         LoadClass.DebugPrintException("ex_39");
+         ALoadClass.DebugPrintException("ex_39");
        if(e instanceof SftpException) throw (SftpException)e;
        if(e instanceof Throwable)
          throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -1876,7 +1876,7 @@ public class ChannelSftp extends ChannelSession{
        throwStatusError(buf, i);
      }
      catch(Exception e){
-         LoadClass.DebugPrintException("ex_40");
+         ALoadClass.DebugPrintException("ex_40");
        if(e instanceof SftpException) throw (SftpException)e;
        if(e instanceof Throwable)
          throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -1931,7 +1931,7 @@ public class ChannelSftp extends ChannelSession{
        throwStatusError(buf, i);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_41");
+        ALoadClass.DebugPrintException("ex_41");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -1969,7 +1969,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_42");
+        ALoadClass.DebugPrintException("ex_42");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -1994,7 +1994,7 @@ public class ChannelSftp extends ChannelSession{
       SftpATTRS attr=SftpATTRS.getATTR(buf);
       return attr.isDir();
     }
-    catch(Exception e){LoadClass.DebugPrintException("ex_43");}
+    catch(Exception e){ALoadClass.DebugPrintException("ex_43");}
     return false;
   }
 
@@ -2017,7 +2017,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_44");
+        ALoadClass.DebugPrintException("ex_44");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2044,7 +2044,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_45");
+        ALoadClass.DebugPrintException("ex_45");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2071,7 +2071,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_46");
+        ALoadClass.DebugPrintException("ex_46");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2098,7 +2098,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_47");
+        ALoadClass.DebugPrintException("ex_47");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2138,7 +2138,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_48");
+        ALoadClass.DebugPrintException("ex_48");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2170,7 +2170,7 @@ public class ChannelSftp extends ChannelSession{
       throwStatusError(buf, i);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_49");
+        ALoadClass.DebugPrintException("ex_49");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2188,7 +2188,7 @@ public class ChannelSftp extends ChannelSession{
       return _stat(path);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_50");
+        ALoadClass.DebugPrintException("ex_50");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2220,7 +2220,7 @@ public class ChannelSftp extends ChannelSession{
       return attr;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_51");
+        ALoadClass.DebugPrintException("ex_51");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2243,7 +2243,7 @@ public class ChannelSftp extends ChannelSession{
       return _statVFS(path);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_52");
+        ALoadClass.DebugPrintException("ex_52");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2282,7 +2282,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_53");
+        ALoadClass.DebugPrintException("ex_53");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2305,7 +2305,7 @@ public class ChannelSftp extends ChannelSession{
       return _lstat(path);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_54");
+        ALoadClass.DebugPrintException("ex_54");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2335,7 +2335,7 @@ public class ChannelSftp extends ChannelSession{
       return attr;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_55");
+        ALoadClass.DebugPrintException("ex_55");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2388,7 +2388,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_56");
+        ALoadClass.DebugPrintException("ex_56");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2415,7 +2415,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_57");
+        ALoadClass.DebugPrintException("ex_57");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2435,7 +2435,7 @@ public class ChannelSftp extends ChannelSession{
         home=Util.byte2str(_home, fEncoding);
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_58");
+          ALoadClass.DebugPrintException("ex_58");
         if(e instanceof SftpException) throw (SftpException)e;
         if(e instanceof Throwable)
           throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);
@@ -2859,7 +2859,7 @@ public class ChannelSftp extends ChannelSession{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_59");
+        ALoadClass.DebugPrintException("ex_59");
     }
     return v;
   }
@@ -2999,7 +2999,7 @@ public class ChannelSftp extends ChannelSession{
       return Util.byte2str(_path, fEncoding);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_60");
+        ALoadClass.DebugPrintException("ex_60");
       if(e instanceof SftpException) throw (SftpException)e;
       if(e instanceof Throwable)
         throw new SftpException(SSH_FX_FAILURE, "", (Throwable)e);

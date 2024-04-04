@@ -195,7 +195,7 @@ loop:
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_124");
+        ALoadClass.DebugPrintException("ex_124");
       if(e instanceof JSchException)
 	throw (JSchException)e;         
       if(e instanceof Throwable)
@@ -316,7 +316,7 @@ loop:
           sync(bar); 
         }
         catch(Exception e){ 
-            LoadClass.DebugPrintException("ex_125");
+            ALoadClass.DebugPrintException("ex_125");
             System.err.println("sync known_hosts: "+e); 
         }
       }
@@ -384,7 +384,7 @@ loop:
       try{
           sync();
       }catch(Exception e){
-          LoadClass.DebugPrintException("ex_126");
+          ALoadClass.DebugPrintException("ex_126");
       };
     }
   }
@@ -436,7 +436,7 @@ loop:
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_127");
+        ALoadClass.DebugPrintException("ex_127");
       System.err.println(e);
     }
   }
@@ -464,10 +464,10 @@ loop:
   private MAC getHMACSHA1(){
     if(hmacsha1==null){
       try{
-        hmacsha1=(MAC)LoadClass.getInstanceByConfig("hmac-sha1");
+        hmacsha1=(MAC)ALoadClass.getInstanceByConfig("hmac-sha1");
       }
       catch(Exception e){ 
-          LoadClass.DebugPrintException("ex_128");
+          ALoadClass.DebugPrintException("ex_128");
         System.err.println("hmacsha1: "+e); 
       }
     }
@@ -528,7 +528,7 @@ loop:
         }
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_129");
+          ALoadClass.DebugPrintException("ex_129");
         System.out.println(e);
       }
       return false;
@@ -559,7 +559,7 @@ loop:
         }
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_130");
+          ALoadClass.DebugPrintException("ex_130");
       }
       host=HASH_MAGIC+Util.byte2str(Util.toBase64(salt, 0, salt.length))+
         HASH_DELIM+Util.byte2str(Util.toBase64(hash, 0, hash.length));

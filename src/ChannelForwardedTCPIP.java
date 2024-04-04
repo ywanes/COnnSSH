@@ -29,7 +29,7 @@ public class ChannelForwardedTCPIP extends Channel{
     try{ 
       if(config instanceof ConfigDaemon){
         ConfigDaemon _config = (ConfigDaemon)config;
-        daemon=(ForwardedTCPIPDaemon)LoadClass.getInstanceByName(_config.target);
+        daemon=(ForwardedTCPIPDaemon)ALoadClass.getInstanceByName(_config.target);
 
         PipedOutputStream out=new PipedOutputStream();
         io.setInputStream(new PassiveInputStream(out
@@ -55,7 +55,7 @@ public class ChannelForwardedTCPIP extends Channel{
       sendOpenConfirmation();
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_16");
+        ALoadClass.DebugPrintException("ex_16");
       sendOpenFailure(SSH_OPEN_ADMINISTRATIVELY_PROHIBITED);
       close=true;
       disconnect();
@@ -93,7 +93,7 @@ public class ChannelForwardedTCPIP extends Channel{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_17");
+        ALoadClass.DebugPrintException("ex_17");
     }
     disconnect();
   }
@@ -257,7 +257,7 @@ public class ChannelForwardedTCPIP extends Channel{
       session.write(packet);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_18");
+        ALoadClass.DebugPrintException("ex_18");
     }
   }
   static void delPort(Session session){

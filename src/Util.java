@@ -296,7 +296,7 @@ class Util{
       return sb.toString();
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_161");
+        ALoadClass.DebugPrintException("ex_161");
       return "???";
     }
   }
@@ -315,7 +315,7 @@ class Util{
         return socket;
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_162");
+          ALoadClass.DebugPrintException("ex_162");
         String message=e.toString();
         if(e instanceof Throwable)
           throw new JSchException(message, (Throwable)e);
@@ -334,7 +334,7 @@ class Util{
             sockp[0]=new Socket(_host, _port);
           }
           catch(Exception e){
-              LoadClass.DebugPrintException("ex_163");
+              ALoadClass.DebugPrintException("ex_163");
             ee[0]=e;
             if(sockp[0]!=null && sockp[0].isConnected()){
               try{

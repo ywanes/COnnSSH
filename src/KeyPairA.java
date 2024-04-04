@@ -123,7 +123,7 @@ public abstract class KeyPairA{
       //out.close();
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_98");
+        ALoadClass.DebugPrintException("ex_98");
     }
   }
 
@@ -158,7 +158,7 @@ public abstract class KeyPairA{
       out.write(cr);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_99");
+        ALoadClass.DebugPrintException("ex_99");
     }
   }
 
@@ -196,7 +196,7 @@ public abstract class KeyPairA{
       out.write(Util.str2byte("---- END SSH2 PUBLIC KEY ----")); out.write(cr);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_100");
+        ALoadClass.DebugPrintException("ex_100");
     }
   }
 
@@ -234,17 +234,6 @@ public abstract class KeyPairA{
     fos.close();
   }
 
-  /**
-   * Returns the finger-print of the public key.
-   * @return finger print
-   */
-  public String getFingerPrint(){
-    if(hash==null) hash=genHash();
-    byte[] kblob=getPublicKeyBlob();
-    if(kblob==null) return null;
-    return Util.getFingerPrint(hash, kblob);
-  }
-
   private byte[] encrypt(byte[] plain, byte[][] _iv, byte[] passphrase){
     if(passphrase==null) return plain;
 
@@ -275,7 +264,7 @@ public abstract class KeyPairA{
       cipher.update(encoded, 0, encoded.length, encoded, 0);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_101");      
+        ALoadClass.DebugPrintException("ex_101");      
     }
     Util.bzero(key);
     return encoded;
@@ -294,7 +283,7 @@ public abstract class KeyPairA{
       return plain;
     }
     catch(Exception e){
-      LoadClass.DebugPrintException("ex_102");
+      ALoadClass.DebugPrintException("ex_102");
     }
     return null;
   }
@@ -357,45 +346,29 @@ public abstract class KeyPairA{
   private Random genRandom(){
     if(random==null){
       try{
-        random=(Random)LoadClass.getInstanceByConfig("random");
+        random=(Random)ALoadClass.getInstanceByConfig("random");
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_103");
+          ALoadClass.DebugPrintException("ex_103");
           System.err.println("connect: random "+e); 
       }
     }
     return random;
   }
 
-  private HASH genHash(){
-    try{
-      hash=(HASH)LoadClass.getInstanceByConfig("md5");
-      hash.init();
-    }
-    catch(Exception e){
-        LoadClass.DebugPrintException("ex_104");
-    }
-    return hash;
-  }
   private Cipher genCipher(){
     try{
-      cipher=(Cipher)LoadClass.getInstanceByConfig("3des-cbc");
+      cipher=(Cipher)ALoadClass.getInstanceByConfig("3des-cbc");
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_105");
+        ALoadClass.DebugPrintException("ex_105");
     }
     return cipher;
   }
 
-  /*
-    hash is MD5
-    h(0) <- hash(passphrase, iv);
-    h(n) <- hash(h(n-1), passphrase, iv);
-    key <- (h(0),...,h(n))[0,..,key.length];
-  */
   synchronized byte[] genKey(byte[] passphrase, byte[] iv){
     if(cipher==null) cipher=genCipher();
-    if(hash==null) hash=genHash();
+    //if(hash==null) hash=genHash();
 
     byte[] key=new byte[cipher.getBlockSize()];
     int hsize=hash.getBlockSize();
@@ -423,7 +396,7 @@ public abstract class KeyPairA{
 	}
 	System.arraycopy(hn, 0, key, 0, key.length); 
       }else if(vendor==VENDOR_PUTTY){
-        HASH sha1=(HASH)LoadClass.getInstanceByConfig("sha-1");
+        HASH sha1=(HASH)ALoadClass.getInstanceByConfig("sha-1");
         tmp = new byte[4];
         key = new byte[20*2];
         for(int i = 0; i < 2; i++){
@@ -436,7 +409,7 @@ public abstract class KeyPairA{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_106");
+        ALoadClass.DebugPrintException("ex_106");
       System.err.println(e);
     }
     return key;
@@ -618,8 +591,9 @@ public abstract class KeyPairA{
         if(buf[i]=='A'&& i+7<len && buf[i+1]=='E'&& buf[i+2]=='S'&& buf[i+3]=='-' && 
            buf[i+4]=='2'&& buf[i+5]=='5'&& buf[i+6]=='6'&& buf[i+7]=='-'){
           i+=8;
-          if(Session.checkCipher(LoadClass.getNameByConfig("aes256-cbc"))){
-            cipher=(Cipher)LoadClass.getInstanceByConfig("aes256-cbc");
+          System.out.println(111112);
+          if(Session.checkCipher(ALoadClass.getNameByConfig("aes256-cbc"))){
+            cipher=(Cipher)ALoadClass.getInstanceByConfig("aes256-cbc");
             iv=new byte[cipher.getIVSize()];
           }
           else{
@@ -630,8 +604,9 @@ public abstract class KeyPairA{
         if(buf[i]=='A'&& i+7<len && buf[i+1]=='E'&& buf[i+2]=='S'&& buf[i+3]=='-' && 
            buf[i+4]=='1'&& buf[i+5]=='9'&& buf[i+6]=='2'&& buf[i+7]=='-'){
           i+=8;
-          if(Session.checkCipher(LoadClass.getNameByConfig("aes192-cbc"))){
-            cipher=(Cipher)LoadClass.getInstanceByConfig("aes192-cbc");
+          System.out.println(111113);
+          if(Session.checkCipher(ALoadClass.getNameByConfig("aes192-cbc"))){
+            cipher=(Cipher)ALoadClass.getInstanceByConfig("aes192-cbc");
             iv=new byte[cipher.getIVSize()];
           }
           else{
@@ -642,8 +617,9 @@ public abstract class KeyPairA{
         if(buf[i]=='A'&& i+7<len && buf[i+1]=='E'&& buf[i+2]=='S'&& buf[i+3]=='-' && 
            buf[i+4]=='1'&& buf[i+5]=='2'&& buf[i+6]=='8'&& buf[i+7]=='-'){
           i+=8;
-          if(Session.checkCipher(LoadClass.getNameByConfig("aes128-cbc"))){
-            cipher=(Cipher)LoadClass.getInstanceByConfig("aes128-cbc");
+          System.out.println(111114);
+          if(Session.checkCipher(ALoadClass.getNameByConfig("aes128-cbc"))){
+            cipher=(Cipher)ALoadClass.getInstanceByConfig("aes128-cbc");
             iv=new byte[cipher.getIVSize()];
           }
           else{
@@ -858,7 +834,7 @@ public abstract class KeyPairA{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_107");
+        ALoadClass.DebugPrintException("ex_107");
       if(e instanceof JSchException) throw (JSchException)e;
       if(e instanceof Throwable)
         throw new JSchException(e.toString(), (Throwable)e);
@@ -1011,13 +987,14 @@ public abstract class KeyPairA{
     kpair.vendor = VENDOR_PUTTY;
     kpair.publicKeyComment = (String)v.get("Comment");
     if(kpair.encrypted){
-      if(Session.checkCipher(LoadClass.getNameByConfig("aes256-cbc"))){
+      System.out.println(111115);
+      if(Session.checkCipher(ALoadClass.getNameByConfig("aes256-cbc"))){
         try {
-          kpair.cipher=(Cipher)LoadClass.getInstanceByConfig("aes256-cbc");
+          kpair.cipher=(Cipher)ALoadClass.getInstanceByConfig("aes256-cbc");
           kpair.iv=new byte[kpair.cipher.getIVSize()];
         }
         catch(Exception e){
-            LoadClass.DebugPrintException("ex_108");
+            ALoadClass.DebugPrintException("ex_108");
           throw new JSchException("The cipher 'aes256-cbc' is required, but it is not available.");
         }
       }

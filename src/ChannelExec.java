@@ -12,7 +12,7 @@ public class ChannelExec extends ChannelSession{
       request.request(_session, this);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_15");
+        ALoadClass.DebugPrintException("ex_15");
       if(e instanceof JSchException) throw (JSchException)e;
       if(e instanceof Throwable)
         throw new JSchException("ChannelExec", (Throwable)e);

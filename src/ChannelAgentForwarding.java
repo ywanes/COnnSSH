@@ -52,7 +52,7 @@ class ChannelAgentForwarding extends Channel{
       sendOpenConfirmation();
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_11");
+        ALoadClass.DebugPrintException("ex_11");
       close=true;
       disconnect();
     }
@@ -225,7 +225,7 @@ class ChannelAgentForwarding extends Channel{
       getSession().write(packet, this, 4+message.length);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_12");
+        ALoadClass.DebugPrintException("ex_12");
     }
   }
 

@@ -23,7 +23,7 @@ public class ChannelSubsystem extends ChannelSession{
       ((RequestSubsystem)request).request(_session, this, subsystem, want_reply);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_62");
+        ALoadClass.DebugPrintException("ex_62");
       if(e instanceof JSchException){ throw (JSchException)e; }
       if(e instanceof Throwable)
         throw new JSchException("ChannelSubsystem", (Throwable)e);

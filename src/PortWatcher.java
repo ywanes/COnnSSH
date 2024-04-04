@@ -118,7 +118,7 @@ class PortWatcher implements Runnable{
       ss=new ServerSocket(lport, 0, boundaddress);
     }
     catch(Exception e){ 
-        LoadClass.DebugPrintException("ex_131");      
+        ALoadClass.DebugPrintException("ex_131");      
       String message="PortForwardingL: local port "+address+":"+lport+" cannot be bound.";
       if(e instanceof Throwable)
         throw new JSchException(message, (Throwable)e);
@@ -154,7 +154,7 @@ class PortWatcher implements Runnable{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_132");      
+        ALoadClass.DebugPrintException("ex_132");      
     }
     delete();
   }
@@ -166,7 +166,7 @@ class PortWatcher implements Runnable{
       ss=null;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_133");
+        ALoadClass.DebugPrintException("ex_133");
     }
   }
 

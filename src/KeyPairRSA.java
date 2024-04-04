@@ -31,28 +31,7 @@ public class KeyPairRSA extends KeyPairA{
   }
 
   void generate(int key_size) throws JSchException{
-    this.key_size=key_size;
-    try{
-      KeyPairGenRSA keypairgen=(KeyPairGenRSA)LoadClass.getInstanceByConfig("keypairgen.rsa");
-      keypairgen.init(key_size);
-      pub_array=keypairgen.getE();
-      prv_array=keypairgen.getD();
-      n_array=keypairgen.getN();
-
-      p_array=keypairgen.getP();
-      q_array=keypairgen.getQ();
-      ep_array=keypairgen.getEP();
-      eq_array=keypairgen.getEQ();
-      c_array=keypairgen.getC();
-
-      keypairgen=null;
-    }
-    catch(Exception e){
-      LoadClass.DebugPrintException("ex_120");
-      if(e instanceof Throwable)
-        throw new JSchException(e.toString(), (Throwable)e);
-      throw new JSchException(e.toString());
-    }
+    System.out.println("removido");
   }
 
   private static final byte[] begin=Util.str2byte("-----BEGIN RSA PRIVATE KEY-----");
@@ -258,7 +237,7 @@ public class KeyPairRSA extends KeyPairA{
 
     }
     catch(Exception e){
-      LoadClass.DebugPrintException("ex_121");
+      ALoadClass.DebugPrintException("ex_121");
       return false;
     }
     return true;
@@ -286,7 +265,7 @@ public class KeyPairRSA extends KeyPairA{
 
   public byte[] getSignature(byte[] data){
     try{      
-      SignatureRSA rsa=(SignatureRSA)LoadClass.getInstanceByConfig("signature.rsa");
+      SignatureRSA rsa=(SignatureRSA)ALoadClass.getInstanceByConfig("signature.rsa");
       rsa.init();
       rsa.setPrvKey(prv_array, n_array);
 
@@ -298,14 +277,14 @@ public class KeyPairRSA extends KeyPairA{
       return Buffer.fromBytes(tmp).buffer;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_122");
+        ALoadClass.DebugPrintException("ex_122");
     }
     return null;
   }
 
   public Signature getVerifier(){
     try{      
-      SignatureRSA rsa=(SignatureRSA)LoadClass.getInstanceByConfig("signature.rsa");
+      SignatureRSA rsa=(SignatureRSA)ALoadClass.getInstanceByConfig("signature.rsa");
       rsa.init();
 
       if(pub_array == null && n_array == null && getPublicKeyBlob()!=null){
@@ -319,7 +298,7 @@ public class KeyPairRSA extends KeyPairA{
       return rsa;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_123");
+        ALoadClass.DebugPrintException("ex_123");
     }
     return null;
   }

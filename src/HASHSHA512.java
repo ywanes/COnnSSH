@@ -6,7 +6,7 @@ public class HASHSHA512 implements HASH {
   public void init() throws Exception {
     try{ md=MessageDigest.getInstance("SHA-512"); }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_83");
+        ALoadClass.DebugPrintException("ex_83");
       System.err.println(e);
     }
   }

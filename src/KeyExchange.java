@@ -119,14 +119,7 @@ public abstract class KeyExchange{
   }
 
   public String getFingerPrint(){
-    HASH hash=null;
-    try{
-      hash=(HASH)LoadClass.getInstanceByConfig("md5");
-    }catch(Exception e){ 
-        LoadClass.DebugPrintException("ex_85");
-      System.err.println("getFingerPrint: "+e); 
-    }
-    return Util.getFingerPrint(hash, getHostKey());
+    return null;
   }
   byte[] getK(){ return K; }
   byte[] getH(){ return H; }
@@ -176,11 +169,11 @@ public abstract class KeyExchange{
 	
       SignatureRSA sig=null;
       try{
-        sig=(SignatureRSA)LoadClass.getInstanceByConfig("signature.rsa");
+        sig=(SignatureRSA)ALoadClass.getInstanceByConfig("signature.rsa");
         sig.init();
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_86");
+          ALoadClass.DebugPrintException("ex_86");
         System.err.println(e);
       }
       sig.setPubKey(ee, n);   
@@ -190,51 +183,6 @@ public abstract class KeyExchange{
       if(JSch.getLogger().isEnabled(Logger.INFO)){
         JSch.getLogger().log(Logger.INFO, 
                              "ssh_rsa_verify: signature "+result);
-      }
-    }
-    else if(alg.equals("ssh-dss")){
-      byte[] q=null;
-      byte[] tmp;
-      byte[] p;
-      byte[] g;
-      byte[] f;
-      
-      type=DSS;
-      key_alg_name=alg;
-
-      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
-	  ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
-      tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); i+=j;
-      p=tmp;
-      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
-        ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
-      tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); i+=j;
-      q=tmp;
-      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
-	  ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
-      tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); i+=j;
-      g=tmp;
-      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
-        ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
-      tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); i+=j;
-      f=tmp;
-
-      SignatureDSA sig=null;
-      try{
-        sig=(SignatureDSA)LoadClass.getInstanceByConfig("signature.dss");
-        sig.init();
-      }
-      catch(Exception e){
-          LoadClass.DebugPrintException("ex_87");
-        System.err.println(e);
-      }
-      sig.setPubKey(f, p, q, g);   
-      sig.update(H);
-      result=sig.verify(sig_of_H);
-
-      if(JSch.getLogger().isEnabled(Logger.INFO)){
-        JSch.getLogger().log(Logger.INFO, 
-                             "ssh_dss_verify: signature "+result);
       }
     }
     else if(alg.equals("ecdsa-sha2-nistp256") ||
@@ -263,11 +211,11 @@ public abstract class KeyExchange{
 
       SignatureECDSA sig=null;
       try{
-        sig=(SignatureECDSA)LoadClass.getInstanceByConfig(alg);
+        sig=(SignatureECDSA)ALoadClass.getInstanceByConfig(alg);
         sig.init();
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_88");
+          ALoadClass.DebugPrintException("ex_88");
         System.err.println(e);
       }
 

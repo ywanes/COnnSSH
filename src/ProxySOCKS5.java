@@ -20,7 +20,7 @@ public class ProxySOCKS5 implements Proxy{
 	port=Integer.parseInt(proxy_host.substring(proxy_host.indexOf(':')+1));
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_141");
+          ALoadClass.DebugPrintException("ex_141");
       }
     }
     this.proxy_host=host;
@@ -265,7 +265,7 @@ public class ProxySOCKS5 implements Proxy{
       throw e;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_142");
+        ALoadClass.DebugPrintException("ex_142");
       try{ if(socket!=null)socket.close(); }
       catch(Exception eee){
       }
@@ -285,7 +285,7 @@ public class ProxySOCKS5 implements Proxy{
       if(socket!=null)socket.close();
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_143");
+        ALoadClass.DebugPrintException("ex_143");
     }
     in=null;
     out=null;

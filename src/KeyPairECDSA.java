@@ -60,7 +60,7 @@ public class KeyPairECDSA extends KeyPairA{
   void generate(int key_size) throws JSchException{
     this.key_size=key_size;
     try{
-      KeyPairGenECDSA keypairgen=(KeyPairGenECDSA)LoadClass.getInstanceByConfig("keypairgen.ecdsa");
+      KeyPairGenECDSA keypairgen=(KeyPairGenECDSA)ALoadClass.getInstanceByConfig("keypairgen.ecdsa");
       keypairgen.init(key_size);
       prv_array=keypairgen.getD();
       r_array=keypairgen.getR();
@@ -70,7 +70,7 @@ public class KeyPairECDSA extends KeyPairA{
       keypairgen=null;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_113");
+        ALoadClass.DebugPrintException("ex_113");
       if(e instanceof Throwable)
         throw new JSchException(e.toString(), (Throwable)e);
       throw new JSchException(e.toString());
@@ -233,7 +233,7 @@ public class KeyPairECDSA extends KeyPairA{
                     (prv_array.length>=48 ? 384 : 256);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_114");
+        ALoadClass.DebugPrintException("ex_114");
       return false;
     }
     return true;
@@ -269,7 +269,7 @@ public class KeyPairECDSA extends KeyPairA{
 
   public byte[] getSignature(byte[] data){
     try{
-      SignatureECDSA ecdsa=(SignatureECDSA)LoadClass.getInstanceByConfig("ecdsa-sha2-"+new String(name));
+      SignatureECDSA ecdsa=(SignatureECDSA)ALoadClass.getInstanceByConfig("ecdsa-sha2-"+new String(name));
       ecdsa.init();
       ecdsa.setPrvKey(prv_array);
 
@@ -282,14 +282,14 @@ public class KeyPairECDSA extends KeyPairA{
       return Buffer.fromBytes(tmp).buffer;
     }
     catch(Exception e){
-      LoadClass.DebugPrintException("ex_115");
+      ALoadClass.DebugPrintException("ex_115");
     }
     return null;
   }
 
   public Signature getVerifier(){
     try{
-      final SignatureECDSA ecdsa=(SignatureECDSA)LoadClass.getInstanceByConfig("ecdsa-sha2-"+new String(name));
+      final SignatureECDSA ecdsa=(SignatureECDSA)ALoadClass.getInstanceByConfig("ecdsa-sha2-"+new String(name));
       ecdsa.init();
 
       if(r_array == null && s_array == null && getPublicKeyBlob()!=null){
@@ -304,7 +304,7 @@ public class KeyPairECDSA extends KeyPairA{
       return ecdsa;
     }
     catch(Exception e){
-      LoadClass.DebugPrintException("ex_116");
+      ALoadClass.DebugPrintException("ex_116");
     }
     return null;
   }

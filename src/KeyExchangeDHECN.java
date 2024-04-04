@@ -21,11 +21,11 @@ public abstract class KeyExchangeDHECN extends KeyExchange{
     this.I_C=I_C;      
 
     try{
-      sha=(HASH)LoadClass.getInstanceByConfig(sha_name);
+      sha=(HASH)ALoadClass.getInstanceByConfig(sha_name);
       sha.init();
     }
     catch(Exception e){
-      LoadClass.DebugPrintException("ex_89");  
+      ALoadClass.DebugPrintException("ex_89");  
       System.err.println(e);
     }
 
@@ -36,14 +36,14 @@ public abstract class KeyExchangeDHECN extends KeyExchange{
     buf.putByte((byte)SSH_MSG_KEX_ECDH_INIT);
 
     try{
-      ecdh=(KeyExchangeECDH)LoadClass.getInstanceByConfig("ecdh-sha2-nistp");
+      ecdh=(KeyExchangeECDH)ALoadClass.getInstanceByConfig("ecdh-sha2-nistp");
       ecdh.init(key_size);
 
       Q_C = ecdh.getQ();
       buf.putString(Q_C);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_90");
+        ALoadClass.DebugPrintException("ex_90");
       if(e instanceof Throwable)
         throw new JSchException(e.toString(), (Throwable)e);
       throw new JSchException(e.toString());

@@ -29,24 +29,7 @@ public class KeyPairDSA extends KeyPairA{
   }
 
   void generate(int key_size) throws JSchException{
-    this.key_size=key_size;
-    try{
-      KeyPairGenDSA keypairgen=(KeyPairGenDSA)LoadClass.getInstanceByConfig("keypairgen.dsa");
-      keypairgen.init(key_size);
-      P_array=keypairgen.getP();
-      Q_array=keypairgen.getQ();
-      G_array=keypairgen.getG();
-      pub_array=keypairgen.getY();
-      prv_array=keypairgen.getX();
-
-      keypairgen=null;
-    }
-    catch(Exception e){
-        LoadClass.DebugPrintException("ex_109");      
-      if(e instanceof Throwable)
-        throw new JSchException(e.toString(), (Throwable)e);
-      throw new JSchException(e.toString());
-    }
+    System.out.println("removido");
   }
 
   private static final byte[] begin=Util.str2byte("-----BEGIN DSA PRIVATE KEY-----");
@@ -186,7 +169,7 @@ public class KeyPairDSA extends KeyPairA{
         key_size = (new java.math.BigInteger(P_array)).bitLength();
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_110");
+        ALoadClass.DebugPrintException("ex_110");
       return false;
     }
     return true;
@@ -215,44 +198,12 @@ public class KeyPairDSA extends KeyPairA{
   }
 
   public byte[] getSignature(byte[] data){
-    try{      
-      SignatureDSA dsa=(SignatureDSA)LoadClass.getInstanceByConfig("signature.dss");
-      dsa.init();
-      dsa.setPrvKey(prv_array, P_array, Q_array, G_array);
-
-      dsa.update(data);
-      byte[] sig = dsa.sign();
-      byte[][] tmp = new byte[2][];
-      tmp[0] = sshdss;
-      tmp[1] = sig;
-      return Buffer.fromBytes(tmp).buffer;
-    }
-    catch(Exception e){
-        LoadClass.DebugPrintException("ex_111");      
-    }
+    System.out.println("removido");
     return null;
   }
 
   public Signature getVerifier(){
-    try{      
-      SignatureDSA dsa=(SignatureDSA)LoadClass.getInstanceByConfig("signature.dss");
-      dsa.init();
-
-      if(pub_array == null && P_array == null && getPublicKeyBlob()!=null){
-        Buffer buf = new Buffer(getPublicKeyBlob());
-        buf.getString();
-        P_array = buf.getString();
-        Q_array = buf.getString();
-        G_array = buf.getString();
-        pub_array = buf.getString();
-      } 
-
-      dsa.setPubKey(pub_array, P_array, Q_array, G_array);
-      return dsa;
-    }
-    catch(Exception e){
-        LoadClass.DebugPrintException("ex_102");      
-    }
+    System.out.println("removido");
     return null;
   }
 

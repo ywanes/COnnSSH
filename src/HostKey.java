@@ -75,10 +75,10 @@ public class HostKey{
   public String getFingerPrint(JSch jsch){
     HASH hash=null;
     try{
-      hash=(HASH)LoadClass.getInstanceByConfig("md5");
+      hash=(HASH)ALoadClass.getInstanceByConfig("md5");
     }
     catch(Exception e){ 
-        LoadClass.DebugPrintException("ex_84");
+        ALoadClass.DebugPrintException("ex_84");
         System.err.println("getFingerPrint: "+e); 
     }
     return Util.getFingerPrint(hash, key);

@@ -20,7 +20,7 @@ public class ProxySOCKS4 implements Proxy{
 	port=Integer.parseInt(proxy_host.substring(proxy_host.indexOf(':')+1));
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_138");
+          ALoadClass.DebugPrintException("ex_138");
       }
     }
     this.proxy_host=host;
@@ -141,7 +141,7 @@ public class ProxySOCKS4 implements Proxy{
       throw e;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_139");
+        ALoadClass.DebugPrintException("ex_139");
       try{ if(socket!=null)socket.close(); }
       catch(Exception eee){
       }
@@ -158,7 +158,7 @@ public class ProxySOCKS4 implements Proxy{
       if(socket!=null)socket.close();
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_140");
+        ALoadClass.DebugPrintException("ex_140");
     }
     in=null;
     out=null;

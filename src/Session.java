@@ -158,10 +158,10 @@ public class Session implements Runnable{
     io=new IO();
     if(random==null){
       try{
-        random=(Random)LoadClass.getInstanceByConfig("random");
+        random=(Random)ALoadClass.getInstanceByConfig("random");
       }
       catch(Exception e){ 
-          LoadClass.DebugPrintException("ex_144");
+          ALoadClass.DebugPrintException("ex_144");
         throw new JSchException(e.toString(), e);
       }
     }
@@ -329,13 +329,13 @@ public class Session implements Runnable{
       }
 
       try{
-        String s = LoadClass.getNameByConfig("MaxAuthTries");
+        String s = ALoadClass.getNameByConfig("MaxAuthTries");
         if(s!=null){
           max_auth_tries = Integer.parseInt(s);
         }
       }
       catch(NumberFormatException e){
-        throw new JSchException("MaxAuthTries: "+LoadClass.getNameByConfig("MaxAuthTries"), e);
+        throw new JSchException("MaxAuthTries: "+ALoadClass.getNameByConfig("MaxAuthTries"), e);
       }
 
       boolean auth=false;
@@ -343,16 +343,16 @@ public class Session implements Runnable{
 
       UserAuth ua=null;
       try{
-        ua=(UserAuth)LoadClass.getInstanceByConfig("userauth.none");
+        ua=(UserAuth)ALoadClass.getInstanceByConfig("userauth.none");
       }
       catch(Exception e){ 
-          LoadClass.DebugPrintException("ex_145");
+          ALoadClass.DebugPrintException("ex_145");
         throw new JSchException(e.toString(), e);
       }
 
       auth=ua.start(this);
 
-      String cmethods=LoadClass.getNameByConfig("PreferredAuthentications");
+      String cmethods=ALoadClass.getNameByConfig("PreferredAuthentications");
 
       String[] cmethoda=Util.split(cmethods, ",");
 
@@ -407,20 +407,8 @@ public class Session implements Runnable{
           }
 
 	  ua=null;
-          try{
-            if(LoadClass.getNameByConfig("userauth."+method)!=null){
-              ua=(UserAuth)LoadClass.getInstanceByConfig("userauth."+method);
-            }
-          }
-          catch(Exception e){
-              LoadClass.DebugPrintException("ex_146");
-            if(JSch.getLogger().isEnabled(Logger.WARN)){
-              JSch.getLogger().log(Logger.WARN, 
-                                   "failed to load "+method+" method");
-            }
-          }
-
-	  if(ua!=null){
+          if ( method.equals("password") ){
+            ua=(UserAuth)ALoadClass.getInstanceByConfig("userauth."+method);
             auth_cancel=false;
 	    try{ 
 	      auth=ua.start(this); 
@@ -458,7 +446,7 @@ public class Session implements Runnable{
               }
               break loop;
 	    }
-	  }
+          }
 	}
         break;
       }
@@ -554,10 +542,10 @@ public class Session implements Runnable{
 
     KeyExchange kex=null;
     try{
-      kex=(KeyExchange)LoadClass.getInstanceByConfig(guess[KeyExchange.PROPOSAL_KEX_ALGS]);
+      kex=(KeyExchange)ALoadClass.getInstanceByConfig(guess[KeyExchange.PROPOSAL_KEX_ALGS]);
     }
     catch(Exception e){ 
-        LoadClass.DebugPrintException("ex_147");
+        ALoadClass.DebugPrintException("ex_147");
       throw new JSchException(e.toString(), e);
     }
 
@@ -574,10 +562,10 @@ public class Session implements Runnable{
     if(in_kex)
       return;
 
-    String cipherc2s=LoadClass.getNameByConfig("cipher.c2s");
-    String ciphers2c=LoadClass.getNameByConfig("cipher.s2c");
+    String cipherc2s=ALoadClass.getNameByConfig("cipher.c2s");
+    String ciphers2c=ALoadClass.getNameByConfig("cipher.s2c");
 
-    String[] not_available_ciphers=checkCiphers(LoadClass.getNameByConfig("CheckCiphers"));
+    String[] not_available_ciphers=checkCiphers(ALoadClass.getNameByConfig("CheckCiphers"));
     if(not_available_ciphers!=null && not_available_ciphers.length>0){
       cipherc2s=Util.diffString(cipherc2s, not_available_ciphers);
       ciphers2c=Util.diffString(ciphers2c, not_available_ciphers);
@@ -586,8 +574,8 @@ public class Session implements Runnable{
       }
     }
 
-    String kex=LoadClass.getNameByConfig("kex");
-    String[] not_available_kexes=checkKexes(LoadClass.getNameByConfig("CheckKexes"));
+    String kex=ALoadClass.getNameByConfig("kex");
+    String[] not_available_kexes=checkKexes(ALoadClass.getNameByConfig("CheckKexes"));
     if(not_available_kexes!=null && not_available_kexes.length>0){
       kex=Util.diffString(kex, not_available_kexes);
       if(kex==null){
@@ -595,9 +583,9 @@ public class Session implements Runnable{
       }
     }
 
-    String server_host_key = LoadClass.getNameByConfig("server_host_key");
+    String server_host_key = ALoadClass.getNameByConfig("server_host_key");
     String[] not_available_shks =
-      checkSignatures(LoadClass.getNameByConfig("CheckSignatures"));
+      checkSignatures(ALoadClass.getNameByConfig("CheckSignatures"));
     if(not_available_shks!=null && not_available_shks.length>0){
       server_host_key=Util.diffString(server_host_key, not_available_shks);
       if(server_host_key==null){
@@ -631,12 +619,12 @@ public class Session implements Runnable{
     buf.putString(Util.str2byte(server_host_key));
     buf.putString(Util.str2byte(cipherc2s));
     buf.putString(Util.str2byte(ciphers2c));
-    buf.putString(Util.str2byte(LoadClass.getNameByConfig("mac.c2s")));
-    buf.putString(Util.str2byte(LoadClass.getNameByConfig("mac.s2c")));
-    buf.putString(Util.str2byte(LoadClass.getNameByConfig("compression.c2s")));
-    buf.putString(Util.str2byte(LoadClass.getNameByConfig("compression.s2c")));
-    buf.putString(Util.str2byte(LoadClass.getNameByConfig("lang.c2s")));
-    buf.putString(Util.str2byte(LoadClass.getNameByConfig("lang.s2c")));
+    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("mac.c2s")));
+    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("mac.s2c")));
+    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("compression.c2s")));
+    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("compression.s2c")));
+    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("lang.c2s")));
+    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("lang.s2c")));
     buf.putByte((byte)0);
     buf.putInt(0);
 
@@ -665,17 +653,15 @@ public class Session implements Runnable{
   }
 
   private void checkHost(String chost, int port, KeyExchange kex) throws JSchException {
-    String shkc=LoadClass.getNameByConfig("StrictHostKeyChecking");
+    String shkc=ALoadClass.getNameByConfig("StrictHostKeyChecking");
 
     if(hostKeyAlias!=null){
       chost=hostKeyAlias;
     }
 
-    //System.err.println("shkc: "+shkc);
-
     byte[] K_S=kex.getHostKey();
     String key_type=kex.getKeyType();
-    String key_fprint=kex.getFingerPrint();
+    String key_fprint=null;
 
     if(hostKeyAlias==null && port!=22){
       chost=("["+chost+"]:"+port);
@@ -683,7 +669,7 @@ public class Session implements Runnable{
 
     HostKeyRepository hkr=getHostKeyRepository();
 
-    String hkh=LoadClass.getNameByConfig("HashKnownHosts");
+    String hkh=ALoadClass.getNameByConfig("HashKnownHosts");
     if(hkh.equals("yes") && (hkr instanceof KnownHosts)){
       hostkey=((KnownHosts)hkr).createHashedHostKey(chost, K_S);
     }
@@ -826,7 +812,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       return channel;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_148");      
+        ALoadClass.DebugPrintException("ex_148");      
     }
     return null;
   }
@@ -1108,7 +1094,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       String method;
   
       method=guess[KeyExchange.PROPOSAL_ENC_ALGS_STOC];
-      s2ccipher=(Cipher)LoadClass.getInstanceByConfig(method);
+      s2ccipher=(Cipher)ALoadClass.getInstanceByConfig(method);
       while(s2ccipher.getBlockSize()>Es2c.length){
         buf.reset();
         buf.putMPInt(K);
@@ -1125,7 +1111,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       s2ccipher_size=s2ccipher.getIVSize();
 
       method=guess[KeyExchange.PROPOSAL_MAC_ALGS_STOC];
-      s2cmac = (MAC)LoadClass.getInstanceByConfig(method);
+      s2cmac = (MAC)ALoadClass.getInstanceByConfig(method);
       MACs2c = expandKey(buf, K, H, MACs2c, hash, s2cmac.getBlockSize());
       s2cmac.init(MACs2c);
       //mac_buf=new byte[s2cmac.getBlockSize()];
@@ -1133,7 +1119,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       s2cmac_result2=new byte[s2cmac.getBlockSize()];
 
       method=guess[KeyExchange.PROPOSAL_ENC_ALGS_CTOS];
-      c2scipher = (Cipher)LoadClass.getInstanceByConfig(method);
+      c2scipher = (Cipher)ALoadClass.getInstanceByConfig(method);
       while(c2scipher.getBlockSize()>Ec2s.length){
         buf.reset();
         buf.putMPInt(K);
@@ -1150,7 +1136,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       c2scipher_size=c2scipher.getIVSize();
 
       method=guess[KeyExchange.PROPOSAL_MAC_ALGS_CTOS];
-      c2smac = (MAC)LoadClass.getInstanceByConfig(method);
+      c2smac = (MAC)ALoadClass.getInstanceByConfig(method);
       MACc2s = expandKey(buf, K, H, MACc2s, hash, c2smac.getBlockSize());
       c2smac.init(MACc2s);
 
@@ -1161,7 +1147,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       initInflater(method);
     }
     catch(Exception e){ 
-        LoadClass.DebugPrintException("ex_149");
+        ALoadClass.DebugPrintException("ex_149");
       if(e instanceof JSchException)
         throw e;
       throw new JSchException(e.toString(), e);       
@@ -1411,7 +1397,7 @@ try{
 	  channel.write(foo, start[0], length[0]);
 }
 catch(Exception e){
-    LoadClass.DebugPrintException("ex_150");
+    ALoadClass.DebugPrintException("ex_150");
   try{channel.disconnect();}catch(Exception ee){}
 break;
 }
@@ -1643,7 +1629,7 @@ break;
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_151");
+        ALoadClass.DebugPrintException("ex_151");
       in_kex=false;
       if(JSch.getLogger().isEnabled(Logger.INFO)){
         JSch.getLogger().log(Logger.INFO,
@@ -1660,7 +1646,7 @@ break;
       //e.printStackTrace();
     }
     catch(Exception e){
-      LoadClass.DebugPrintException("ex_152");      
+      ALoadClass.DebugPrintException("ex_152");      
     }
     isConnected=false;
   }
@@ -1707,7 +1693,7 @@ break;
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_153");
+        ALoadClass.DebugPrintException("ex_153");
     }
     io=null;
     socket=null;
@@ -2050,7 +2036,7 @@ break;
       write(packet);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_154");
+        ALoadClass.DebugPrintException("ex_154");
       grr.setThread(null);
       if(e instanceof Throwable)
         throw new JSchException(e.toString(), (Throwable)e);
@@ -2062,7 +2048,7 @@ break;
     while(count < 10 && reply == -1){
       try{ Thread.sleep(1000); }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_155");
+          ALoadClass.DebugPrintException("ex_155");
       }
       count++; 
       reply = grr.getReply();
@@ -2102,14 +2088,14 @@ break;
       deflater=null;
       return;
     }
-    String foo=LoadClass.getNameByConfig(method);
+    String foo=ALoadClass.getNameByConfig(method);
     if(foo!=null){
       if(method.equals("zlib") ||
          (isAuthed && method.equals("zlib@openssh.com"))){
         try{
-          deflater=(Compression)LoadClass.getInstanceByName(foo);
+          deflater=(Compression)ALoadClass.getInstanceByName(foo);
           int level=6;
-          try{ level=Integer.parseInt(LoadClass.getNameByConfig("compression_level"));}
+          try{ level=Integer.parseInt(ALoadClass.getNameByConfig("compression_level"));}
           catch(Exception ee){ }
           deflater.init(Compression.DEFLATER, level);
         }
@@ -2129,12 +2115,12 @@ break;
       return;
     }
     
-    String foo=LoadClass.getNameByConfig(method);
+    String foo=ALoadClass.getNameByConfig(method);
     if(foo!=null){
       if(method.equals("zlib") ||
          (isAuthed && method.equals("zlib@openssh.com"))){
         try{
-          inflater=(Compression)LoadClass.getInstanceByName(foo);
+          inflater=(Compression)ALoadClass.getInstanceByName(foo);
           inflater.init(Compression.INFLATER, 0);
         }
         catch(Exception ee){
@@ -2213,7 +2199,7 @@ break;
       this.timeout=timeout;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_156");
+        ALoadClass.DebugPrintException("ex_156");
       if(e instanceof Throwable)
         throw new JSchException(e.toString(), (Throwable)e);
       throw new JSchException(e.toString());
@@ -2328,18 +2314,18 @@ break;
                            "CheckCiphers: "+ciphers);
     }
 
-    String cipherc2s=LoadClass.getNameByConfig("cipher.c2s");
-    String ciphers2c=LoadClass.getNameByConfig("cipher.s2c");
+    String cipherc2s=ALoadClass.getNameByConfig("cipher.c2s");
+    String ciphers2c=ALoadClass.getNameByConfig("cipher.s2c");
 
     Vector result=new Vector();
     String[] _ciphers=Util.split(ciphers, ",");
     for(int i=0; i<_ciphers.length; i++){
       String cipher=_ciphers[i];
       if(ciphers2c.indexOf(cipher) == -1 && cipherc2s.indexOf(cipher) == -1)
+        continue; 
+      if ( cipher.equals("aes256-ctr") )
         continue;
-      if(!checkCipher(LoadClass.getNameByConfig(cipher))){
-        result.addElement(cipher);
-      }
+      result.addElement(cipher);
     }
     if(result.size()==0)
       return null;
@@ -2358,18 +2344,18 @@ break;
 
   static boolean checkCipher(String cipher){
     try{
-      Cipher _c=(Cipher)LoadClass.getInstanceByName(cipher);
+      Cipher _c=(Cipher)ALoadClass.getInstanceByName(cipher);
       _c.init(Cipher.ENCRYPT_MODE,
               new byte[_c.getBlockSize()],
               new byte[_c.getIVSize()]);
       return true;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_157 " + cipher);
+        ALoadClass.DebugPrintException("ex_157 " + cipher);
       return false;
     }
   }
-
+  
   private String[] checkKexes(String kexes){
     if(kexes==null || kexes.length()==0)
       return null;
@@ -2382,9 +2368,12 @@ break;
     java.util.Vector result=new java.util.Vector();
     String[] _kexes=Util.split(kexes, ",");
     for(int i=0; i<_kexes.length; i++){
-      if(!checkKex(this, LoadClass.getNameByConfig(_kexes[i]))){
+      if ( _kexes[i].equals("ecdh-sha2-nistp521") )  
+        continue;
+      //if(!checkKex2(this, ALoadClass.getNameByConfig(_kexes[i]))){
         result.addElement(_kexes[i]);
-      }
+//System.out.println(1111 + " B " + _kexes[i]);        
+//      }
     }
     if(result.size()==0)
       return null;
@@ -2401,18 +2390,6 @@ break;
     return foo;
   }
 
-  static boolean checkKex(Session s, String kex){
-    try{
-      KeyExchange _c=(KeyExchange)LoadClass.getInstanceByName(kex);
-      _c.init(s ,null, null, null, null);
-      return true;
-    }
-    catch(Exception e){ 
-        LoadClass.DebugPrintException("ex_158");
-        return false; 
-    }
-  }
-
   private String[] checkSignatures(String sigs){
     if(sigs==null || sigs.length()==0)
       return null;
@@ -2424,16 +2401,8 @@ break;
 
     java.util.Vector result=new java.util.Vector();
     String[] _sigs=Util.split(sigs, ",");
-    for(int i=0; i<_sigs.length; i++){
-      try{      
-        final Signature sig=(Signature)LoadClass.getInstanceByConfig(_sigs[i]);
-        sig.init();
-      }
-      catch(Exception e){
-          LoadClass.DebugPrintException("ex_159");
-        result.addElement(_sigs[i]);
-      }
-   }
+    for(int i=0; i<_sigs.length; i++)
+      result.addElement(_sigs[i]);
    if(result.size()==0)
       return null;
    String[] foo=new String[result.size()];
@@ -2672,7 +2641,7 @@ break;
 
   private void requestPortForwarding() throws JSchException {
 
-    if(LoadClass.getNameByConfig("ClearAllForwardings").equals("yes"))
+    if(ALoadClass.getNameByConfig("ClearAllForwardings").equals("yes"))
       return;
 
     ConfigRepository configRepository = jsch.getConfigRepository();

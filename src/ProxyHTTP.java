@@ -21,7 +21,7 @@ public class ProxyHTTP implements Proxy{
 	port=Integer.parseInt(proxy_host.substring(proxy_host.indexOf(':')+1));
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_134");
+          ALoadClass.DebugPrintException("ex_134");
       }
     }
     this.proxy_host=host;
@@ -80,7 +80,7 @@ public class ProxyHTTP implements Proxy{
         reason=response.substring(bar+1);
       }
       catch(Exception e){
-          LoadClass.DebugPrintException("ex_135");
+          ALoadClass.DebugPrintException("ex_135");
       }
       if(code!=200){
         throw new IOException("proxy error: "+reason);
@@ -114,7 +114,7 @@ public class ProxyHTTP implements Proxy{
       throw e;
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_136");
+        ALoadClass.DebugPrintException("ex_136");
       try{ if(socket!=null)socket.close(); }
       catch(Exception eee){
       }
@@ -134,7 +134,7 @@ public class ProxyHTTP implements Proxy{
       if(socket!=null)socket.close();
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_137");
+        ALoadClass.DebugPrintException("ex_137");
     }
     in=null;
     out=null;

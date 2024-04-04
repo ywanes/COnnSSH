@@ -44,7 +44,7 @@ public class ChannelDirectTCPIP extends Channel{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_13");
+        ALoadClass.DebugPrintException("ex_13");
       io.close();
       io=null;
       Channel.del(this);
@@ -90,7 +90,7 @@ public class ChannelDirectTCPIP extends Channel{
       }
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_14");
+        ALoadClass.DebugPrintException("ex_14");
       if(!connected){
         connected=true;
       }

@@ -16,7 +16,7 @@ public class ChannelShell extends ChannelSession{
       request.request(_session, this);
     }
     catch(Exception e){
-        LoadClass.DebugPrintException("ex_61");
+        ALoadClass.DebugPrintException("ex_61");
       if(e instanceof JSchException) throw (JSchException)e;
       if(e instanceof Throwable)
         throw new JSchException("ChannelShell", (Throwable)e);
