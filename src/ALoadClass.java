@@ -1,19 +1,9 @@
 class ALoadClass {
     public static Object getInstanceByConfig(String a) throws Exception{
         a=getNameByConfig(a);
-        //try{
-        //    return getClassByName(a).newInstance();
-        //}catch(Exception e){
-        //    return getForce(a, e);
-        //}
         return getClassByName(a).newInstance();
     }
     public static Object getInstanceByName(String a) throws Exception{
-        //try{
-        //    return getClassByName(a).newInstance();
-        //}catch(Exception e){
-        //    return getForce(a, e);
-        //}
         return getForce(a, new Exception());
     }
     public static Class getClassByConfig(String a) throws Exception{

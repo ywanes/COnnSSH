@@ -1,4 +1,4 @@
-[COnnSSH](/) -> COnnSSH.. SSH java
+[COnnSSH](/) -> COnnSSH.. Lite SSH java
 <br/>
 <br/>
 Works with [GraalVM](https://www.graalvm.org/latest/docs/getting-started/)
