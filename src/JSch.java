@@ -2,16 +2,6 @@ import java.io.InputStream;
 
 public class JSch{  
   private java.util.Vector sessionPool = new java.util.Vector();
-  private ConfigRepository configRepository = null;
-        
-  public ConfigRepository getConfigRepository() {
-    return this.configRepository;
-  }
-
-  public void setConfigRepository(ConfigRepository configRepository) {
-    this.configRepository = configRepository;
-  }
-
   private KnownHosts known_hosts=null;
 
   private static final Logger DEVNULL=new Logger(){

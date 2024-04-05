@@ -70,7 +70,6 @@ public class Session implements Runnable{
   static Random random;
   Buffer buf;
   Packet packet;
-  SocketFactory socket_factory=null;
   static final int buffer_margin = 32 + // maximum padding length
                                    64 + // maximum mac length
                                    32;  // margin for deflater; deflater may inflate data
@@ -101,8 +100,6 @@ public class Session implements Runnable{
     this.username = username;
     this.org_host = this.host = host;
     this.port = port;
-
-    applyConfig();
 
     if(this.username==null) {
       try {
@@ -213,14 +210,6 @@ public class Session implements Runnable{
         in=socket.getInputStream();
         out=socket.getOutputStream();
         socket.setTcpNoDelay(true);
-      }
-      else{
-	synchronized(proxy){
-          proxy.connect(socket_factory, host, port, connectTimeout);
-	  in=proxy.getInputStream();
-	  out=proxy.getOutputStream();
-          socket=proxy.getSocket();
-	}
       }
 
       if(connectTimeout>0 && socket!=null){
@@ -509,8 +498,6 @@ public class Session implements Runnable{
             connectThread.setDaemon(daemon_thread);
           }
           connectThread.start();
-
-          requestPortForwarding();
         }
         else{
           // The session has been already down and
@@ -840,9 +827,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       Channel channel=Channel.getChannel(type);
       addChannel(channel);
       channel.init();
-      if(channel instanceof ChannelSession){
-        applyConfigChannel((ChannelSession)channel);
-      }
       return channel;
     }
     catch(Exception e){
@@ -1551,15 +1535,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       if(in!=null) in.close();
       if(out!=null) out.close();
       if(out_ext!=null) out_ext.close();
-      if(proxy==null){
-        if(socket!=null)
-	  socket.close();
-      }else{
-	synchronized(proxy){
-	  proxy.close();	  
-	}
-	proxy=null;
-      }
+      if(socket!=null)
+        socket.close();
     }catch(Exception e){
         ALoadClass.DebugPrintException("ex_153");
     }
@@ -1717,9 +1694,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
       config.put(key, value);
     }
-  }
-  public void setSocketFactory(SocketFactory sfactory){ 
-    socket_factory=sfactory;
   }
   public boolean isConnected(){ return isConnected; }
   public int getTimeout(){ return timeout; }
@@ -1929,120 +1903,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       return jsch.getHostKeyRepository();
     return hostkeyRepository;
   }
-
   
-  private void applyConfig() throws JSchException {
-    ConfigRepository configRepository = jsch.getConfigRepository();
-    if(configRepository == null){
-      return;
-    }
-
-    ConfigRepository.Config config =
-      configRepository.getConfig(org_host);
-    
-    String value = null;
-
-    if(username==null){
-      value = config.getUser();
-      if(value != null)
-        username = value;
-    }
-
-    value = config.getHostname();
-    if(value != null)
-      host = value;
-
-    int port = config.getPort();
-    if(port != -1)
-      this.port = port;
-
-    checkConfig(config, "kex");
-    checkConfig(config, "server_host_key");
-    checkConfig(config, "cipher.c2s");
-    checkConfig(config, "cipher.s2c");
-    checkConfig(config, "mac.c2s");
-    checkConfig(config, "mac.s2c");
-    checkConfig(config, "compression.c2s");
-    checkConfig(config, "compression.s2c");
-    checkConfig(config, "compression_level");
-    checkConfig(config, "StrictHostKeyChecking");
-    checkConfig(config, "HashKnownHosts");
-    checkConfig(config, "PreferredAuthentications");
-    checkConfig(config, "MaxAuthTries");
-    checkConfig(config, "ClearAllForwardings");
-
-    value = config.getValue("HostKeyAlias");
-    if(value != null)
-      this.setHostKeyAlias(value);
-
-    value = config.getValue("UserKnownHostsFile");
-    if(value != null) {
-      KnownHosts kh = new KnownHosts(jsch);
-      kh.setKnownHosts(value);
-      this.setHostKeyRepository(kh);
-    }
-
-    String[] values = config.getValues("IdentityFile");
-    if(values != null) {
-      String[] global =
-        configRepository.getConfig("").getValues("IdentityFile");
-        global = new String[0];
-      if(values.length - global.length > 0){}
-    }
-
-    value = config.getValue("ServerAliveInterval");
-    if(value != null) {
-      try {
-        this.setServerAliveInterval(Integer.parseInt(value));
-      }
-      catch(NumberFormatException e){
-      }
-    }
-
-    value = config.getValue("ConnectTimeout");
-    if(value != null) {
-      try {
-        setTimeout(Integer.parseInt(value));
-      }
-      catch(NumberFormatException e){
-      }
-    }
-
-    value = config.getValue("MaxAuthTries");
-    if(value != null) {
-      setConfig("MaxAuthTries", value);
-    }
-
-    value = config.getValue("ClearAllForwardings");
-    if(value != null) 
-      setConfig("ClearAllForwardings", value);
-  }
-  private void applyConfigChannel(ChannelSession channel) throws JSchException {
-    ConfigRepository configRepository = jsch.getConfigRepository();
-    if(configRepository == null)
-      return;
-    ConfigRepository.Config config = configRepository.getConfig(org_host);
-    String value = null;
-    value = config.getValue("ForwardAgent");
-    if(value != null)
-      channel.setAgentForwarding(value.equals("yes"));
-    value = config.getValue("RequestTTY");
-    if(value != null)
-      channel.setPty(value.equals("yes"));
-  }
-  private void requestPortForwarding() throws JSchException {
-    if(ALoadClass.getNameByConfig("ClearAllForwardings").equals("yes"))
-      return;
-    ConfigRepository configRepository = jsch.getConfigRepository();
-    if(configRepository == null)
-      return;
-    ConfigRepository.Config config = configRepository.getConfig(org_host);
-  }
-  private void checkConfig(ConfigRepository.Config config, String key){
-    String value = config.getValue(key);
-    if(value != null)
-      this.setConfig(key, value);
-  }  
   public void put(Packet p) throws IOException, java.net.SocketException {
     out.write(p.buffer.buffer, 0, p.buffer.index);
     out.flush();
