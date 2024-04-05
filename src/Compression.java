@@ -8,7 +8,6 @@ public class Compression{
   private byte[] tmpbuf=new byte[BUF_SIZE];
 
   public Compression(){
-System.out.println(111113);
     stream=new ZStream();
   }
 
