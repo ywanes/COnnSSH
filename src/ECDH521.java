@@ -2,7 +2,6 @@ import java.math.BigInteger;
 import java.security.*;
 import javax.crypto.*;
 import java.security.spec.*;
-import java.security.interfaces.*;
 
 public class ECDH521 {
   static final int PROPOSAL_ENC_ALGS_CTOS=2;
@@ -245,7 +244,7 @@ public class ECDH521 {
   
   class KeyExchangeECDH{
       byte[] Q_array;
-      ECPublicKey publicKey;
+      java.security.interfaces.ECPublicKey publicKey;
       private KeyAgreement myKeyAgree;
       public void init(int size) throws Exception{
         myKeyAgree = KeyAgreement.getInstance("ECDH");
@@ -318,8 +317,8 @@ public class ECDH521 {
       byte[] d;
       byte[] r;
       byte[] s;
-      ECPublicKey pubKey;
-      ECPrivateKey prvKey;
+      java.security.interfaces.ECPublicKey pubKey;
+      java.security.interfaces.ECPrivateKey prvKey;
       ECParameterSpec params;
       public void init(int key_size) throws Exception {
         String name=null;
@@ -333,10 +332,10 @@ public class ECDH521 {
           ECGenParameterSpec ecsp = new ECGenParameterSpec(name);
           kpg.initialize(ecsp);
           java.security.KeyPair kp = kpg.genKeyPair();
-          prvKey = (ECPrivateKey)kp.getPrivate();
-          pubKey = (ECPublicKey)kp.getPublic();
+          prvKey = (java.security.interfaces.ECPrivateKey)kp.getPrivate();
+          pubKey = (java.security.interfaces.ECPublicKey)kp.getPublic();
           params=pubKey.getParams();
-          d=((ECPrivateKey)prvKey).getS().toByteArray();
+          d=((java.security.interfaces.ECPrivateKey)prvKey).getS().toByteArray();
           ECPoint w = pubKey.getW();
           r = w.getAffineX().toByteArray();
           s = w.getAffineY().toByteArray();
@@ -355,8 +354,8 @@ public class ECDH521 {
       public byte[] getD(){return d;}
       public byte[] getR(){return r;}
       public byte[] getS(){return s;}
-      ECPublicKey getPublicKey(){ return pubKey; }
-      ECPrivateKey getPrivateKey(){ return prvKey; }
+      java.security.interfaces.ECPublicKey getPublicKey(){ return pubKey; }
+      java.security.interfaces.ECPrivateKey getPrivateKey(){ return prvKey; }
 
       private byte[] insert0(byte[] buf){
         byte[] tmp = new byte[buf.length+1];
