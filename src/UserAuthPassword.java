@@ -44,14 +44,10 @@ public class UserAuthPassword extends UserAuth{
 	  buf.getInt(); buf.getByte(); buf.getByte(); 
 	  byte[] instruction=buf.getString();
 	  byte[] tag=buf.getString();
-          UIKeyboardInteractive kbi=(UIKeyboardInteractive)userinfo;
           String[] response;
           String name="Password Change Required";
           String[] prompt={"New Password: "};
           boolean[] echo={false};
-          response=kbi.promptKeyboardInteractive(dest,name,byte2str(instruction),prompt,echo);
-          if(response==null)
-            throw new JSchAuthCancelException("password");
 	  continue loop;
         }
 	if(command==SSH_MSG_USERAUTH_FAILURE){

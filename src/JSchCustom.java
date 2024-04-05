@@ -36,7 +36,7 @@ class Ssh {
         }
         while (channel != null && !channel.isEOF()) {}
     }
-    public static abstract class MyUserInfo implements UserInfo, UIKeyboardInteractive {
+    public static abstract class MyUserInfo implements UserInfo {
         public String getPassword() {
             return null;
         }
