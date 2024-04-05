@@ -1,16 +1,12 @@
 import java.net.*;
 import java.io.*;
 
-class PortWatcher implements Runnable{
+class PortWatcher{}// implements Runnable{
+/*
   private static java.util.Vector pool=new java.util.Vector();
   private static InetAddress anyLocalAddress=null;
   static{
     // 0.0.0.0
-/*
-    try{ anyLocalAddress=InetAddress.getByAddress(new byte[4]); }
-    catch(UnknownHostException e){
-    }
-*/
     try{ anyLocalAddress=InetAddress.getByName("0.0.0.0"); }
     catch(UnknownHostException e){
     }
@@ -53,7 +49,7 @@ class PortWatcher implements Runnable{
       for(int i=0; i<pool.size(); i++){
 	PortWatcher p=(PortWatcher)(pool.elementAt(i));
 	if(p.session==session && p.lport==lport){
-	  if(/*p.boundaddress.isAnyLocalAddress() ||*/
+	  if(
              (anyLocalAddress!=null &&  p.boundaddress.equals(anyLocalAddress)) ||
 	     p.boundaddress.equals(addr))
 	  return p;
@@ -131,34 +127,7 @@ class PortWatcher implements Runnable{
     }
   }
 
-  public void run(){
-      /*
-    thread=this;
-    try{
-      while(thread!=null){
-        Socket socket=ss.accept();
-	socket.setTcpNoDelay(true);
-        InputStream in=socket.getInputStream();
-        OutputStream out=socket.getOutputStream();
-        ChannelDirectTCPIP channel=new ChannelDirectTCPIP();
-        channel.init();
-        channel.setInputStream(in);
-        channel.setOutputStream(out);
-	session.addChannel(channel);
-	((ChannelDirectTCPIP)channel).setHost(host);
-	((ChannelDirectTCPIP)channel).setPort(rport);
-	((ChannelDirectTCPIP)channel).setOrgIPAddress(socket.getInetAddress().getHostAddress());
-	((ChannelDirectTCPIP)channel).setOrgPort(socket.getPort());
-        channel.connect(connectTimeout);
-	if(channel.exitstatus!=-1){
-	}
-      }
-    }
-    catch(Exception e){
-        ALoadClass.DebugPrintException("ex_132");      
-    }
-    delete();*/
-  }
+  public void run(){}
 
   void delete(){
     thread=null;
@@ -175,3 +144,4 @@ class PortWatcher implements Runnable{
     this.connectTimeout=connectTimeout;
   }
 }
+*/
