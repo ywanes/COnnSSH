@@ -4,9 +4,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.IOException;
 
-
 public abstract class Channel implements Runnable{
-
+  InputStream in=System.in;
+  OutputStream out=System.out;
+  OutputStream out_ext=null;
+  
+  private boolean in_dontclose=false;
+  private boolean out_dontclose=false;
+  private boolean out_ext_dontclose=false;
+  
   static final int SSH_MSG_CHANNEL_OPEN_CONFIRMATION=      91;
   static final int SSH_MSG_CHANNEL_OPEN_FAILURE=           92;
   static final int SSH_MSG_CHANNEL_WINDOW_ADJUST=          93;
@@ -45,27 +51,18 @@ public abstract class Channel implements Runnable{
   volatile int lwsize_max=0x100000;
   volatile int lwsize=lwsize_max;     // local initial window size
   volatile int lmpsize=0x4000;     // local maximum packet size
-
   volatile long rwsize=0;         // remote initial window size
   volatile int rmpsize=0;        // remote maximum packet size
-
-  IO io=null;    
   Thread thread=null;
-
   volatile boolean eof_local=false;
   volatile boolean eof_remote=false;
-
   volatile boolean close=false;
   volatile boolean connected=false;
   volatile boolean open_confirmation=false;
-
   volatile int exitstatus=-1;
-
   volatile int reply=0; 
   volatile int connectTimeout=0;
-
   private Session session;
-
   int notifyme=0; 
 
   Channel(){
@@ -105,37 +102,34 @@ public abstract class Channel implements Runnable{
       throw new JSchException(e.toString(), e);
     }
   }
-
-  public void setXForwarding(boolean foo){
-  }
-
+  public void setXForwarding(boolean foo){}
   public void start() throws JSchException{}
-
   public boolean isEOF() {return eof_remote;}
-
   void getData(Buffer buf){
     setRecipient(buf.getInt());
     setRemoteWindowSize(buf.getUInt());
     setRemotePacketSize(buf.getInt());
   }
-
+  
   public void setInputStream(InputStream in){
-    io.setInputStream(in, false);
+    this.in=in;
   }
   public void setInputStream(InputStream in, boolean dontclose){
-    io.setInputStream(in, dontclose);
+    this.in=in;
   }
   public void setOutputStream(OutputStream out){
-    io.setOutputStream(out, false);
+    this.out=out;
   }
   public void setOutputStream(OutputStream out, boolean dontclose){
-    io.setOutputStream(out, dontclose);
+    this.out=out;
+    this.out_dontclose=dontclose;
   }
   public void setExtOutputStream(OutputStream out){
-    io.setExtOutputStream(out, false);
+    this.out_ext=out;
   }
   public void setExtOutputStream(OutputStream out, boolean dontclose){
-    io.setExtOutputStream(out, dontclose);
+    this.out_ext=out;
+    this.out_dontclose=dontclose;
   }
   public InputStream getInputStream() throws IOException {
     int max_input_buffer_size = 32*1024;
@@ -152,7 +146,7 @@ public abstract class Channel implements Runnable{
                              max_input_buffer_size
                              );
     boolean resizable = 32*1024<max_input_buffer_size;
-    io.setOutputStream(new PassiveOutputStream(in, resizable), false);
+    setOutputStream(new PassiveOutputStream(in, resizable), false);
     return in;
   }
   public InputStream getExtInputStream() throws IOException {
@@ -169,7 +163,7 @@ public abstract class Channel implements Runnable{
                              max_input_buffer_size
                              );
     boolean resizable = 32*1024<max_input_buffer_size;
-    io.setExtOutputStream(new PassiveOutputStream(in, resizable), false);
+    setExtOutputStream(new PassiveOutputStream(in, resizable), false);
     return in;
   }
   public OutputStream getOutputStream() throws IOException {
@@ -385,23 +379,44 @@ public abstract class Channel implements Runnable{
   }
   void write(byte[] foo, int s, int l) throws IOException {
     try{
-      io.put(foo, s, l);
+      put(foo, s, l);
     }catch(NullPointerException e){}
   }
   void write_ext(byte[] foo, int s, int l) throws IOException {
     try{
-      io.put_ext(foo, s, l);
+      put_ext(foo, s, l);
     }catch(NullPointerException e){}
   }
 
+  public void put(Packet p) throws IOException, java.net.SocketException {
+    out.write(p.buffer.buffer, 0, p.buffer.index);
+    out.flush();
+  }
+  void put(byte[] array, int begin, int length) throws IOException {
+    out.write(array, begin, length);
+    out.flush();
+  }
+  void put_ext(byte[] array, int begin, int length) throws IOException {
+    out_ext.write(array, begin, length);
+    out_ext.flush();
+  }
+  
   void eof_remote(){
     eof_remote=true;
     try{
-      io.out_close();
+      out_close();
     }
     catch(NullPointerException e){}
   }
 
+  void out_close(){
+    try{
+      if(out!=null && !out_dontclose) out.close();
+      out=null;
+    }
+    catch(Exception ee){}
+  }
+  
   void eof(){
     if(eof_local)return;
     eof_local=true;
@@ -531,9 +546,7 @@ public abstract class Channel implements Runnable{
       thread=null;
 
       try{
-        if(io!=null){
-          io.close();
-        }
+        close();
       }
       catch(Exception e){
         ALoadClass.DebugPrintException("ex_9");
@@ -698,7 +711,7 @@ public abstract class Channel implements Runnable{
     if(this.getRecipient()==-1){  // timeout
       throw new JSchException("channel is not opened.");
     }
-    if(this.open_confirmation==false){  // SSH_MSG_CHANNEL_OPEN_FAILURE
+    if(this.open_confirmation==false){
       throw new JSchException("channel is not opened.");
     }
     connected=true;

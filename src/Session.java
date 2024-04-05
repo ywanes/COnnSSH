@@ -58,32 +58,23 @@ public class Session implements Runnable{
   private CipherAES256CTR c2scipher;
   private MAC s2cmac;
   private MAC c2smac;
-  //private byte[] mac_buf;
   private byte[] s2cmac_result1;
   private byte[] s2cmac_result2;
-
-  //private Compression deflater;
-  //private Compression inflater;
-
-  private IO io;
   private Socket socket;
   private int timeout=0;
-
   private volatile boolean isConnected=false;
-
   private boolean isAuthed=false;
-
   private Thread connectThread=null;
   private Object lock=new Object();
-
   boolean x11_forwarding=false;
   boolean agent_forwarding=false;
-
   InputStream in=null;
   OutputStream out=null;
-
+  OutputStream out_ext=null;
+  private boolean in_dontclose=false;
+  private boolean out_dontclose=false;
+  private boolean out_ext_dontclose=false;
   static Random random;
-
   Buffer buf;
   Packet packet;
 
@@ -155,7 +146,6 @@ public class Session implements Runnable{
       throw new JSchException("session is already connected");
     }
 
-    io=new IO();
     if(random==null){
       try{
         random=(Random)ALoadClass.getInstanceByConfig("random");
@@ -177,17 +167,15 @@ public class Session implements Runnable{
 
       if(proxy==null){
         socket=Util.createSocket(host, port, connectTimeout);
-        InputStream in=socket.getInputStream();
-        OutputStream out=socket.getOutputStream();
+        in=socket.getInputStream();
+        out=socket.getOutputStream();
         socket.setTcpNoDelay(true);
-        io.setInputStream(in);
-        io.setOutputStream(out);
       }
       else{
 	synchronized(proxy){
           proxy.connect(socket_factory, host, port, connectTimeout);
-	  io.setInputStream(proxy.getInputStream());
-	  io.setOutputStream(proxy.getOutputStream());
+	  in=proxy.getInputStream();
+	  out=proxy.getOutputStream();
           socket=proxy.getSocket();
 	}
       }
@@ -210,14 +198,14 @@ public class Session implements Runnable{
 	byte[] foo=new byte[V_C.length+1];
 	System.arraycopy(V_C, 0, foo, 0, V_C.length);
 	foo[foo.length-1]=(byte)'\n';
-	io.put(foo, 0, foo.length);
+	put(foo, 0, foo.length);
       }
 
       while(true){
         i=0;
         j=0;
         while(i<buf.buffer.length){
-          j=io.getByte();
+          j=getByte();
           if(j<0)break;
           buf.buffer[i]=(byte)j; i++; 
           if(j==10)break;
@@ -844,7 +832,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     int j=0;
     while(true){
       buf.reset();
-      io.getByte(buf.buffer, buf.index, s2ccipher_size); 
+      getByte(buf.buffer, buf.index, s2ccipher_size); 
       buf.index+=s2ccipher_size;
       if(s2ccipher!=null){
         s2ccipher.update(buf.buffer, 0, s2ccipher_size, buf.buffer, 0);
@@ -873,7 +861,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
 
       if(need>0){
-	io.getByte(buf.buffer, buf.index, need); buf.index+=(need);
+	getByte(buf.buffer, buf.index, need); buf.index+=(need);
 	if(s2ccipher!=null){
 	  s2ccipher.update(buf.buffer, s2ccipher_size, need, buf.buffer, s2ccipher_size);
 	}
@@ -884,7 +872,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	s2cmac.update(buf.buffer, 0, buf.index);
 
         s2cmac.doFinal(s2cmac_result1, 0);
-	io.getByte(s2cmac_result2, 0, s2cmac_result2.length);
+	getByte(s2cmac_result2, 0, s2cmac_result2.length);
         if(!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)){
           if(need > PACKET_MAX_SIZE){
             throw new IOException("MAC Error");
@@ -989,7 +977,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     while(discard>0){
       buf.reset();
       int len = discard>buf.buffer.length ? buf.buffer.length : discard;
-      io.getByte(buf.buffer, 0, len);
+      getByte(buf.buffer, 0, len);
       if(discard_mac!=null){
         discard_mac.update(buf.buffer, 0, len);
       }
@@ -1251,10 +1239,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   private void _write(Packet packet) throws Exception{
     synchronized(lock){
       encode(packet);
-      if(io!=null){
-        io.put(packet);
-        seqo++;
-      }
+      put(packet);
+      seqo++;
     }
   }
 
@@ -1580,11 +1566,9 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
     thread=null;
     try{
-      if(io!=null){
-	if(io.in!=null) io.in.close();
-	if(io.out!=null) io.out.close();
-	if(io.out_ext!=null) io.out_ext.close();
-      }
+      if(in!=null) in.close();
+      if(out!=null) out.close();
+      if(out_ext!=null) out_ext.close();
       if(proxy==null){
         if(socket!=null)
 	  socket.close();
@@ -1599,7 +1583,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     catch(Exception e){
         ALoadClass.DebugPrintException("ex_153");
     }
-    io=null;
     socket=null;
     jsch.removeSession(this);
   }
@@ -2194,6 +2177,63 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     String value = config.getValue(key);
     if(value != null)
       this.setConfig(key, value);
+  }  
+  
+  public void put(Packet p) throws IOException, java.net.SocketException {
+    out.write(p.buffer.buffer, 0, p.buffer.index);
+    out.flush();
+  }
+  void put(byte[] array, int begin, int length) throws IOException {
+    out.write(array, begin, length);
+    out.flush();
+  }
+  void put_ext(byte[] array, int begin, int length) throws IOException {
+    out_ext.write(array, begin, length);
+    out_ext.flush();
+  }
+
+  int getByte() throws IOException {
+    return in.read();
+  }
+
+  void getByte(byte[] array) throws IOException {
+    getByte(array, 0, array.length);
+  }
+
+  void getByte(byte[] array, int begin, int length) throws IOException {
+    do{
+      int completed = in.read(array, begin, length);
+      if(completed<0){
+	throw new IOException("End of IO Stream Read");
+      }
+      begin+=completed;
+      length-=completed;
+    }
+    while (length>0);
+  }
+
+  void out_close(){
+    try{
+      if(out!=null && !out_dontclose) out.close();
+      out=null;
+    }
+    catch(Exception ee){}
+  }
+
+  public void close(){
+    try{
+      if(in!=null && !in_dontclose) in.close();
+      in=null;
+    }
+    catch(Exception ee){}
+
+    out_close();
+
+    try{
+      if(out_ext!=null && !out_ext_dontclose) out_ext.close();
+      out_ext=null;
+    }
+    catch(Exception ee){}
   }
   
 }

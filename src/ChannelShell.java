@@ -22,7 +22,7 @@ public class ChannelShell extends ChannelSession{
       throw new JSchException("ChannelShell");
     }
 
-    if(io.in!=null){
+    if(in!=null){
       thread=new Thread(this);
       thread.setName("Shell for "+_session.host);
       if(_session.daemon_thread){
@@ -33,7 +33,7 @@ public class ChannelShell extends ChannelSession{
   }
 
   void init() throws JSchException {
-    io.setInputStream(getSession().in);
-    io.setOutputStream(getSession().out);
+    setInputStream(getSession().in);
+    setOutputStream(getSession().out);
   }
 }

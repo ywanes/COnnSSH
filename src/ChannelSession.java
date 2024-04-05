@@ -19,7 +19,6 @@ class ChannelSession extends Channel{
   ChannelSession(){
     super();
     type=_session;
-    io=new IO();
   }
 
   public void setAgentForwarding(boolean enable){ 
@@ -122,9 +121,8 @@ class ChannelSession extends Channel{
     try{
       while(isConnected() &&
 	    thread!=null && 
-            io!=null && 
-            io.in!=null){
-        i=io.in.read(buf.buffer, 
+            in!=null){
+        i=in.read(buf.buffer, 
                      14,    
                      buf.buffer.length-14
                      -Session.buffer_margin
