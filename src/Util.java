@@ -14,6 +14,7 @@ class Util{
     return 0;
   }
   static byte[] fromBase64(byte[] buf, int start, int length) throws JSchException {
+System.out.println(11111);      
     try {
       byte[] foo=new byte[length];
       int j=0;
@@ -34,7 +35,7 @@ class Util{
     }
   }
   static byte[] toBase64(byte[] buf, int start, int length){
-
+System.out.println(11111);
     byte[] tmp=new byte[length*2];
     int i,j,k;
     
@@ -115,6 +116,7 @@ class Util{
   }
   static private boolean glob(byte[] pattern, int pattern_index,
 			      byte[] name, int name_index){
+System.out.println(11111);
     //System.err.println("glob: "+new String(pattern)+", "+pattern_index+" "+new String(name)+", "+name_index);
 
     int patternlen=pattern.length;
@@ -228,6 +230,7 @@ class Util{
   }
 
   static String quote(String path){
+System.out.println(11111);      
     byte[] _path=str2byte(path);
     int count=0;
     for(int i=0;i<_path.length; i++){
@@ -249,6 +252,7 @@ class Util{
   }
 
   static String unquote(String path){
+System.out.println(11111);      
     byte[] foo=str2byte(path);
     byte[] bar=unquote(foo);
     if(foo.length==bar.length)
@@ -256,6 +260,7 @@ class Util{
     return byte2str(bar);
   }
   static byte[] unquote(byte[] path){
+System.out.println(11111);      
     int pathlen=path.length;
     int i=0;
     while(i<pathlen){
