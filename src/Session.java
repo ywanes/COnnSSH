@@ -1011,6 +1011,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     updateKeys(kex);
     in_kex=false;
   }
+  
   private void updateKeys(KeyExchange kex) throws Exception{
     byte[] K=kex.getK();
     byte[] H=kex.getH();
@@ -1115,7 +1116,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       throw new JSchException(e.toString(), e);       
     }
   }
-
+  
+    
   private byte[] expandKey(Buffer buf, byte[] K, byte[] H, byte[] key,
                            HASH hash, int required_length) throws Exception {
     byte[] result = key;
@@ -1134,8 +1136,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
     return result;
   }
-
-  /*public*/ /*synchronized*/ void write(Packet packet, Channel c, int length) throws Exception{
+  
+  void write(Packet packet, Channel c, int length) throws Exception{
     long t = getTimeout();
     while(true){
       if(in_kex){
@@ -1215,8 +1217,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
     }
     _write(packet);
-  }
-
+  }  
+  
   public void write(Packet packet) throws Exception{
     // System.err.println("in_kex="+in_kex+" "+(packet.buffer.getCommand()));
     long t = getTimeout();

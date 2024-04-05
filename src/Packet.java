@@ -28,13 +28,6 @@ public class Packet{
       random.fill(buffer.buffer, buffer.index, pad);
     }
     buffer.skip(pad);
-    //buffer.putPad(pad);
-/*
-for(int i=0; i<buffer.index; i++){
-System.err.print(Integer.toHexString(buffer.buffer[i]&0xff)+":");
-}
-System.err.println("");
-*/
   }
 
   int shift(int len, int bsize, int mac){
@@ -43,22 +36,13 @@ System.err.println("");
     if(pad<bsize)pad+=bsize;
     s+=pad;
     s+=mac;
-    s+=32; // margin for deflater; deflater may inflate data
+    s+=32;
 
-    /**/
     if(buffer.buffer.length<s+buffer.index-5-9-len){
       byte[] foo=new byte[s+buffer.index-5-9-len];
       System.arraycopy(buffer.buffer, 0, foo, 0, buffer.buffer.length);
       buffer.buffer=foo;
     }
-    /**/
-
-//if(buffer.buffer.length<len+5+9)
-//  System.err.println("buffer.buffer.length="+buffer.buffer.length+" len+5+9="+(len+5+9));
-
-//if(buffer.buffer.length<s)
-//  System.err.println("buffer.buffer.length="+buffer.buffer.length+" s="+(s));
-
     System.arraycopy(buffer.buffer, 
 		     len+5+9, 
 		     buffer.buffer, s, buffer.index-5-9-len);
