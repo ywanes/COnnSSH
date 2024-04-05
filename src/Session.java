@@ -56,8 +56,8 @@ public class Session implements Runnable{
   String[] guess=null;
   private AES256CTR s2ccipher;
   private AES256CTR c2scipher;
-  private HMAC s2cmac;
-  private HMAC c2smac;
+  private HmacSHA1 s2cmac;
+  private HmacSHA1 c2smac;
   private byte[] s2cmac_result1;
   private byte[] s2cmac_result2;
   private Socket socket;
@@ -1042,9 +1042,9 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     return buf;
   }
 
-  private void start_discard(Buffer buf, AES256CTR cipher, HMAC mac, 
+  private void start_discard(Buffer buf, AES256CTR cipher, HmacSHA1 mac, 
                              int packet_length, int discard) throws JSchException, IOException{
-    HMAC discard_mac = null;
+    HmacSHA1 discard_mac = null;
 
     if(!cipher.isCBC()){
       throw new JSchException("Packet corrupt");
@@ -1144,7 +1144,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       s2ccipher_size=s2ccipher.getIVSize();
 
       method=guess[KeyExchangeECDH521.PROPOSAL_MAC_ALGS_STOC];
-      s2cmac = new HMACSHA1(); //(HMAC)ALoadClass.getInstanceByConfig(method);
+      s2cmac = new HmacSHA1();
       MACs2c = expandKey(buf, K, H, MACs2c, hash, s2cmac.getBlockSize());
       s2cmac.init(MACs2c);
       s2cmac_result1=new byte[s2cmac.getBlockSize()];
@@ -1168,7 +1168,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       c2scipher_size=c2scipher.getIVSize();
 
       method=guess[KeyExchangeECDH521.PROPOSAL_MAC_ALGS_CTOS];
-      c2smac = new HMACSHA1();// (HMAC)ALoadClass.getInstanceByConfig(method);
+      c2smac = new HmacSHA1();
       MACc2s = expandKey(buf, K, H, MACc2s, hash, c2smac.getBlockSize());
       c2smac.init(MACc2s);
 

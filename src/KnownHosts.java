@@ -1,14 +1,12 @@
 import java.io.*;
 
-public
-class KnownHosts implements HostKeyRepository{
+public class KnownHosts implements HostKeyRepository{
   private static final String _known_hosts="known_hosts";
-
   private JSch jsch=null;
   private String known_hosts=null;
   private java.util.Vector pool=null;
 
-  private HMAC hmacsha1=null;
+  private HmacSHA1 hmacsha1=null;
 
   KnownHosts(JSch jsch){
     super();
@@ -380,10 +378,10 @@ loop:
     return hosts;
   }
 
-  private HMAC getHMACSHA1(){
+  private HmacSHA1 getHMACSHA1(){
     if(hmacsha1==null){
       try{
-        hmacsha1=new HMACSHA1();
+        hmacsha1=new HmacSHA1();
       }
       catch(Exception e){ 
           ALoadClass.DebugPrintException("ex_128");
@@ -420,7 +418,7 @@ loop:
       if(!hashed){
         return super.isMatched(_host);
       }
-      HMAC macsha1=getHMACSHA1();
+      HmacSHA1 macsha1=getHMACSHA1();
       return false;
     }
 
@@ -431,7 +429,7 @@ loop:
     void hash(){
       if(hashed)
         return;
-      HMAC macsha1=getHMACSHA1();
+      HmacSHA1 macsha1=getHMACSHA1();
       if(salt==null){
         Random random=Session.random;
         synchronized(random){
