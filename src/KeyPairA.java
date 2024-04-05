@@ -23,7 +23,9 @@ public abstract class KeyPairA{
   }
   public static KeyPairA genKeyPair(JSch jsch, int type, int key_size) throws JSchException{
     KeyPairA kpair=null;
-    if(type==DSA){ kpair=new KeyPairDSA(jsch); }
+    if(type==DSA){ 
+        //kpair=new KeyPairDSA(jsch); 
+    }
     else if(type==RSA){ kpair=new KeyPairRSA(jsch); }
     //else if(type==ECDSA){ kpair=new KeyPairECDSA(jsch); }
     if(kpair!=null){
@@ -281,7 +283,7 @@ public abstract class KeyPairA{
 
       kpair = new KeyPairRSA(jsch, n_array, pub_array, null);
     }
-    else if(typ.equals("ssh-dss")){
+    /*else if(typ.equals("ssh-dss")){
       Buffer _buf = new Buffer(pubkey);
       _buf.skip(pubkey.length);
 
@@ -298,7 +300,7 @@ public abstract class KeyPairA{
       _buf.getByte(y_array);
 
       kpair = new KeyPairDSA(jsch, p_array, q_array, g_array, y_array, null);
-    }
+    }*/
     else {
       return null;
     }
