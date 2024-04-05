@@ -1077,20 +1077,14 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   }
 
   private void receive_newkeys(Buffer buf, ECDH521 kex) throws Exception {
-    updateKeys(kex);
     in_kex=false;
-  }
-  
-  private void updateKeys(ECDH521 kex) throws Exception{
     byte[] K=kex.getK();
     byte[] H=kex.getH();
     SHA512 hash=kex.getHash();
-
     if(session_id==null){
       session_id=new byte[H.length];
       System.arraycopy(H, 0, session_id, 0, H.length);
     }
-
     buf.reset();
     buf.putMPInt(K);
     buf.putByte(H);
@@ -1098,33 +1092,24 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     buf.putByte(session_id);
     hash.update(buf.buffer, 0, buf.index);
     IVc2s=hash.digest();
-
     int j=buf.index-session_id.length-1;
-
     buf.buffer[j]++;
     hash.update(buf.buffer, 0, buf.index);
     IVs2c=hash.digest();
-
     buf.buffer[j]++;
     hash.update(buf.buffer, 0, buf.index);
     Ec2s=hash.digest();
-
     buf.buffer[j]++;
     hash.update(buf.buffer, 0, buf.index);
     Es2c=hash.digest();
-
     buf.buffer[j]++;
     hash.update(buf.buffer, 0, buf.index);
     MACc2s=hash.digest();
-
     buf.buffer[j]++;
     hash.update(buf.buffer, 0, buf.index);
     MACs2c=hash.digest();
-
     try{
-      Class c;
       String method;
-  
       method=guess[ECDH521.PROPOSAL_ENC_ALGS_STOC];
       s2ccipher=new AES256CTR();
       while(s2ccipher.getBlockSize()>Es2c.length){
@@ -1141,14 +1126,12 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
       s2ccipher.init(AES256CTR.DECRYPT_MODE, Es2c, IVs2c);
       s2ccipher_size=s2ccipher.getIVSize();
-
       method=guess[ECDH521.PROPOSAL_MAC_ALGS_STOC];
       s2cmac = new HmacSHA1();
       MACs2c = expandKey(buf, K, H, MACs2c, hash, s2cmac.getBlockSize());
       s2cmac.init(MACs2c);
       s2cmac_result1=new byte[s2cmac.getBlockSize()];
       s2cmac_result2=new byte[s2cmac.getBlockSize()];
-
       method=guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS];
       c2scipher = new AES256CTR();
       while(c2scipher.getBlockSize()>Ec2s.length){
@@ -1165,34 +1148,26 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
       c2scipher.init(AES256CTR.ENCRYPT_MODE, Ec2s, IVc2s);
       c2scipher_size=c2scipher.getIVSize();
-
       method=guess[ECDH521.PROPOSAL_MAC_ALGS_CTOS];
       c2smac = new HmacSHA1();
       MACc2s = expandKey(buf, K, H, MACc2s, hash, c2smac.getBlockSize());
       c2smac.init(MACc2s);
-
       method=guess[ECDH521.PROPOSAL_COMP_ALGS_CTOS];
       initDeflater(method);
-
       method=guess[ECDH521.PROPOSAL_COMP_ALGS_STOC];
       initInflater(method);
-    }
-    catch(Exception e){ 
-        ALoadClass.DebugPrintException("ex_149");
+    }catch(Exception e){ 
+      ALoadClass.DebugPrintException("ex_149");
       if(e instanceof JSchException)
         throw e;
       throw new JSchException(e.toString(), e);       
     }
   }
-  
-    
-  private byte[] expandKey(Buffer buf, byte[] K, byte[] H, byte[] key,
-                           SHA512 hash, int required_length) throws Exception {
+  private byte[] expandKey(Buffer buf, byte[] K, byte[] H, byte[] key, SHA512 hash, int required_length) throws Exception {
     byte[] result = key;
     int size = hash.getBlockSize();
     return result;
   }
-  
   void write(Packet packet, Channel c, int length) throws Exception{
     long t = getTimeout();
     while(true){
@@ -1274,9 +1249,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
     _write(packet);
   }  
-  
   public void write(Packet packet) throws Exception{
-    // System.err.println("in_kex="+in_kex+" "+(packet.buffer.getCommand()));
     long t = getTimeout();
     while(in_kex){
       if(t>0L &&
@@ -1303,7 +1276,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
     _write(packet);
   }
-
   private void _write(Packet packet) throws Exception{
     synchronized(lock){
       encode(packet);
@@ -1311,11 +1283,9 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       seqo++;
     }
   }
-
   Runnable thread;
   public void run(){
     thread=this;
-
     byte[] foo;
     Buffer buf=new Buffer();
     Packet packet=new Packet(buf);
@@ -1324,11 +1294,9 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     int[] start=new int[1];
     int[] length=new int[1];
     ECDH521 kex=null;
-
     int stimeout=0;
     try{
-      while(isConnected &&
-	    thread!=null){
+      while(isConnected && thread!=null){
         try{
           buf=read(buf);
           stimeout=0;
@@ -1345,9 +1313,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
           }
           throw ee;
         }
-
 	int msgType=buf.getCommand()&0xff;
-
 	if(kex!=null && kex.getState()==msgType){
           kex_start_time=System.currentTimeMillis();
 	  boolean result=kex.next(buf);
@@ -1356,18 +1322,15 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	  }
 	  continue;
 	}
-
         switch(msgType){
 	case SSH_MSG_KEXINIT:
 	  kex=receive_kexinit(buf);
 	  break;
-
 	case SSH_MSG_NEWKEYS:
           send_newkeys();
 	  receive_newkeys(buf, kex);
 	  kex=null;
 	  break;
-
 	case SSH_MSG_CHANNEL_DATA:
           buf.getInt(); 
           buf.getByte(); 
@@ -1375,22 +1338,17 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
           i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
 	  foo=buf.getString(start, length);
-	  if(channel==null){
+	  if(channel==null)
 	    break;
-	  }
-
-          if(length[0]==0){
+          if(length[0]==0)
 	    break;
-          }
-
-        try{
-                  channel.write(foo, start[0], length[0]);
-        }
-        catch(Exception e){
+          try{
+            channel.write(foo, start[0], length[0]);
+          }catch(Exception e){
             ALoadClass.DebugPrintException("ex_150");
-          try{channel.disconnect();}catch(Exception ee){}
-        break;
-        }
+            try{channel.disconnect();}catch(Exception ee){}
+            break;
+          }
 	  int len=length[0];
 	  channel.setLocalWindowSize(channel.lwsize-len);
  	  if(channel.lwsize<channel.lwsize_max/2){
@@ -1405,7 +1363,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	    channel.setLocalWindowSize(channel.lwsize_max);
 	  }
 	  break;
-
         case SSH_MSG_CHANNEL_EXTENDED_DATA:
           buf.getInt();
 	  buf.getShort();
@@ -1413,16 +1370,11 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	  channel=Channel.getChannel(i, this);
 	  buf.getInt();                   // data_type_code == 1
 	  foo=buf.getString(start, length);
-	  if(channel==null){
+	  if(channel==null)
 	    break;
-	  }
-
-          if(length[0]==0){
+          if(length[0]==0)
 	    break;
-          }
-
 	  channel.write_ext(foo, start[0], length[0]);
-
 	  len=length[0];
 	  channel.setLocalWindowSize(channel.lwsize-len);
  	  if(channel.lwsize<channel.lwsize_max/2){
@@ -1437,35 +1389,30 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	    channel.setLocalWindowSize(channel.lwsize_max);
 	  }
 	  break;
-
 	case SSH_MSG_CHANNEL_WINDOW_ADJUST:
           buf.getInt(); 
 	  buf.getShort(); 
 	  i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
-	  if(channel==null){
+	  if(channel==null)
 	    break;
-	  }
 	  channel.addRemoteWindowSize(buf.getUInt()); 
 	  break;
-
 	case SSH_MSG_CHANNEL_EOF:
           buf.getInt(); 
           buf.getShort(); 
           i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
-	  if(channel!=null){
+	  if(channel!=null)
 	    channel.eof_remote();
-	  }
 	  break;
 	case SSH_MSG_CHANNEL_CLOSE:
           buf.getInt(); 
 	  buf.getShort(); 
 	  i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
-	  if(channel!=null){
+	  if(channel!=null)
 	    channel.disconnect();
-	  }
 	  break;
 	case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
           buf.getInt(); 
@@ -1516,17 +1463,13 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	      write(packet);
 	    }
 	  }
-	  else{
-	  }
 	  break;
 	case SSH_MSG_CHANNEL_OPEN:
           buf.getInt(); 
 	  buf.getShort(); 
 	  foo=buf.getString(); 
 	  String ctyp=byte2str(foo);
-          if(!"forwarded-tcpip".equals(ctyp) &&
-	     !("x11".equals(ctyp) && x11_forwarding) &&
-	     !("auth-agent@openssh.com".equals(ctyp) && agent_forwarding)){
+          if(!"forwarded-tcpip".equals(ctyp) && !("x11".equals(ctyp) && x11_forwarding) && !("auth-agent@openssh.com".equals(ctyp) && agent_forwarding)){
 	    packet.reset();
 	    buf.putByte((byte)SSH_MSG_CHANNEL_OPEN_FAILURE);
 	    buf.putInt(buf.getInt());
@@ -1534,8 +1477,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	    buf.putString((byte[])str2byte(""));
 	    buf.putString((byte[])str2byte(""));
 	    write(packet);
-	  }
-	  else{
+	  }else{
 	    channel=Channel.getChannel(ctyp);
 	    addChannel(channel);
 	    channel.getData(buf);
@@ -1554,9 +1496,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	  buf.getShort(); 
 	  i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
-	  if(channel==null){
+	  if(channel==null)
 	    break;
-	  }
 	  channel.reply=1;
 	  break;
 	case SSH_MSG_CHANNEL_FAILURE:
@@ -1564,15 +1505,14 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	  buf.getShort(); 
 	  i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
-	  if(channel==null){
+	  if(channel==null)
 	    break;
-	  }
 	  channel.reply=0;
 	  break;
 	case SSH_MSG_GLOBAL_REQUEST:
 	  buf.getInt(); 
 	  buf.getShort(); 
-	  foo=buf.getString();       // request name
+	  foo=buf.getString();
 	  reply=(buf.getByte()!=0);
 	  if(reply){
 	    packet.reset();
@@ -1599,12 +1539,10 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_151");
+      ALoadClass.DebugPrintException("ex_151");
       in_kex=false;
-      if(JSch.getLogger().isEnabled(Logger.INFO)){
-        JSch.getLogger().log(Logger.INFO,
-                             "Caught an exception, leaving main loop due to " + e.getMessage());
-      }
+      if(JSch.getLogger().isEnabled(Logger.INFO))
+        JSch.getLogger().log(Logger.INFO,"Caught an exception, leaving main loop due to " + e.getMessage());
     }
     try{
       disconnect();
@@ -1614,15 +1552,10 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
     isConnected=false;
   }
-
   public void disconnect(){
     if(!isConnected) return;
-    //System.err.println(this+": disconnect");
-    //Thread.dumpStack();
-    if(JSch.getLogger().isEnabled(Logger.INFO)){
-      JSch.getLogger().log(Logger.INFO,
-                           "Disconnecting from "+host+" port "+port);
-    }
+    if(JSch.getLogger().isEnabled(Logger.INFO))
+      JSch.getLogger().log(Logger.INFO,"Disconnecting from "+host+" port "+port);
     Channel.disconnect(this);
     isConnected=false;
     synchronized(lock){
@@ -1640,15 +1573,13 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       if(proxy==null){
         if(socket!=null)
 	  socket.close();
-      }
-      else{
+      }else{
 	synchronized(proxy){
 	  proxy.close();	  
 	}
 	proxy=null;
       }
-    }
-    catch(Exception e){
+    }catch(Exception e){
         ALoadClass.DebugPrintException("ex_153");
     }
     socket=null;
@@ -1660,7 +1591,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     String host = null;
     int hostport = -1;
   }
-
   private Forwarding parseForwarding(String conf) throws JSchException {
     String[] tmp = conf.split(" ");
     if(tmp.length>1){   // "[bind_address:]port host:hostport"
@@ -1677,7 +1607,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
       conf = sb.toString(); 
     }
-
     String org = conf;
     Forwarding f = new Forwarding();
     try {
@@ -1695,18 +1624,15 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
         if(conf.length() ==0 || conf.equals("*")) conf="0.0.0.0";
         if(conf.equals("localhost")) conf="127.0.0.1";
         f.bind_address = conf;
-      }
-      else {
+      }else {
         f.port = Integer.parseInt(conf);
         f.bind_address = "127.0.0.1";
       }
-    }
-    catch(NumberFormatException e){
+    }catch(NumberFormatException e){
       throw new JSchException ("parseForwarding: "+e.toString());
     }
     return f;
   }
-  
   private class GlobalRequestReply{
     private Thread thread=null;
     private int reply=-1;
@@ -1724,100 +1650,50 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   private GlobalRequestReply grr=new GlobalRequestReply();
   private int _setPortForwardingR(String bind_address, int rport) throws JSchException{
     synchronized(grr){
-    Buffer buf=new Buffer(100); // ??
-    Packet packet=new Packet(buf);
-    grr.setThread(Thread.currentThread());
-    grr.setPort(rport);
-
-    try{
-      packet.reset();
-      buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
-      buf.putString(str2byte("tcpip-forward"));
-      buf.putByte((byte)1);
-      //buf.putString(Util.str2byte(address_to_bind));
-      buf.putInt(rport);
-      write(packet);
-    }
-    catch(Exception e){
+      Buffer buf=new Buffer(100); // ??
+      Packet packet=new Packet(buf);
+      grr.setThread(Thread.currentThread());
+      grr.setPort(rport);
+      try{
+        packet.reset();
+        buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
+        buf.putString(str2byte("tcpip-forward"));
+        buf.putByte((byte)1);
+        buf.putInt(rport);
+        write(packet);
+      }catch(Exception e){
         ALoadClass.DebugPrintException("ex_154");
-      grr.setThread(null);
-      if(e instanceof Throwable)
-        throw new JSchException(e.toString(), (Throwable)e);
-      throw new JSchException(e.toString());
-    }
-
-    int count = 0;
-    int reply = grr.getReply();
-    while(count < 10 && reply == -1){
-      try{ Thread.sleep(1000); }
-      catch(Exception e){
-          ALoadClass.DebugPrintException("ex_155");
+        grr.setThread(null);
+        if(e instanceof Throwable)
+          throw new JSchException(e.toString(), (Throwable)e);
+        throw new JSchException(e.toString());
       }
-      count++; 
-      reply = grr.getReply();
-    }
-    grr.setThread(null);
-    if(reply != 1){
-      throw new JSchException("remote port forwarding failed for listen port "+rport);
-    }
-    rport=grr.getPort();
+      int count = 0;
+      int reply = grr.getReply();
+      while(count < 10 && reply == -1){
+        try{ 
+          Thread.sleep(1000); 
+        }catch(Exception e){
+          ALoadClass.DebugPrintException("ex_155");
+        }
+        count++; 
+        reply = grr.getReply();
+      }
+      grr.setThread(null);
+      if(reply != 1)
+        throw new JSchException("remote port forwarding failed for listen port "+rport);
+      rport=grr.getPort();
     }
     return rport;
   }
-  
   private void initDeflater(String method) throws JSchException{
-    if(method.equals("none")){
-      //deflater=null;
+    if(method.equals("none"))
       return;
-    }
-    
-    String foo=ALoadClass.getNameByConfig(method);
-    if(foo!=null){
-        /*
-      if(method.equals("zlib") ||
-         (isAuthed && method.equals("zlib@openssh.com"))){
-        try{
-          deflater=(Compression)ALoadClass.getInstanceByName(foo);
-          int level=6;
-          try{ level=Integer.parseInt(ALoadClass.getNameByConfig("compression_level"));}
-          catch(Exception ee){ }
-          deflater.init(Compression.DEFLATER, level);
-        }
-        catch(NoClassDefFoundError ee){
-          throw new JSchException(ee.toString(), ee);
-        }
-        catch(Exception ee){
-          throw new JSchException(ee.toString(), ee);
-          //System.err.println(foo+" isn't accessible.");
-        }
-      }*/
-        
-    }
   }
   private void initInflater(String method) throws JSchException{
-    if(method.equals("none")){
-      //inflater=null;
+    if(method.equals("none"))
       return;
-    }
-    
-    String foo=ALoadClass.getNameByConfig(method);
-    if(foo!=null){
-        /*
-      if(method.equals("zlib") ||
-         (isAuthed && method.equals("zlib@openssh.com"))){
-        try{
-          inflater=(Compression)ALoadClass.getInstanceByName(foo);
-          inflater.init(Compression.INFLATER, 0);
-        }
-        catch(Exception ee){
-          throw new JSchException(ee.toString(), ee);
-	    //System.err.println(foo+" isn't accessible.");
-        }
-      }*/
-        
-    }
   }
-
   void addChannel(Channel channel){
     channel.setSession(this);
   }
@@ -1840,11 +1716,9 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       System.arraycopy(password, 0, this.password, 0, password.length);
     }
   }
-
   public void setConfig(java.util.Properties newconf){
     setConfig((java.util.Hashtable)newconf);
   }
- 
   public void setConfig(java.util.Hashtable newconf){
     synchronized(lock){
       if(config==null) 
@@ -1855,7 +1729,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
     }
   }
-
   public void setConfig(String key, String value){
     synchronized(lock){ 
       if(config==null){
@@ -1864,7 +1737,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       config.put(key, value);
     }
   }
-
   public void setSocketFactory(SocketFactory sfactory){ 
     socket_factory=sfactory;
   }
@@ -1898,7 +1770,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   public void setClientVersion(String cv){
     V_C=str2byte(cv);
   }
-
   public void sendIgnore() throws Exception{
     Buffer buf=new Buffer();
     Packet packet=new Packet(buf);
@@ -1906,7 +1777,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     buf.putByte((byte)SSH_MSG_IGNORE);
     write(packet);
   }
-
   private static final byte[] keepalivemsg=str2byte("keepalive@jcraft.com");
   public void sendKeepAliveMsg() throws Exception{
     Buffer buf=new Buffer();
@@ -1917,7 +1787,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     buf.putByte((byte)1);
     write(packet);
   }
-
   private static final byte[] nomoresessions=str2byte("no-more-sessions@openssh.com");
   public void noMoreSessionChannels() throws Exception{
     Buffer buf=new Buffer();
@@ -2172,54 +2041,35 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
 
     value = config.getValue("ClearAllForwardings");
-    if(value != null) {
+    if(value != null) 
       setConfig("ClearAllForwardings", value);
-    }
-
   }
-
   private void applyConfigChannel(ChannelSession channel) throws JSchException {
     ConfigRepository configRepository = jsch.getConfigRepository();
-    if(configRepository == null){
+    if(configRepository == null)
       return;
-    }
-
-    ConfigRepository.Config config =
-      configRepository.getConfig(org_host);
-
+    ConfigRepository.Config config = configRepository.getConfig(org_host);
     String value = null;
-
     value = config.getValue("ForwardAgent");
-    if(value != null){
+    if(value != null)
       channel.setAgentForwarding(value.equals("yes"));
-    }
-
     value = config.getValue("RequestTTY");
-    if(value != null){
+    if(value != null)
       channel.setPty(value.equals("yes"));
-    }
   }
-
   private void requestPortForwarding() throws JSchException {
-
     if(ALoadClass.getNameByConfig("ClearAllForwardings").equals("yes"))
       return;
-
     ConfigRepository configRepository = jsch.getConfigRepository();
-    if(configRepository == null){
+    if(configRepository == null)
       return;
-    }
-
-    ConfigRepository.Config config =
-      configRepository.getConfig(org_host);
+    ConfigRepository.Config config = configRepository.getConfig(org_host);
   }
-
   private void checkConfig(ConfigRepository.Config config, String key){
     String value = config.getValue(key);
     if(value != null)
       this.setConfig(key, value);
   }  
-  
   public void put(Packet p) throws IOException, java.net.SocketException {
     out.write(p.buffer.buffer, 0, p.buffer.index);
     out.flush();
@@ -2232,11 +2082,9 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     out_ext.write(array, begin, length);
     out_ext.flush();
   }
-
   int getByte() throws IOException {
     return in.read();
   }
-
   void getByte(byte[] array) throws IOException {
     getByte(array, 0, array.length);
   }
@@ -2252,7 +2100,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
     while (length>0);
   }
-
   void out_close(){
     try{
       if(out!=null && !out_dontclose) out.close();
@@ -2260,7 +2107,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
     catch(Exception ee){}
   }
-
   public void close(){
     try{
       if(in!=null && !in_dontclose) in.close();
