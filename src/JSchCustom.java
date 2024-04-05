@@ -20,7 +20,6 @@ class Ssh {
             session.setPassword(password);
             UserInfo ui = new MyUserInfo() {
                 public void showMessage(String message) {
-                    javax.swing.JOptionPane.showMessageDialog(null, message);
                 }
                 public boolean promptYesNo(String message) {
                     return true;

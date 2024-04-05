@@ -1,7 +1,7 @@
 import javax.crypto.*;
 import javax.crypto.spec.*;
 
-public class HmacSHA1{
+class HmacSHA1{
   protected int bsize = 20;
   private Mac mac;
   private final byte[] tmp = new byte[4];
