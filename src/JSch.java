@@ -104,8 +104,6 @@ public class JSch{
       _passphrase=Util.str2byte(passphrase);
     }
     addIdentity(prvkey, _passphrase);
-    if(_passphrase!=null)
-      Util.bzero(_passphrase);
   }
 
   public void addIdentity(String prvkey, byte[] passphrase) throws JSchException{
@@ -132,7 +130,6 @@ public class JSch{
         identity.setPassphrase(passphrase); 
       }
       finally{
-        Util.bzero(passphrase);
       }
     }
 

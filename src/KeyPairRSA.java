@@ -702,7 +702,5 @@ public class KeyPairRSA{// extends KeyPairA{
   } 
 
   public void dispose(){    
-    Util.bzero(passphrase);
-    Util.bzero(prv_array);
   }
 }

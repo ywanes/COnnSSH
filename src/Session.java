@@ -557,8 +557,6 @@ public class Session implements Runnable{
       throw new JSchException("Session.connect: "+e);
     }
     finally{
-      Util.bzero(this.password);
-      this.password=null;
     }
   }
 
@@ -1191,18 +1189,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
                            HASHSHA512 hash, int required_length) throws Exception {
     byte[] result = key;
     int size = hash.getBlockSize();
-    while(result.length < required_length){
-      buf.reset();
-      buf.putMPInt(K);
-      buf.putByte(H);
-      buf.putByte(result);
-      hash.update(buf.buffer, 0, buf.index);
-      byte[] tmp = new byte[result.length+size];
-      System.arraycopy(result, 0, tmp, 0, result.length);
-      System.arraycopy(hash.digest(), 0, tmp, result.length, size);
-      Util.bzero(result);
-      result = tmp;
-    }
     return result;
   }
   

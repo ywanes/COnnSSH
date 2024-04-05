@@ -18,14 +18,6 @@ class KnownHosts implements HostKeyRepository{
   }
 
   void setKnownHosts(String filename) throws JSchException{
-    try{
-      known_hosts = filename;
-      FileInputStream fis=new FileInputStream(Util.checkTilde(filename));
-      setKnownHosts(fis);
-    }
-    catch(FileNotFoundException e){
-      // The non-existing file should be allowed.
-    } 
   }
   void setKnownHosts(InputStream input) throws JSchException{
     pool.removeAllElements();
@@ -264,47 +256,8 @@ loop:
     }
 
     hk=hostkey;
-
     pool.addElement(hk);
-
     String bar=getKnownHostsRepositoryID();
-    if(bar!=null){
-      boolean foo=true;
-      File goo=new File(Util.checkTilde(bar));
-      if(!goo.exists()){
-        foo=false;
-        if(userinfo!=null){
-          foo=userinfo.promptYesNo(bar+" does not exist.\n"+
-                                   "Are you sure you want to create it?"
-                                   );
-          goo=goo.getParentFile();
-          if(foo && goo!=null && !goo.exists()){
-            foo=userinfo.promptYesNo("The parent directory "+goo+" does not exist.\n"+
-                                     "Are you sure you want to create it?"
-                                     );
-            if(foo){
-              if(!goo.mkdirs()){
-                userinfo.showMessage(goo+" has not been created.");
-                foo=false;
-              }
-              else{
-                userinfo.showMessage(goo+" has been succesfully created.\nPlease check its access permission.");
-              }
-            }
-          }
-          if(goo==null)foo=false;
-        }
-      }
-      if(foo){
-        try{ 
-          sync(bar); 
-        }
-        catch(Exception e){ 
-            ALoadClass.DebugPrintException("ex_125");
-            System.err.println("sync known_hosts: "+e); 
-        }
-      }
-    }
   }
 
   public HostKey[] getHostKey(){
@@ -364,9 +317,6 @@ loop:
   }
   protected synchronized void sync(String foo) throws IOException {
     if(foo==null) return;
-    FileOutputStream fos=new FileOutputStream(Util.checkTilde(foo));
-    dump(fos);
-    fos.close();
   }
 
   private static final byte[] space={(byte)0x20};

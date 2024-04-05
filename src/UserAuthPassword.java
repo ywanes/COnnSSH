@@ -81,19 +81,6 @@ class UserAuthPassword extends UserAuth{
           if(response==null){
             throw new JSchAuthCancelException("password");
           }
-
-          byte[] newpassword=Util.str2byte(response[0]);
-          packet.reset();
-          buf.putByte((byte)SSH_MSG_USERAUTH_REQUEST);
-          buf.putString(_username);
-          buf.putString(Util.str2byte("ssh-connection"));
-          buf.putString(Util.str2byte("password"));
-          buf.putByte((byte)1);
-          buf.putString(password);
-          buf.putString(newpassword);
-          Util.bzero(newpassword);
-          response=null;
-          session.write(packet);
 	  continue loop;
         }
 	if(command==SSH_MSG_USERAUTH_FAILURE){
@@ -110,17 +97,7 @@ class UserAuthPassword extends UserAuth{
 	  return false;
 	}
       }
-
-      if(password!=null){
-        Util.bzero(password);
-        password=null;
-      }
     }
-    }finally{
-      if(password!=null){
-        Util.bzero(password);
-        password=null;
-      }
-    }
+    }finally{}
   }
 }
