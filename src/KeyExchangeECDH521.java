@@ -14,7 +14,7 @@ public class KeyExchangeECDH521 {
   static final int PROPOSAL_MAX=10;
   public static final int STATE_END=0;
   protected Session session=null;
-  protected HASHSHA512 sha=null;
+  protected SHA512 sha=null;
   protected byte[] K=null;
   protected byte[] H=null;
   protected byte[] K_S=null;
@@ -44,7 +44,7 @@ public class KeyExchangeECDH521 {
     this.I_S=I_S;      
     this.I_C=I_C;      
     try{
-      sha=new HASHSHA512();
+      sha=new SHA512();
       sha.init();
     }
     catch(Exception e){
@@ -138,7 +138,7 @@ public class KeyExchangeECDH521 {
   
   byte[] getK(){ return K; }
   byte[] getH(){ return H; }
-  HASHSHA512 getHash(){ return sha; }
+  SHA512 getHash(){ return sha; }
   byte[] getHostKey(){ return K_S; }
   protected byte[] normalize(byte[] secret) {
     if(secret.length > 1 && secret[0] == 0 && (secret[1]&0x80) == 0) {
@@ -249,7 +249,7 @@ public class KeyExchangeECDH521 {
       private KeyAgreement myKeyAgree;
       public void init(int size) throws Exception{
         myKeyAgree = KeyAgreement.getInstance("ECDH");
-        KeyPairECDSA kpair = new KeyPairECDSA();
+        ECDSA kpair = new ECDSA();
         kpair.init(size);
         publicKey = kpair.getPublicKey();
         byte[] r = kpair.getR();

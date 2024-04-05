@@ -1,6 +1,6 @@
 import java.security.*;
 
-public class HASHSHA512{// implements HASHZ {
+public class SHA512{
   MessageDigest md;
   public int getBlockSize(){return 64;}
   public void init() throws Exception {

@@ -54,8 +54,8 @@ public class Session implements Runnable{
   private int seqo=0;
 
   String[] guess=null;
-  private CipherAES256CTR s2ccipher;
-  private CipherAES256CTR c2scipher;
+  private AES256CTR s2ccipher;
+  private AES256CTR c2scipher;
   private HMAC s2cmac;
   private HMAC c2smac;
   private byte[] s2cmac_result1;
@@ -393,7 +393,7 @@ public class Session implements Runnable{
 
       UserAuth ua=null;
       try{
-        ua=(UserAuth)ALoadClass.getInstanceByConfig("userauth.none");
+        ua = new UserAuthNone();        
       }
       catch(Exception e){ 
           ALoadClass.DebugPrintException("ex_145");
@@ -456,7 +456,10 @@ public class Session implements Runnable{
 
 	  ua=null;
           if ( method.equals("password") ){
-            ua=(UserAuth)ALoadClass.getInstanceByConfig("userauth."+method);
+            if ( method.equals("password") )
+              ua = new UserAuthPassword();
+            if ( method.equals("none") )
+              ua = new UserAuthNone();
             auth_cancel=false;
 	    try{ 
 	      auth=ua.start(this); 
@@ -1039,7 +1042,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     return buf;
   }
 
-  private void start_discard(Buffer buf, CipherAES256CTR cipher, HMAC mac, 
+  private void start_discard(Buffer buf, AES256CTR cipher, HMAC mac, 
                              int packet_length, int discard) throws JSchException, IOException{
     HMAC discard_mac = null;
 
@@ -1082,7 +1085,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   private void updateKeys(KeyExchangeECDH521 kex) throws Exception{
     byte[] K=kex.getK();
     byte[] H=kex.getH();
-    HASHSHA512 hash=kex.getHash();
+    SHA512 hash=kex.getHash();
 
     if(session_id==null){
       session_id=new byte[H.length];
@@ -1124,7 +1127,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       String method;
   
       method=guess[KeyExchangeECDH521.PROPOSAL_ENC_ALGS_STOC];
-      s2ccipher=(CipherAES256CTR)ALoadClass.getInstanceByConfig(method);
+      s2ccipher=new AES256CTR();
       while(s2ccipher.getBlockSize()>Es2c.length){
         buf.reset();
         buf.putMPInt(K);
@@ -1137,19 +1140,18 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	System.arraycopy(foo, 0, bar, Es2c.length, foo.length);
 	Es2c=bar;
       }
-      s2ccipher.init(CipherAES256CTR.DECRYPT_MODE, Es2c, IVs2c);
+      s2ccipher.init(AES256CTR.DECRYPT_MODE, Es2c, IVs2c);
       s2ccipher_size=s2ccipher.getIVSize();
 
       method=guess[KeyExchangeECDH521.PROPOSAL_MAC_ALGS_STOC];
-      s2cmac = (HMAC)ALoadClass.getInstanceByConfig(method);
+      s2cmac = new HMACSHA1(); //(HMAC)ALoadClass.getInstanceByConfig(method);
       MACs2c = expandKey(buf, K, H, MACs2c, hash, s2cmac.getBlockSize());
       s2cmac.init(MACs2c);
-      //mac_buf=new byte[s2cmac.getBlockSize()];
       s2cmac_result1=new byte[s2cmac.getBlockSize()];
       s2cmac_result2=new byte[s2cmac.getBlockSize()];
 
       method=guess[KeyExchangeECDH521.PROPOSAL_ENC_ALGS_CTOS];
-      c2scipher = (CipherAES256CTR)ALoadClass.getInstanceByConfig(method);
+      c2scipher = new AES256CTR();
       while(c2scipher.getBlockSize()>Ec2s.length){
         buf.reset();
         buf.putMPInt(K);
@@ -1162,11 +1164,11 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	System.arraycopy(foo, 0, bar, Ec2s.length, foo.length);
 	Ec2s=bar;
       }
-      c2scipher.init(CipherAES256CTR.ENCRYPT_MODE, Ec2s, IVc2s);
+      c2scipher.init(AES256CTR.ENCRYPT_MODE, Ec2s, IVc2s);
       c2scipher_size=c2scipher.getIVSize();
 
       method=guess[KeyExchangeECDH521.PROPOSAL_MAC_ALGS_CTOS];
-      c2smac = (HMAC)ALoadClass.getInstanceByConfig(method);
+      c2smac = new HMACSHA1();// (HMAC)ALoadClass.getInstanceByConfig(method);
       MACc2s = expandKey(buf, K, H, MACc2s, hash, c2smac.getBlockSize());
       c2smac.init(MACc2s);
 
@@ -1186,7 +1188,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   
     
   private byte[] expandKey(Buffer buf, byte[] K, byte[] H, byte[] key,
-                           HASHSHA512 hash, int required_length) throws Exception {
+                           SHA512 hash, int required_length) throws Exception {
     byte[] result = key;
     int size = hash.getBlockSize();
     return result;
@@ -2000,8 +2002,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 
   static boolean checkCipher(String cipher){
     try{
-      CipherAES256CTR _c=(CipherAES256CTR)ALoadClass.getInstanceByName(cipher);
-      _c.init(CipherAES256CTR.ENCRYPT_MODE,
+      AES256CTR _c=(AES256CTR)ALoadClass.getInstanceByName(cipher);
+      _c.init(AES256CTR.ENCRYPT_MODE,
               new byte[_c.getBlockSize()],
               new byte[_c.getIVSize()]);
       return true;

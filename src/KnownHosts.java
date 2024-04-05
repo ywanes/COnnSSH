@@ -383,7 +383,7 @@ loop:
   private HMAC getHMACSHA1(){
     if(hmacsha1==null){
       try{
-        hmacsha1=(HMAC)ALoadClass.getInstanceByConfig("hmac-sha1");
+        hmacsha1=new HMACSHA1();
       }
       catch(Exception e){ 
           ALoadClass.DebugPrintException("ex_128");

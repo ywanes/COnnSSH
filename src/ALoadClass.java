@@ -28,13 +28,9 @@ class ALoadClass {
     // Usage in GraalVM
     public static Object getForce(String key, Exception e) throws Exception{
         //DebugPrint("Loading Force... " + key);
-        if ( key.equals("HMACSHA1") ) return (Object)(new HMACSHA1());
-        if ( key.equals("HASHSHA512") ) return (Object)(new HASHSHA512());
         if ( key.equals("SignatureRSA") ) return (Object)(new SignatureRSA());
         if ( key.equals("Random") ) return (Object)(new Random());        
-        if ( key.equals("CipherAES256CTR") ) return (Object)(new CipherAES256CTR());
-        if ( key.equals("UserAuthNone") ) return (Object)(new UserAuthNone());
-        if ( key.equals("UserAuthPassword") ) return (Object)(new UserAuthPassword());
+        if ( key.equals("CipherAES256CTR") ) return (Object)(new AES256CTR());
       
         DebugPrint("FailLoadClass !! " + key);
         throw e;
@@ -43,12 +39,9 @@ class ALoadClass {
     static java.util.Hashtable config=new java.util.Hashtable();
     static{
         config.put("hmac-sha1","HMACSHA1");
-        config.put("sha-512","HASHSHA512");
         config.put("signature.rsa","SignatureRSA");
         config.put("random","Random");
         config.put("aes256-ctr","CipherAES256CTR");
-        config.put("userauth.none","UserAuthNone");
-        config.put("userauth.password","UserAuthPassword");
         
         config.put("kex","ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha256,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1");
         config.put("server_host_key","ssh-rsa,ssh-dss,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521");
