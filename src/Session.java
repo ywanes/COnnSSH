@@ -2037,6 +2037,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     return hostkeyRepository;
   }
 
+  
   private void applyConfig() throws JSchException {
     ConfigRepository configRepository = jsch.getConfigRepository();
     if(configRepository == null){
@@ -2045,7 +2046,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 
     ConfigRepository.Config config =
       configRepository.getConfig(org_host);
-
+    
     String value = null;
 
     if(username==null){
@@ -2192,4 +2193,5 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     if(value != null)
       this.setConfig(key, value);
   }
+  
 }
