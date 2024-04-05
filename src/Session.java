@@ -62,8 +62,8 @@ public class Session implements Runnable{
   private byte[] s2cmac_result1;
   private byte[] s2cmac_result2;
 
-  private Compression deflater;
-  private Compression inflater;
+  //private Compression deflater;
+  //private Compression inflater;
 
   private IO io;
   private Socket socket;
@@ -801,13 +801,14 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     return null;
   }
 
+  
   public void encode(Packet packet) throws Exception{
-    if(deflater!=null){
-      compress_len[0]=packet.buffer.index;
-      packet.buffer.buffer=deflater.compress(packet.buffer.buffer, 
-                                             5, compress_len);
-      packet.buffer.index=compress_len[0];
-    }
+  //  if(deflater!=null){
+      //compress_len[0]=packet.buffer.index;
+      //packet.buffer.buffer=deflater.compress(packet.buffer.buffer, 
+//                                             5, compress_len);
+//      packet.buffer.index=compress_len[0];
+//    }
     if(c2scipher!=null){
       //packet.padding(c2scipher.getIVSize());
       packet.padding(c2scipher_size);
@@ -895,6 +896,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 
       seqi++;
 
+      /*
       if(inflater!=null){
         //inflater.uncompress(buf);
 	int pad=buf.buffer[4];
@@ -909,7 +911,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	  break;
 	}
       }
-
+      */
+      
       int type=buf.getCommand()&0xff;
       //System.err.println("read: "+type);
       if(type==SSH_MSG_DISCONNECT){
@@ -950,6 +953,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
       else if(type==UserAuth.SSH_MSG_USERAUTH_SUCCESS){
         isAuthed=true;
+        /*
         if(inflater==null && deflater==null){
           String method;
           method=guess[KeyExchange.PROPOSAL_COMP_ALGS_CTOS];
@@ -957,6 +961,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
           method=guess[KeyExchange.PROPOSAL_COMP_ALGS_STOC];
           initInflater(method);
         }
+        */
         break;
       }
       else{
@@ -1709,12 +1714,13 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   
   private void initDeflater(String method) throws JSchException{
     if(method.equals("none")){
-      deflater=null;
+      //deflater=null;
       return;
     }
     
     String foo=ALoadClass.getNameByConfig(method);
     if(foo!=null){
+        /*
       if(method.equals("zlib") ||
          (isAuthed && method.equals("zlib@openssh.com"))){
         try{
@@ -1731,17 +1737,19 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
           throw new JSchException(ee.toString(), ee);
           //System.err.println(foo+" isn't accessible.");
         }
-      }
+      }*/
+        
     }
   }
   private void initInflater(String method) throws JSchException{
     if(method.equals("none")){
-      inflater=null;
+      //inflater=null;
       return;
     }
     
     String foo=ALoadClass.getNameByConfig(method);
     if(foo!=null){
+        /*
       if(method.equals("zlib") ||
          (isAuthed && method.equals("zlib@openssh.com"))){
         try{
@@ -1752,7 +1760,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
           throw new JSchException(ee.toString(), ee);
 	    //System.err.println(foo+" isn't accessible.");
         }
-      }
+      }*/
+        
     }
   }
 
