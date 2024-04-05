@@ -4,7 +4,7 @@ import javax.crypto.spec.*;
 public class HmacSHA1{
   protected int bsize = 20;
   private Mac mac;
-
+  private final byte[] tmp = new byte[4];
   public int getBlockSize() {
     return bsize;
   };
@@ -17,9 +17,7 @@ public class HmacSHA1{
     SecretKeySpec skey = new SecretKeySpec(key, "HmacSHA1");
     mac = Mac.getInstance("HmacSHA1");
     mac.init(skey);
-  } 
-
-  private final byte[] tmp = new byte[4];
+  }   
   public void update(int i){
     tmp[0] = (byte)(i>>>24);
     tmp[1] = (byte)(i>>>16);

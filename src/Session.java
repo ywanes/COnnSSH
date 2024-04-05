@@ -324,7 +324,7 @@ public class Session implements Runnable{
                              "SSH_MSG_KEXINIT received");
       }
 
-      KeyExchangeECDH521 kex=receive_kexinit(buf);
+      ECDH521 kex=receive_kexinit(buf);
 
       while(true){
 	buf=read(buf);
@@ -341,7 +341,7 @@ public class Session implements Runnable{
           in_kex=false;
 	  throw new JSchException("invalid protocol(kex): "+buf.getCommand());
 	}
-	if(kex.getState()==KeyExchangeECDH521.STATE_END){
+	if(kex.getState()==ECDH521.STATE_END){
 	  break;
 	}
       }
@@ -587,7 +587,7 @@ public class Session implements Runnable{
     return result;
   }
   
-  private KeyExchangeECDH521 receive_kexinit(Buffer buf) throws Exception {
+  private ECDH521 receive_kexinit(Buffer buf) throws Exception {
     int j=buf.getInt();
     if(j!=buf.getLength()){    // packet was compressed and
       buf.getByte();           // j is the size of deflated packet.
@@ -602,20 +602,20 @@ public class Session implements Runnable{
      send_kexinit();
    }
 
-    guess=KeyExchangeECDH521.guess(I_S, I_C);
+    guess=ECDH521.guess(I_S, I_C);
     if(guess==null){
       throw new JSchException("Algorithm negotiation fail");
     }
 
     if(!isAuthed &&
-       (guess[KeyExchangeECDH521.PROPOSAL_ENC_ALGS_CTOS].equals("none") ||
-        (guess[KeyExchangeECDH521.PROPOSAL_ENC_ALGS_STOC].equals("none")))){
+       (guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS].equals("none") ||
+        (guess[ECDH521.PROPOSAL_ENC_ALGS_STOC].equals("none")))){
       throw new JSchException("NONE Cipher should not be chosen before authentification is successed.");
     }
 
-    KeyExchangeECDH521 kex=null;
+    ECDH521 kex=null;
     try{
-      kex=new KeyExchangeECDH521();
+      kex=new ECDH521();
     }
     catch(Exception e){ 
         ALoadClass.DebugPrintException("ex_147");
@@ -728,7 +728,7 @@ public class Session implements Runnable{
     }
   }
 
-  private void checkHost(String chost, int port, KeyExchangeECDH521 kex) throws JSchException {
+  private void checkHost(String chost, int port, ECDH521 kex) throws JSchException {
     String shkc=ALoadClass.getNameByConfig("StrictHostKeyChecking");
 
     if(hostKeyAlias!=null){
@@ -1077,12 +1077,12 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     return session_id;
   }
 
-  private void receive_newkeys(Buffer buf, KeyExchangeECDH521 kex) throws Exception {
+  private void receive_newkeys(Buffer buf, ECDH521 kex) throws Exception {
     updateKeys(kex);
     in_kex=false;
   }
   
-  private void updateKeys(KeyExchangeECDH521 kex) throws Exception{
+  private void updateKeys(ECDH521 kex) throws Exception{
     byte[] K=kex.getK();
     byte[] H=kex.getH();
     SHA512 hash=kex.getHash();
@@ -1126,7 +1126,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       Class c;
       String method;
   
-      method=guess[KeyExchangeECDH521.PROPOSAL_ENC_ALGS_STOC];
+      method=guess[ECDH521.PROPOSAL_ENC_ALGS_STOC];
       s2ccipher=new AES256CTR();
       while(s2ccipher.getBlockSize()>Es2c.length){
         buf.reset();
@@ -1143,14 +1143,14 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       s2ccipher.init(AES256CTR.DECRYPT_MODE, Es2c, IVs2c);
       s2ccipher_size=s2ccipher.getIVSize();
 
-      method=guess[KeyExchangeECDH521.PROPOSAL_MAC_ALGS_STOC];
+      method=guess[ECDH521.PROPOSAL_MAC_ALGS_STOC];
       s2cmac = new HmacSHA1();
       MACs2c = expandKey(buf, K, H, MACs2c, hash, s2cmac.getBlockSize());
       s2cmac.init(MACs2c);
       s2cmac_result1=new byte[s2cmac.getBlockSize()];
       s2cmac_result2=new byte[s2cmac.getBlockSize()];
 
-      method=guess[KeyExchangeECDH521.PROPOSAL_ENC_ALGS_CTOS];
+      method=guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS];
       c2scipher = new AES256CTR();
       while(c2scipher.getBlockSize()>Ec2s.length){
         buf.reset();
@@ -1167,15 +1167,15 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       c2scipher.init(AES256CTR.ENCRYPT_MODE, Ec2s, IVc2s);
       c2scipher_size=c2scipher.getIVSize();
 
-      method=guess[KeyExchangeECDH521.PROPOSAL_MAC_ALGS_CTOS];
+      method=guess[ECDH521.PROPOSAL_MAC_ALGS_CTOS];
       c2smac = new HmacSHA1();
       MACc2s = expandKey(buf, K, H, MACc2s, hash, c2smac.getBlockSize());
       c2smac.init(MACc2s);
 
-      method=guess[KeyExchangeECDH521.PROPOSAL_COMP_ALGS_CTOS];
+      method=guess[ECDH521.PROPOSAL_COMP_ALGS_CTOS];
       initDeflater(method);
 
-      method=guess[KeyExchangeECDH521.PROPOSAL_COMP_ALGS_STOC];
+      method=guess[ECDH521.PROPOSAL_COMP_ALGS_STOC];
       initInflater(method);
     }
     catch(Exception e){ 
@@ -1324,7 +1324,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     Channel channel;
     int[] start=new int[1];
     int[] length=new int[1];
-    KeyExchangeECDH521 kex=null;
+    ECDH521 kex=null;
 
     int stimeout=0;
     try{
