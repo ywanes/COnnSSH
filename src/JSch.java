@@ -5,9 +5,6 @@ public class JSch{
   private java.util.Vector sessionPool = new java.util.Vector();
   private ConfigRepository configRepository = null;
         
-  public synchronized void setIdentityRepository(IdentityRepository identityRepository){
-  }
-
   public ConfigRepository getConfigRepository() {
     return this.configRepository;
   }
@@ -23,7 +20,6 @@ public class JSch{
       public void log(int level, String message){}
     };
   static Logger logger=DEVNULL;
-
 
   public Session getSession(String host)
      throws JSchException {

@@ -31,28 +31,21 @@ public class Session implements Runnable{
   static final int SSH_MSG_CHANNEL_REQUEST=                98;
   static final int SSH_MSG_CHANNEL_SUCCESS=                99;
   static final int SSH_MSG_CHANNEL_FAILURE=               100;
-
   private static final int PACKET_MAX_SIZE = 256 * 1024;
-
   private byte[] V_S;                                 
   private byte[] V_C=str2byte("SSH-2.0-JSCH-0.1.54");
-
   private byte[] I_C; // the payload of the client's SSH_MSG_KEXINIT
   private byte[] I_S; // the payload of the server's SSH_MSG_KEXINIT
   private byte[] K_S; // the host key
-
   private byte[] session_id;
-
   private byte[] IVc2s;
   private byte[] IVs2c;
   private byte[] Ec2s;
   private byte[] Es2c;
   private byte[] MACc2s;
   private byte[] MACs2c;
-
   private int seqi=0;
   private int seqo=0;
-
   String[] guess=null;
   private AES256CTR s2ccipher;
   private AES256CTR c2scipher;
@@ -77,41 +70,29 @@ public class Session implements Runnable{
   static Random random;
   Buffer buf;
   Packet packet;
-
   SocketFactory socket_factory=null;
-
   static final int buffer_margin = 32 + // maximum padding length
                                    64 + // maximum mac length
                                    32;  // margin for deflater; deflater may inflate data
 
   private java.util.Hashtable config=null;
-
   private Proxy proxy=null;
   private UserInfo userinfo;
-
   private String hostKeyAlias=null;
   private int serverAliveInterval=0;
   private int serverAliveCountMax=1;
-
-  private IdentityRepository identityRepository = null;
   private KnownHosts hostkeyRepository = null;
-
   protected boolean daemon_thread=false;
-
   private long kex_start_time=0L;
-
   int max_auth_tries = 6;
   int auth_failures = 0;
-
   String host="127.0.0.1";
   String org_host="127.0.0.1";
   int port=22;
-
   String username=null;
   byte[] password=null;
-
   JSch jsch;
-
+  
   Session(JSch jsch, String username, String host, int port) throws JSchException{
     super();
     this.jsch=jsch;
@@ -1937,14 +1918,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       }
     }
     return foo;
-  }
-
-  public void setIdentityRepository(IdentityRepository identityRepository){
-    this.identityRepository = identityRepository;
-  }
-
-  IdentityRepository getIdentityRepository(){
-    return identityRepository;
   }
 
   public void setHostKeyRepository(KnownHosts hostkeyRepository){
