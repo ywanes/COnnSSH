@@ -47,7 +47,7 @@ public abstract class Channel implements Runnable{
 
   int id;
   volatile int recipient=-1;
-  protected byte[] type=Util.str2byte("foo");
+  protected byte[] type=str2byte("foo");
   volatile int lwsize_max=0x100000;
   volatile int lwsize=lwsize_max;     // local initial window size
   volatile int lmpsize=0x4000;     // local maximum packet size
@@ -648,8 +648,8 @@ public abstract class Channel implements Runnable{
       buf.putByte((byte)SSH_MSG_CHANNEL_OPEN_FAILURE);
       buf.putInt(getRecipient());
       buf.putInt(reasoncode);
-      buf.putString(Util.str2byte("open failed"));
-      buf.putString((byte[])Util.str2byte(""));      
+      buf.putString(str2byte("open failed"));
+      buf.putString((byte[])str2byte(""));      
       getSession().write(packet);
     }
     catch(Exception e){
@@ -716,4 +716,11 @@ public abstract class Channel implements Runnable{
     }
     connected=true;
   }
+
+  static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
+  static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
+  static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
+  static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
+  static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
+  
 }

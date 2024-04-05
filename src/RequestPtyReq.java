@@ -5,7 +5,7 @@ class RequestPtyReq extends Request{
   private int twp=640;
   private int thp=480;
 
-  private byte[] terminal_mode=(byte[])Util.str2byte("");
+  private byte[] terminal_mode=(byte[])str2byte("");
 
   void setCode(String cookie){
   }
@@ -34,9 +34,9 @@ class RequestPtyReq extends Request{
     packet.reset();
     buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
     buf.putInt(channel.getRecipient());
-    buf.putString(Util.str2byte("pty-req"));
+    buf.putString(str2byte("pty-req"));
     buf.putByte((byte)(waitForReply() ? 1 : 0));
-    buf.putString(Util.str2byte(ttype));
+    buf.putString(str2byte(ttype));
     buf.putInt(tcol);
     buf.putInt(trow);
     buf.putInt(twp);
@@ -44,4 +44,11 @@ class RequestPtyReq extends Request{
     buf.putString(terminal_mode);
     write(packet);
   }
+  
+  static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
+  static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
+  static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
+  static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
+  static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
+  
 }

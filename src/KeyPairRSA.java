@@ -15,7 +15,7 @@ public class KeyPairRSA{// extends KeyPairA{
 
   int vendor=VENDOR_OPENSSH;
 
-  private static final byte[] cr=Util.str2byte("\n");
+  private static final byte[] cr=str2byte("\n");
 
   public static KeyPairRSA genKeyPair(JSch jsch, int type) throws JSchException{
     return genKeyPair(jsch, type, 1024);
@@ -50,15 +50,15 @@ public class KeyPairRSA{// extends KeyPairA{
 
   private byte[] passphrase;
 
-  static byte[][] header={Util.str2byte("Proc-Type: 4,ENCRYPTED"),
-                          Util.str2byte("DEK-Info: DES-EDE3-CBC,")};
+  static byte[][] header={str2byte("Proc-Type: 4,ENCRYPTED"),
+                          str2byte("DEK-Info: DES-EDE3-CBC,")};
 
   public void writePrivateKey(java.io.OutputStream out){
     this.writePrivateKey(out, null);
   }
 
   public void writePrivateKey(java.io.OutputStream out, byte[] passphrase){}
-  private static byte[] space=Util.str2byte(" ");
+  private static byte[] space=str2byte(" ");
 
 
   public void writePublicKey(String name, String comment) throws java.io.FileNotFoundException, java.io.IOException{
@@ -144,7 +144,7 @@ public class KeyPairRSA{// extends KeyPairA{
     if(_passphrase==null || _passphrase.length()==0){
       return !encrypted;
     }
-    return decrypt(Util.str2byte(_passphrase));
+    return decrypt(str2byte(_passphrase));
   }
   public boolean decrypt(byte[] _passphrase){
       return false;
@@ -394,8 +394,8 @@ public class KeyPairRSA{// extends KeyPairA{
     }
   }
 
-  private static final byte[] begin=Util.str2byte("-----BEGIN RSA PRIVATE KEY-----");
-  private static final byte[] end=Util.str2byte("-----END RSA PRIVATE KEY-----");
+  private static final byte[] begin=str2byte("-----BEGIN RSA PRIVATE KEY-----");
+  private static final byte[] end=str2byte("-----END RSA PRIVATE KEY-----");
 
   byte[] getPrivateKey(){
     int content=
@@ -602,7 +602,7 @@ public class KeyPairRSA{// extends KeyPairA{
     return Buffer.fromBytes(tmp).buffer;
   }
 
-  private static final byte[] sshrsa=Util.str2byte("ssh-rsa");
+  private static final byte[] sshrsa=str2byte("ssh-rsa");
   byte[] getKeyTypeName(){return sshrsa;}
   public int getKeyType(){return RSA;}
 
@@ -674,7 +674,7 @@ public class KeyPairRSA{// extends KeyPairA{
     buf.putString(getCArray());
     buf.putString(p_array);
     buf.putString(q_array);
-    buf.putString(Util.str2byte(publicKeyComment));
+    buf.putString(str2byte(publicKeyComment));
     byte[] result = new byte[buf.getLength()];
     buf.getByte(result, 0, result.length);
     return result;
@@ -701,6 +701,12 @@ public class KeyPairRSA{// extends KeyPairA{
     return c_array;
   } 
 
-  public void dispose(){    
-  }
+  public void dispose(){}
+  
+  static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
+  static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
+  static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
+  static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
+  static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
+  
 }

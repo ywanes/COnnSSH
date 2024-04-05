@@ -117,11 +117,11 @@ public class KeyExchangeECDH521 {
     if(JSch.getLogger().isEnabled(Logger.INFO)){
       for(int i=0; i<PROPOSAL_MAX; i++){
         JSch.getLogger().log(Logger.INFO,
-                             "kex: server: "+Util.byte2str(sb.getString()));
+                             "kex: server: "+byte2str(sb.getString()));
       }
       for(int i=0; i<PROPOSAL_MAX; i++){
         JSch.getLogger().log(Logger.INFO,
-                             "kex: client: "+Util.byte2str(cb.getString()));
+                             "kex: client: "+byte2str(cb.getString()));
       }
       sb.setOffSet(17);
       cb.setOffSet(17);
@@ -137,13 +137,13 @@ public class KeyExchangeECDH521 {
       while(j<cp.length){
 	while(j<cp.length && cp[j]!=',')j++; 
 	if(k==j) return null;
-	String algorithm=Util.byte2str(cp, k, j-k);
+	String algorithm=byte2str(cp, k, j-k);
 	int l=0;
 	int m=0;
 	while(l<sp.length){
 	  while(l<sp.length && sp[l]!=',')l++; 
 	  if(m==l) return null;
-	  if(algorithm.equals(Util.byte2str(sp, m, l-m))){
+	  if(algorithm.equals(byte2str(sp, m, l-m))){
 	    guess[i]=algorithm;
 	    break loop;
 	  }
@@ -301,7 +301,7 @@ public class KeyExchangeECDH521 {
       j=0;
       j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
 	((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
-      String alg=Util.byte2str(K_S, i, j);
+      String alg=byte2str(K_S, i, j);
       i+=j;
 
       boolean result = verify(alg, K_S, i, sig_of_H);
@@ -327,4 +327,11 @@ public class KeyExchangeECDH521 {
   }
   
   public int getState(){return state; }
+  
+  static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
+  static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
+  static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
+  static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
+  static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
+  
 }

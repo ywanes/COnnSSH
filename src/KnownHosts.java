@@ -57,13 +57,13 @@ loop:
           i=buf[j];
 	  if(i==' '||i=='\t'){ j++; continue; }
 	  if(i=='#'){
-	    addInvalidLine(Util.byte2str(buf, 0, bufl));
+	    addInvalidLine(byte2str(buf, 0, bufl));
 	    continue loop;
 	  }
 	  break;
 	}
 	if(j>=bufl){ 
-	  addInvalidLine(Util.byte2str(buf, 0, bufl));
+	  addInvalidLine(byte2str(buf, 0, bufl));
 	  continue loop; 
 	}
 
@@ -75,7 +75,7 @@ loop:
 	}
 	host=sb.toString();
 	if(j>=bufl || host.length()==0){
-	  addInvalidLine(Util.byte2str(buf, 0, bufl));
+	  addInvalidLine(byte2str(buf, 0, bufl));
 	  continue loop; 
 	}
 
@@ -97,7 +97,7 @@ loop:
           }
           host=sb.toString();
           if(j>=bufl || host.length()==0){
-            addInvalidLine(Util.byte2str(buf, 0, bufl));
+            addInvalidLine(byte2str(buf, 0, bufl));
             continue loop; 
           }
 
@@ -121,7 +121,7 @@ loop:
 	}
 	else { j=bufl; }
 	if(j>=bufl){
-	  addInvalidLine(Util.byte2str(buf, 0, bufl));
+	  addInvalidLine(byte2str(buf, 0, bufl));
 	  continue loop; 
 	}
 
@@ -141,7 +141,7 @@ loop:
 	}
 	key=sb.toString();
 	if(key.length()==0){
-	  addInvalidLine(Util.byte2str(buf, 0, bufl));
+	  addInvalidLine(byte2str(buf, 0, bufl));
 	  continue loop; 
 	}
 
@@ -320,7 +320,7 @@ loop:
   }
 
   private static final byte[] space={(byte)0x20};
-  private static final byte[] cr=Util.str2byte("\n");
+  private static final byte[] cr=str2byte("\n");
   void dump(OutputStream out) throws IOException {
     try{
       HostKey hk;
@@ -333,22 +333,22 @@ loop:
 	String type=hk.getType();
         String comment = hk.getComment();
 	if(type.equals("UNKNOWN")){
-	  out.write(Util.str2byte(host));
+	  out.write(str2byte(host));
 	  out.write(cr);
 	  continue;
 	}
         if(marker.length()!=0){
-          out.write(Util.str2byte(marker));
+          out.write(str2byte(marker));
           out.write(space);
         }
-	out.write(Util.str2byte(host));
+	out.write(str2byte(host));
 	out.write(space);
-	out.write(Util.str2byte(type));
+	out.write(str2byte(type));
 	out.write(space);
 	//out.write(Util.str2byte(hk.getKey()));
         if(comment!=null){
           out.write(space);
-          out.write(Util.str2byte(comment));
+          out.write(str2byte(comment));
         }
 	out.write(cr);
       }
@@ -442,7 +442,7 @@ loop:
       try{
         synchronized(macsha1){
           macsha1.init(salt);
-          byte[] foo=Util.str2byte(host);
+          byte[] foo=str2byte(host);
           macsha1.update(foo, 0, foo.length);
           hash=new byte[macsha1.getBlockSize()];
           macsha1.doFinal(hash, 0);
@@ -454,4 +454,11 @@ loop:
       //hashed=true;
     }
   }
+
+  static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
+  static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
+  static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
+  static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
+  static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
+  
 }

@@ -35,7 +35,7 @@ public class Session implements Runnable{
   private static final int PACKET_MAX_SIZE = 256 * 1024;
 
   private byte[] V_S;                                 
-  private byte[] V_C=Util.str2byte("SSH-2.0-JSCH-0.1.54");
+  private byte[] V_C=str2byte("SSH-2.0-JSCH-0.1.54");
 
   private byte[] I_C; // the payload of the client's SSH_MSG_KEXINIT
   private byte[] I_S; // the payload of the server's SSH_MSG_KEXINIT
@@ -306,9 +306,9 @@ public class Session implements Runnable{
 
       if(JSch.getLogger().isEnabled(Logger.INFO)){
         JSch.getLogger().log(Logger.INFO, 
-                             "Remote version string: "+Util.byte2str(V_S));
+                             "Remote version string: "+byte2str(V_S));
         JSch.getLogger().log(Logger.INFO, 
-                             "Local version string: "+Util.byte2str(V_C));
+                             "Local version string: "+byte2str(V_C));
       }
 
       send_kexinit();
@@ -543,8 +543,8 @@ public class Session implements Runnable{
           buf.checkFreeSize(1+4*3+message.length()+2+buffer_margin);
           buf.putByte((byte)SSH_MSG_DISCONNECT);
           buf.putInt(3);
-          buf.putString(Util.str2byte(message));
-          buf.putString(Util.str2byte("en"));
+          buf.putString(str2byte(message));
+          buf.putString(str2byte("en"));
           write(packet);
         }
       }
@@ -563,18 +563,18 @@ public class Session implements Runnable{
   static String[] split(String foo, String split){
     if(foo==null)
       return null;
-    byte[] buf=Util.str2byte(foo);
+    byte[] buf=str2byte(foo);
     java.util.Vector bar=new java.util.Vector();
     int start=0;
     int index;
     while(true){
       index=foo.indexOf(split, start);
       if(index>=0){
-	bar.addElement(Util.byte2str(buf, start, index-start));
+	bar.addElement(byte2str(buf, start, index-start));
 	start=index+1;
 	continue;
       }
-      bar.addElement(Util.byte2str(buf, start, buf.length-start));
+      bar.addElement(byte2str(buf, start, buf.length-start));
       break;
     }
     String[] result=new String[bar.size()];
@@ -688,16 +688,16 @@ public class Session implements Runnable{
     synchronized(random){
       random.fill(buf.buffer, buf.index, 16); buf.skip(16);
     }
-    buf.putString(Util.str2byte(kex));
-    buf.putString(Util.str2byte(server_host_key));
-    buf.putString(Util.str2byte(cipherc2s));
-    buf.putString(Util.str2byte(ciphers2c));
-    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("mac.c2s")));
-    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("mac.s2c")));
-    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("compression.c2s")));
-    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("compression.s2c")));
-    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("lang.c2s")));
-    buf.putString(Util.str2byte(ALoadClass.getNameByConfig("lang.s2c")));
+    buf.putString(str2byte(kex));
+    buf.putString(str2byte(server_host_key));
+    buf.putString(str2byte(cipherc2s));
+    buf.putString(str2byte(ciphers2c));
+    buf.putString(str2byte(ALoadClass.getNameByConfig("mac.c2s")));
+    buf.putString(str2byte(ALoadClass.getNameByConfig("mac.s2c")));
+    buf.putString(str2byte(ALoadClass.getNameByConfig("compression.c2s")));
+    buf.putString(str2byte(ALoadClass.getNameByConfig("compression.s2c")));
+    buf.putString(str2byte(ALoadClass.getNameByConfig("lang.c2s")));
+    buf.putString(str2byte(ALoadClass.getNameByConfig("lang.s2c")));
     buf.putByte((byte)0);
     buf.putInt(0);
 
@@ -990,8 +990,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	byte[] language_tag=buf.getString();
 	throw new JSchException("SSH_MSG_DISCONNECT: "+
 				    reason_code+
-				" "+Util.byte2str(description)+
-				" "+Util.byte2str(language_tag));
+				" "+byte2str(description)+
+				" "+byte2str(language_tag));
       }
       else if(type==SSH_MSG_IGNORE){
       }
@@ -1503,7 +1503,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	  channel=Channel.getChannel(i, this);
 	  if(channel!=null){
 	    byte reply_type=(byte)SSH_MSG_CHANNEL_FAILURE;
-	    if((Util.byte2str(foo)).equals("exit-status")){
+	    if((byte2str(foo)).equals("exit-status")){
 	      i=buf.getInt();             // exit-status
 	      channel.setExitStatus(i);
 	      reply_type=(byte)SSH_MSG_CHANNEL_SUCCESS;
@@ -1522,7 +1522,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
           buf.getInt(); 
 	  buf.getShort(); 
 	  foo=buf.getString(); 
-	  String ctyp=Util.byte2str(foo);
+	  String ctyp=byte2str(foo);
           if(!"forwarded-tcpip".equals(ctyp) &&
 	     !("x11".equals(ctyp) && x11_forwarding) &&
 	     !("auth-agent@openssh.com".equals(ctyp) && agent_forwarding)){
@@ -1530,8 +1530,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	    buf.putByte((byte)SSH_MSG_CHANNEL_OPEN_FAILURE);
 	    buf.putInt(buf.getInt());
  	    buf.putInt(Channel.SSH_OPEN_ADMINISTRATIVELY_PROHIBITED);
-	    buf.putString((byte[])Util.str2byte(""));
-	    buf.putString((byte[])Util.str2byte(""));
+	    buf.putString((byte[])str2byte(""));
+	    buf.putString((byte[])str2byte(""));
 	    write(packet);
 	  }
 	  else{
@@ -1731,7 +1731,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     try{
       packet.reset();
       buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
-      buf.putString(Util.str2byte("tcpip-forward"));
+      buf.putString(str2byte("tcpip-forward"));
       buf.putByte((byte)1);
       //buf.putString(Util.str2byte(address_to_bind));
       buf.putInt(rport);
@@ -1831,7 +1831,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   public void setOutputStream(OutputStream out){ this.out=out; }
   public void setPassword(String password){
     if(password!=null)
-      this.password=Util.str2byte(password);
+      this.password=str2byte(password);
   }
   public void setPassword(byte[] password){ 
     if(password!=null){
@@ -1889,13 +1889,13 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
   }
   public String getServerVersion(){
-    return Util.byte2str(V_S);
+    return byte2str(V_S);
   }
   public String getClientVersion(){
-    return Util.byte2str(V_C);
+    return byte2str(V_C);
   }
   public void setClientVersion(String cv){
-    V_C=Util.str2byte(cv);
+    V_C=str2byte(cv);
   }
 
   public void sendIgnore() throws Exception{
@@ -1906,7 +1906,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     write(packet);
   }
 
-  private static final byte[] keepalivemsg=Util.str2byte("keepalive@jcraft.com");
+  private static final byte[] keepalivemsg=str2byte("keepalive@jcraft.com");
   public void sendKeepAliveMsg() throws Exception{
     Buffer buf=new Buffer();
     Packet packet=new Packet(buf);
@@ -1917,7 +1917,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     write(packet);
   }
 
-  private static final byte[] nomoresessions=Util.str2byte("no-more-sessions@openssh.com");
+  private static final byte[] nomoresessions=str2byte("no-more-sessions@openssh.com");
   public void noMoreSessionChannels() throws Exception{
     Buffer buf=new Buffer();
     Packet packet=new Packet(buf);
@@ -2302,5 +2302,11 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
     catch(Exception ee){}
   }
+
+  static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
+  static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
+  static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
+  static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
+  static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
   
 }

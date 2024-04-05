@@ -1,7 +1,7 @@
 import java.util.*;
 
 class ChannelSession extends Channel{
-  private static byte[] _session=Util.str2byte("session");
+  private static byte[] _session=str2byte("session");
 
   protected boolean agent_forwarding=false;
   protected boolean xforwading=false;
@@ -30,7 +30,7 @@ class ChannelSession extends Channel{
   }
 
   public void setEnv(String name, String value){
-    setEnv(Util.str2byte(name), Util.str2byte(value));
+    setEnv(str2byte(name), str2byte(value));
   }
 
   public void setEnv(byte[] name, byte[] value){
@@ -107,7 +107,7 @@ class ChannelSession extends Channel{
 
   private byte[] toByteArray(Object o){
     if(o instanceof String){
-      return Util.str2byte((String)o);
+      return str2byte((String)o);
     }
     return (byte[])o;
   }
@@ -151,5 +151,11 @@ class ChannelSession extends Channel{
     }
     thread=null;
   }
+  static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
+  static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
+  static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
+  static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
+  static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
+  
 }
 
