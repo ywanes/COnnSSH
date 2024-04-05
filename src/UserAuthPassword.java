@@ -1,13 +1,13 @@
-class UserAuthPassword extends UserAuth{
+public class UserAuthPassword extends UserAuth{
+    
   private final int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ=60;
+  
   public boolean start(Session session) throws Exception{
     super.start(session);
     byte[] password=session.password;
     String dest=username+"@"+session.host;
-    if(session.port!=22){
+    if(session.port!=22)
       dest+=(":"+session.port);
-    }
-    try{
     while(true){
       if(session.auth_failures >= session.max_auth_tries){
         return false;
@@ -19,7 +19,6 @@ class UserAuthPassword extends UserAuth{
 	if(!userinfo.promptPassword("Password for "+dest)){
 	  throw new JSchAuthCancelException("password");
 	}
-
 	String _password=userinfo.getPassword();
 	if(_password==null){
 	  throw new JSchAuthCancelException("password");
@@ -42,18 +41,15 @@ class UserAuthPassword extends UserAuth{
       while(true){
 	buf=session.read(buf);
         int command=buf.getCommand()&0xff;
-
-	if(command==SSH_MSG_USERAUTH_SUCCESS){
+	if(command==SSH_MSG_USERAUTH_SUCCESS)
 	  return true;
-	}
 	if(command==SSH_MSG_USERAUTH_BANNER){
 	  buf.getInt(); buf.getByte(); buf.getByte();
 	  byte[] _message=buf.getString();
 	  byte[] lang=buf.getString();
           String message=byte2str(_message);
-	  if(userinfo!=null){
+	  if(userinfo!=null)
 	    userinfo.showMessage(message);
-	  }
 	  continue loop;
 	}
 	if(command==SSH_MSG_USERAUTH_PASSWD_CHANGEREQ){
@@ -67,38 +63,28 @@ class UserAuthPassword extends UserAuth{
             }
             return false;
           }
-
           UIKeyboardInteractive kbi=(UIKeyboardInteractive)userinfo;
           String[] response;
           String name="Password Change Required";
           String[] prompt={"New Password: "};
           boolean[] echo={false};
-          response=kbi.promptKeyboardInteractive(dest,
-                                                 name,
-                                                 byte2str(instruction),
-                                                 prompt,
-                                                 echo);
-          if(response==null){
+          response=kbi.promptKeyboardInteractive(dest,name,byte2str(instruction),prompt,echo);
+          if(response==null)
             throw new JSchAuthCancelException("password");
-          }
 	  continue loop;
         }
 	if(command==SSH_MSG_USERAUTH_FAILURE){
 	  buf.getInt(); buf.getByte(); buf.getByte(); 
 	  byte[] foo=buf.getString();
 	  int partial_success=buf.getByte();
-	  if(partial_success!=0){
+	  if(partial_success!=0)
 	    throw new JSchPartialAuthException(byte2str(foo));
-	  }
           session.auth_failures++;
 	  break;
 	}
-	else{
-	  return false;
-	}
+	return false;
       }
     }
-    }finally{}
   }
   
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
