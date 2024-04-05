@@ -1,6 +1,10 @@
 import java.io.*;
 
-public class KnownHosts implements HostKeyRepository{
+public class KnownHosts{
+  static final int OK=0;
+  static final int NOT_INCLUDED=1;
+  static final int CHANGED=2;
+    
   private static final String _known_hosts="known_hosts";
   private JSch jsch=null;
   private String known_hosts=null;

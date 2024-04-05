@@ -16,7 +16,7 @@ public class JSch{
     this.configRepository = configRepository;
   }
 
-  private HostKeyRepository known_hosts=null;
+  private KnownHosts known_hosts=null;
 
   private static final Logger DEVNULL=new Logger(){
       public boolean isEnabled(int level){return false;}
@@ -55,7 +55,7 @@ public class JSch{
     }
   }
 
-  public void setHostKeyRepository(HostKeyRepository hkrepo){
+  public void setHostKeyRepository(KnownHosts hkrepo){
     known_hosts=hkrepo;
   }
 
@@ -77,7 +77,7 @@ public class JSch{
     }
   }
 
-  public HostKeyRepository getHostKeyRepository(){ 
+  public KnownHosts getHostKeyRepository(){ 
     if(known_hosts==null) known_hosts=new KnownHosts(this);
     return known_hosts; 
   }

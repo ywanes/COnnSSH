@@ -94,7 +94,7 @@ public class Session implements Runnable{
   private int serverAliveCountMax=1;
 
   private IdentityRepository identityRepository = null;
-  private HostKeyRepository hostkeyRepository = null;
+  private KnownHosts hostkeyRepository = null;
 
   protected boolean daemon_thread=false;
 
@@ -743,7 +743,7 @@ public class Session implements Runnable{
       chost=("["+chost+"]:"+port);
     }
 
-    HostKeyRepository hkr=getHostKeyRepository();
+    KnownHosts hkr=getHostKeyRepository();
 
     String hkh=ALoadClass.getNameByConfig("HashKnownHosts");
     if(hkh.equals("yes") && (hkr instanceof KnownHosts)){
@@ -759,8 +759,7 @@ public class Session implements Runnable{
     }
 
     boolean insert=false;
-    if((shkc.equals("ask") || shkc.equals("yes")) &&
-       i==HostKeyRepository.CHANGED){
+    if( (shkc.equals("ask") || shkc.equals("yes") ) && i == KnownHosts.CHANGED){
       String file=null;
       synchronized(hkr){
 	file=hkr.getKnownHostsRepositoryID();
@@ -802,7 +801,7 @@ key_fprint+".\n"+
     }
 
     if((shkc.equals("ask") || shkc.equals("yes")) &&
-       (i!=HostKeyRepository.OK) && !insert){
+       (i!=KnownHosts.OK) && !insert){
       if(shkc.equals("yes")){
 	throw new JSchException("reject HostKey: "+host);
       }
@@ -819,7 +818,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	insert=true;
       }
       else{
-	if(i==HostKeyRepository.NOT_INCLUDED) 
+	if(i==KnownHosts.NOT_INCLUDED) 
 	  throw new JSchException("UnknownHostKey: "+host+". "+key_type+" key fingerprint is "+key_fprint);
 	else 
           throw new JSchException("HostKey has been changed: "+host);
@@ -827,11 +826,11 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
 
     if(shkc.equals("no") && 
-       HostKeyRepository.NOT_INCLUDED==i){
+       KnownHosts.NOT_INCLUDED==i){
       insert=true;
     }
 
-    if(i==HostKeyRepository.OK &&
+    if(i==KnownHosts.OK &&
        JSch.getLogger().isEnabled(Logger.INFO)){
       JSch.getLogger().log(Logger.INFO, 
                            "Host '"+host+"' is known and matches the "+key_type+" host key");
@@ -2079,11 +2078,11 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     return identityRepository;
   }
 
-  public void setHostKeyRepository(HostKeyRepository hostkeyRepository){
+  public void setHostKeyRepository(KnownHosts hostkeyRepository){
     this.hostkeyRepository = hostkeyRepository;
   }
 
-  public HostKeyRepository getHostKeyRepository(){
+  public KnownHosts getHostKeyRepository(){
     if(hostkeyRepository == null)
       return jsch.getHostKeyRepository();
     return hostkeyRepository;
