@@ -817,8 +817,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
   }
 
-//public void start(){ (new Thread(this)).start();  }
-
   public Channel openChannel(String type) throws JSchException{
     if(!isConnected){
       throw new JSchException("session is down");
