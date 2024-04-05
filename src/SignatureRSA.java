@@ -2,7 +2,7 @@ import java.math.BigInteger;
 import java.security.*;
 import java.security.spec.*;
 
-public class SignatureRSA implements Signature{
+public class SignatureRSA{// implements Signature{
   java.security.Signature signature;
   KeyFactory keyFactory;
   public void init() throws Exception{
