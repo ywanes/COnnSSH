@@ -11,7 +11,6 @@ public class ChannelShell extends ChannelSession{
     Session _session=getSession();
     try{
       sendRequests();
-
       Request request=new RequestShell();
       request.request(_session, this);
     }

@@ -12,15 +12,15 @@ public class ChannelSubsystem extends ChannelSession{
     try{
       Request request;
       if(xforwading){
-        request=new RequestX11();
-        request.request(_session, this);
+        //request=new RequestX11();
+        //request.request(_session, this);
       }
       if(pty){
 	request=new RequestPtyReq();
 	request.request(_session, this);
       }
-      request=new RequestSubsystem();
-      ((RequestSubsystem)request).request(_session, this, subsystem, want_reply);
+      //request=new RequestSubsystem();
+      //((RequestSubsystem)request).request(_session, this, subsystem, want_reply);
     }
     catch(Exception e){
         ALoadClass.DebugPrintException("ex_62");

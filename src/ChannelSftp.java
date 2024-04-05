@@ -200,8 +200,8 @@ public class ChannelSftp extends ChannelSession{
         throw new JSchException("channel is down");
       }
 
-      Request request=new RequestSftp();
-      request.request(getSession(), this);
+      //Request request=new RequestSftp();
+      //request.request(getSession(), this);
 
       /*
       System.err.println("lmpsize: "+lmpsize);

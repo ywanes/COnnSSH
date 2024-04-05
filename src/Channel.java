@@ -578,9 +578,9 @@ public abstract class Channel implements Runnable{
   }
 
   public void sendSignal(String signal) throws Exception {
-    RequestSignal request=new RequestSignal();
-    request.setSignal(signal);
-    request.request(getSession(), this);
+    //RequestSignal request=new RequestSignal();
+    //request.setSignal(signal);
+    //request.request(getSession(), this);
   }
 
   class PassiveInputStream extends MyPipedInputStream{

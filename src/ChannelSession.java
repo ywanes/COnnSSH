@@ -110,9 +110,9 @@ class ChannelSession extends Channel{
       return;
     }
     try{
-      RequestWindowChange request=new RequestWindowChange();
-      request.setSize(col, row, wp, hp);
-      request.request(getSession(), this);
+      //RequestWindowChange request=new RequestWindowChange();
+      //request.setSize(col, row, wp, hp);
+      //request.request(getSession(), this);
     }
     catch(Exception e){
         ALoadClass.DebugPrintException("ex_19");
@@ -152,13 +152,13 @@ class ChannelSession extends Channel{
     Session _session=getSession();
     Request request;
     if(agent_forwarding){
-      request=new RequestAgentForwarding();
-      request.request(_session, this);
+      //request=new RequestAgentForwarding();
+      //request.request(_session, this);
     }
 
     if(xforwading){
-      request=new RequestX11();
-      request.request(_session, this);
+      //request=new RequestX11();
+      //request.request(_session, this);
     }
 
     if(pty){
@@ -171,6 +171,7 @@ class ChannelSession extends Channel{
       request.request(_session, this);
     }
 
+    /*
     if(env!=null){
       for(Enumeration _env=env.keys(); _env.hasMoreElements();){
         Object name=_env.nextElement();
@@ -181,6 +182,7 @@ class ChannelSession extends Channel{
         request.request(_session, this);
       }
     }
+    */
   }
 
   private byte[] toByteArray(Object o){

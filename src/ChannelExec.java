@@ -7,9 +7,9 @@ public class ChannelExec extends ChannelSession{
   public void start() throws JSchException{
     Session _session=getSession();
     try{
-      sendRequests();
-      Request request=new RequestExec(command);
-      request.request(_session, this);
+      //sendRequests();
+      //Request request=new RequestExec(command);
+      //request.request(_session, this);
     }
     catch(Exception e){
         ALoadClass.DebugPrintException("ex_15");
