@@ -55,68 +55,53 @@ public class KeyExchangeECDH521 {
     packet=new Packet(buf);
     packet.reset();
     buf.putByte((byte)SSH_MSG_KEX_ECDH_INIT);
-
     try{
       ecdh=new KeyExchangeECDHZ();
       ecdh.init(key_size);
-
       Q_C = ecdh.getQ();
       buf.putString(Q_C);
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_90");
+      ALoadClass.DebugPrintException("ex_90");
       if(e instanceof Throwable)
         throw new JSchException(e.toString(), (Throwable)e);
       throw new JSchException(e.toString());
     }
-    if(V_S==null){  // This is a really ugly hack for Session.checkKexes ;-(
+    if(V_S==null)
       return;
-    }
     session.write(packet);
     if(JSch.getLogger().isEnabled(Logger.INFO)){
-      JSch.getLogger().log(Logger.INFO, 
-                           "SSH_MSG_KEX_ECDH_INIT sent");
-      JSch.getLogger().log(Logger.INFO, 
-                           "expecting SSH_MSG_KEX_ECDH_REPLY");
+      JSch.getLogger().log(Logger.INFO, "SSH_MSG_KEX_ECDH_INIT sent");
+      JSch.getLogger().log(Logger.INFO, "expecting SSH_MSG_KEX_ECDH_REPLY");
     }
     state=SSH_MSG_KEX_ECDH_REPLY;
   }
-  
   public String getKeyType() {
     if(type==DSS) return "DSA";
     if(type==RSA) return "RSA";
     return "ECDSA";
   }
-
   public String getKeyAlgorithName() {
     return key_alg_name;
   }
-
   protected static String[] guess(byte[]I_S, byte[]I_C){
     String[] guess=new String[PROPOSAL_MAX];
     Buffer sb=new Buffer(I_S); sb.setOffSet(17);
     Buffer cb=new Buffer(I_C); cb.setOffSet(17);
-
     if(JSch.getLogger().isEnabled(Logger.INFO)){
-      for(int i=0; i<PROPOSAL_MAX; i++){
-        JSch.getLogger().log(Logger.INFO,
-                             "kex: server: "+byte2str(sb.getString()));
-      }
-      for(int i=0; i<PROPOSAL_MAX; i++){
-        JSch.getLogger().log(Logger.INFO,
-                             "kex: client: "+byte2str(cb.getString()));
-      }
+      for(int i=0; i<PROPOSAL_MAX; i++)
+        JSch.getLogger().log(Logger.INFO,"kex: server: "+byte2str(sb.getString()));
+      for(int i=0; i<PROPOSAL_MAX; i++)
+        JSch.getLogger().log(Logger.INFO,"kex: client: "+byte2str(cb.getString()));
       sb.setOffSet(17);
       cb.setOffSet(17);
     }
-
     for(int i=0; i<PROPOSAL_MAX; i++){
-      byte[] sp=sb.getString();  // server proposal
-      byte[] cp=cb.getString();  // client proposal
+      byte[] sp=sb.getString();
+      byte[] cp=cb.getString();
       int j=0;
       int k=0;
-
-      loop:
+      label_break:
       while(j<cp.length){
 	while(j<cp.length && cp[j]!=',')j++; 
 	if(k==j) return null;
@@ -125,10 +110,11 @@ public class KeyExchangeECDH521 {
 	int m=0;
 	while(l<sp.length){
 	  while(l<sp.length && sp[l]!=',')l++; 
-	  if(m==l) return null;
+	  if(m==l) 
+            return null;
 	  if(algorithm.equals(byte2str(sp, m, l-m))){
 	    guess[i]=algorithm;
-	    break loop;
+	    break label_break;
 	  }
 	  l++;
 	  m=l;
@@ -143,20 +129,10 @@ public class KeyExchangeECDH521 {
 	return null;
       }
     }
-
     if(JSch.getLogger().isEnabled(Logger.INFO)){
-      JSch.getLogger().log(Logger.INFO, 
-                           "kex: server->client"+
-                           " "+guess[PROPOSAL_ENC_ALGS_STOC]+
-                           " "+guess[PROPOSAL_MAC_ALGS_STOC]+
-                           " "+guess[PROPOSAL_COMP_ALGS_STOC]);
-      JSch.getLogger().log(Logger.INFO, 
-                           "kex: client->server"+
-                           " "+guess[PROPOSAL_ENC_ALGS_CTOS]+
-                           " "+guess[PROPOSAL_MAC_ALGS_CTOS]+
-                           " "+guess[PROPOSAL_COMP_ALGS_CTOS]);
+      JSch.getLogger().log(Logger.INFO, "kex: server->client"+" "+guess[PROPOSAL_ENC_ALGS_STOC]+" "+guess[PROPOSAL_MAC_ALGS_STOC]+" "+guess[PROPOSAL_COMP_ALGS_STOC]);
+      JSch.getLogger().log(Logger.INFO, "kex: client->server"+" "+guess[PROPOSAL_ENC_ALGS_CTOS]+" "+guess[PROPOSAL_MAC_ALGS_CTOS]+" "+guess[PROPOSAL_COMP_ALGS_CTOS]);
     }
-
     return guess;
   }
   
@@ -164,34 +140,26 @@ public class KeyExchangeECDH521 {
   byte[] getH(){ return H; }
   HASHSHA512 getHash(){ return sha; }
   byte[] getHostKey(){ return K_S; }
-
+  
   protected byte[] normalize(byte[] secret) {
-    if(secret.length > 1 &&
-       secret[0] == 0 && (secret[1]&0x80) == 0) {
+    if(secret.length > 1 && secret[0] == 0 && (secret[1]&0x80) == 0) {
       byte[] tmp=new byte[secret.length-1];
       System.arraycopy(secret, 1, tmp, 0, tmp.length);
       return normalize(tmp);
-    }
-    else {
+    }else
       return secret;
-    }
   }
 
-  protected boolean verify(String alg, byte[] K_S, int index,
-                           byte[] sig_of_H) throws Exception {
+  protected boolean verify(String alg, byte[] K_S, int index, byte[] sig_of_H) throws Exception {
     int i,j;
-
     i=index;
     boolean result=false;
-
     if(alg.equals("ssh-rsa")){
       byte[] tmp;
       byte[] ee;
       byte[] n;
-
       type=RSA;
       key_alg_name=alg;
-      
       j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
         ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
       tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); i+=j;
@@ -200,28 +168,22 @@ public class KeyExchangeECDH521 {
         ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
       tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); i+=j;
       n=tmp;
-	
       SignatureRSA sig=null;
       try{
         sig=(SignatureRSA)ALoadClass.getInstanceByConfig("signature.rsa");
         sig.init();
       }
       catch(Exception e){
-          ALoadClass.DebugPrintException("ex_86");
+        ALoadClass.DebugPrintException("ex_86");
         System.err.println(e);
       }
       sig.setPubKey(ee, n);   
       sig.update(H);
       result=sig.verify(sig_of_H);
-
-      if(JSch.getLogger().isEnabled(Logger.INFO)){
-        JSch.getLogger().log(Logger.INFO, 
-                             "ssh_rsa_verify: signature "+result);
-      }
-    }else{
+      if(JSch.getLogger().isEnabled(Logger.INFO))
+        JSch.getLogger().log(Logger.INFO, "ssh_rsa_verify: signature "+result);
+    }else
       System.err.println("unknown alg");
-    }	    
-
     return result;
   }
 
@@ -239,9 +201,8 @@ public class KeyExchangeECDH521 {
       K_S=_buf.getString();
       byte[] Q_S=_buf.getString();
       byte[][] r_s = fromPoint(Q_S);
-      if(!ecdh.validate(r_s[0], r_s[1])){
+      if(!ecdh.validate(r_s[0], r_s[1]))
 	return false;
-      }
       K = ecdh.getSecret(r_s[0], r_s[1]);
       K=normalize(K);
       byte[] sig_of_H=_buf.getString();
@@ -253,10 +214,8 @@ public class KeyExchangeECDH521 {
       buf.putMPInt(K);
       byte[] foo=new byte[buf.getLength()];
       buf.getByte(foo);
-
       sha.update(foo, 0, foo.length);
       H=sha.digest();
-
       i=0;
       j=0;
       j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
@@ -289,7 +248,6 @@ public class KeyExchangeECDH521 {
   class KeyExchangeECDHZ{
       byte[] Q_array;
       ECPublicKey publicKey;
-
       private KeyAgreement myKeyAgree;
       public void init(int size) throws Exception{
         myKeyAgree = KeyAgreement.getInstance("ECDH");
@@ -301,13 +259,10 @@ public class KeyExchangeECDH521 {
         Q_array = toPoint(r, s);
         myKeyAgree.init(kpair.getPrivateKey());
       }
-
       public byte[] getQ() throws Exception{
         return Q_array;
       }
-
       public byte[] getSecret(byte[] r, byte[] s) throws Exception{
-
         KeyFactory kf = KeyFactory.getInstance("EC");
         ECPoint w = new ECPoint(new BigInteger(1, r), new BigInteger(1, s));
         ECPublicKeySpec spec = new ECPublicKeySpec(w, publicKey.getParams());
@@ -321,30 +276,20 @@ public class KeyExchangeECDH521 {
         BigInteger x = new BigInteger(1, r);
         BigInteger y = new BigInteger(1, s);
         ECPoint w = new ECPoint(x, y);
-        if(w.equals(ECPoint.POINT_INFINITY)){
+        if(w.equals(ECPoint.POINT_INFINITY))
           return false;
-        }
-
         ECParameterSpec params = publicKey.getParams();
         EllipticCurve curve = params.getCurve();
-        BigInteger p=((ECFieldFp)curve.getField()).getP(); //nistp should be Fp. 
-
+        BigInteger p=((ECFieldFp)curve.getField()).getP();
         BigInteger p_sub1=p.subtract(BigInteger.ONE);
-        if(!(x.compareTo(p_sub1)<=0 && y.compareTo(p_sub1)<=0)){
+        if(!(x.compareTo(p_sub1)<=0 && y.compareTo(p_sub1)<=0))
           return false;
-        }
-
-        BigInteger tmp=x.multiply(curve.getA()).
-                         add(curve.getB()).
-                         add(x.modPow(three, p)).
-                         mod(p);
+        BigInteger tmp=x.multiply(curve.getA()).add(curve.getB()).add(x.modPow(three, p)).mod(p);
         BigInteger y_2=y.modPow(two, p);
-        if(!(y_2.equals(tmp))){ 
+        if(!(y_2.equals(tmp)))
           return false;
-        }
         return true;
       }
-
       private byte[] toPoint(byte[] r_array, byte[] s_array) {
         byte[] tmp = new byte[1+r_array.length+s_array.length];
         tmp[0]=0x04;
