@@ -93,8 +93,8 @@ public class GZIPHeader implements Cloneable {
   public long getCRC(){
     return crc;
   }
-
-  void put(Deflate d){
+/*
+  void put(DeflateZ d){
     int flag = 0;
     if(text){
       flag |= 1;     // FTEXT
@@ -145,7 +145,8 @@ public class GZIPHeader implements Cloneable {
       d.put_byte((byte)0);
     }
   }
-
+*/
+  
   @Override
   public Object clone() throws CloneNotSupportedException {
     GZIPHeader gheader = (GZIPHeader)super.clone();

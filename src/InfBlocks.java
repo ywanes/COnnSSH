@@ -77,7 +77,7 @@ final class InfBlocks{
     hufts=new int[MANY*3];
     window=new byte[w];
     end=w;
-    this.check = (z.istate.wrap==0) ? false : true;
+    //this.check = (z.istate.wrap==0) ? false : true;
     mode = TYPE;
     reset();
   }

@@ -80,8 +80,8 @@ final class Tree{
   short[] dyn_tree;      // the dynamic tree
   int     max_code;      // largest code with non zero frequency
   StaticTree stat_desc;  // the corresponding static tree
-
-  void gen_bitlen(Deflate s){
+/*
+  void gen_bitlen(DeflateZ s){
     short[] tree = dyn_tree;
     short[] stree = stat_desc.static_tree;
     int[] extra = stat_desc.extra_bits;
@@ -145,14 +145,16 @@ final class Tree{
       }
     }
   }
-
+*/
+  
+  /*
   // Construct one Huffman tree and assigns the code bit strings and lengths.
   // Update the total bit length for the current block.
   // IN assertion: the field freq is set for all tree elements.
   // OUT assertions: the fields len and code are set to the optimal bit length
   //     and corresponding code. The length opt_len is updated; static_len is
   //     also updated if stree is not null. The field max_code is set.
-  void build_tree(Deflate s){
+  void build_tree(DeflateZ s){
     short[] tree=dyn_tree;
     short[] stree=stat_desc.static_tree;
     int elems=stat_desc.elems;
@@ -225,12 +227,14 @@ final class Tree{
     // At this point, the fields freq and dad are set. We can now
     // generate the bit lengths.
 
-    gen_bitlen(s);
+    //gen_bitlen(s);
 
     // The field len is now set, we can generate the bit codes
     gen_codes(tree, max_code, s.bl_count, s.next_code);
   }
-
+*/
+  
+  
   // Generate the codes for a given tree and bit counts (which need not be
   // optimal).
   // IN assertion: the array bl_count contains the bit length statistics for

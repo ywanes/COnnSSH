@@ -34,8 +34,8 @@ public class ZStream{
 
   public String msg;
 
-  Deflate dstate; 
-  Inflate istate; 
+  //DeflateZ dstate; 
+  //InflateZ istate; 
 
   int data_type; // best guess about the data type: ascii or binary
 
@@ -72,44 +72,51 @@ System.out.println(111112);
       w += 16;
     }
     else if(wrapperType == JZlib.W_ANY) {
-      w |= Inflate.INFLATE_ANY;
+      //w |= InflateZ.INFLATE_ANY;
     }
     else if(wrapperType == JZlib.W_ZLIB) {
     }
     return inflateInit(w, nowrap);
   }
   public int inflateInit(int w, boolean nowrap){
-    istate=new Inflate(this);
-    return istate.inflateInit(nowrap?-w:w);
+    //istate=new InflateZ(this);
+    //return istate.inflateInit(nowrap?-w:w);
+    return -1;
   }
 
   public int inflate(int f){
-    if(istate==null) return Z_STREAM_ERROR;
-    return istate.inflate(f);
+    //if(istate==null) return Z_STREAM_ERROR;
+    //return istate.inflate(f);
+    return -1;
   }
   public int inflateEnd(){
-    if(istate==null) return Z_STREAM_ERROR;
-    int ret=istate.inflateEnd();
+    //if(istate==null) return Z_STREAM_ERROR;
+    //int ret=istate.inflateEnd();
 //    istate = null;
-    return ret;
+    //return ret;
+    return -1;
   }
   public int inflateSync(){
-    if(istate == null)
-      return Z_STREAM_ERROR;
-    return istate.inflateSync();
+    //if(istate == null)
+    //  return Z_STREAM_ERROR;
+    //return istate.inflateSync();
+    return -1;
   }
   public int inflateSyncPoint(){
-    if(istate == null)
-      return Z_STREAM_ERROR;
-    return istate.inflateSyncPoint();
+    //if(istate == null)
+//      return Z_STREAM_ERROR;
+//    return istate.inflateSyncPoint();
+return -1;
   }
   public int inflateSetDictionary(byte[] dictionary, int dictLength){
-    if(istate == null)
-      return Z_STREAM_ERROR;
-    return istate.inflateSetDictionary(dictionary, dictLength);
+    //if(istate == null)
+//      return Z_STREAM_ERROR;
+//    return istate.inflateSetDictionary(dictionary, dictLength);
+return -1;
   }
   public boolean inflateFinished(){
-    return istate.mode==12 /*DONE*/;
+    //return istate.mode==12 /*DONE*/;
+    return false;
   }
 
   public int deflateInit(int level){
@@ -139,33 +146,44 @@ System.out.println(111112);
     return this.deflateInit(level, bits, memlevel);
   }
   public int deflateInit(int level, int bits, int memlevel){
-    dstate=new Deflate(this);
-    return dstate.deflateInit(level, bits, memlevel);
+    //dstate=new DeflateZ(this);
+    return -1;//return dstate.deflateInit(level, bits, memlevel);
   }
   public int deflateInit(int level, int bits, boolean nowrap){
-    dstate=new Deflate(this);
-    return dstate.deflateInit(level, nowrap?-bits:bits);
+    //dstate=new DeflateZ(this);
+    return -1;//return dstate.deflateInit(level, nowrap?-bits:bits);
   }
   public int deflate(int flush){
+      /*
     if(dstate==null){
       return Z_STREAM_ERROR;
     }
     return dstate.deflate(flush);
+      */
+      return -1;//
   }
   public int deflateEnd(){
+      /*
     if(dstate==null) return Z_STREAM_ERROR;
     int ret=dstate.deflateEnd();
     dstate=null;
-    return ret;
+    return ret;*/
+      return -1;//
   }
   public int deflateParams(int level, int strategy){
+      /*
     if(dstate==null) return Z_STREAM_ERROR;
     return dstate.deflateParams(level, strategy);
+      */
+      return -1;//
   }
   public int deflateSetDictionary (byte[] dictionary, int dictLength){
+      /*
     if(dstate == null)
       return Z_STREAM_ERROR;
     return dstate.deflateSetDictionary(dictionary, dictLength);
+      */
+      return -1;//
   }
 
   // Flush as much pending output as possible. All deflate() output goes
@@ -173,6 +191,7 @@ System.out.println(111112);
   // to avoid allocating a large strm->next_out buffer and copying into it.
   // (See also read_buf()).
   void flush_pending(){
+      /*
     int len=dstate.pending;
 
     if(len>avail_out) len=avail_out;
@@ -198,6 +217,8 @@ System.out.println(111112);
     if(dstate.pending==0){
       dstate.pending_out=0;
     }
+      */
+      
   }
 
   // Read a new buffer from the current input stream, update the adler32
@@ -213,9 +234,9 @@ System.out.println(111112);
 
     avail_in-=len;
 
-    if(dstate.wrap!=0) {
-      adler.update(next_in, next_in_index, len);
-    }
+    //if(dstate.wrap!=0) {
+    //  adler.update(next_in, next_in_index, len);
+    //}
     System.arraycopy(next_in, next_in_index, buf, start, len);
     next_in_index  += len;
     total_in += len;
