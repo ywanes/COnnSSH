@@ -3,14 +3,9 @@ import java.util.Vector;
 
 public class JSch{  
   private java.util.Vector sessionPool = new java.util.Vector();
-  private IdentityRepository identityRepository = new LocalIdentityRepository(this);
   private ConfigRepository configRepository = null;
         
   public synchronized void setIdentityRepository(IdentityRepository identityRepository){
-  }
-
-  public synchronized IdentityRepository getIdentityRepository(){
-    return this.identityRepository;
   }
 
   public ConfigRepository getConfigRepository() {
@@ -87,42 +82,6 @@ public class JSch{
     return known_hosts; 
   }
 
-  public void addIdentity(Identity identity, byte[] passphrase) throws JSchException{
-    if(passphrase!=null){
-      try{ 
-        byte[] goo=new byte[passphrase.length];
-        System.arraycopy(passphrase, 0, goo, 0, passphrase.length);
-        passphrase=goo;
-        identity.setPassphrase(passphrase); 
-      }
-      finally{
-      }
-    }
-
-      synchronized(this){
-        if(!(identityRepository instanceof IdentityRepository.Wrapper)){
-          setIdentityRepository(new IdentityRepository.Wrapper(identityRepository));
-        }
-      }
-      ((IdentityRepository.Wrapper)identityRepository).add(identity);
-  }
-
-  public void removeIdentity(Identity identity) throws JSchException{
-    identityRepository.remove(identity.getPublicKeyBlob());
-  }
-
-  public Vector getIdentityNames() throws JSchException{
-    Vector foo=new Vector();
-    Vector identities = identityRepository.getIdentities();
-    for(int i=0; i<identities.size(); i++){
-      Identity identity=(Identity)(identities.elementAt(i));
-      foo.addElement(identity.getName());
-    }
-    return foo;
-  }
-  public void removeAllIdentity() throws JSchException{
-    identityRepository.removeAll();
-  }
   public static void setLogger(Logger logger){
     if(logger==null) logger=DEVNULL;
     JSch.logger=logger;

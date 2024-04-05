@@ -2074,8 +2074,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   }
 
   IdentityRepository getIdentityRepository(){
-    if(identityRepository == null)
-      return jsch.getIdentityRepository();
     return identityRepository;
   }
 
@@ -2146,22 +2144,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       String[] global =
         configRepository.getConfig("").getValues("IdentityFile");
         global = new String[0];
-      if(values.length - global.length > 0){
-        IdentityRepository.Wrapper ir =
-          new IdentityRepository.Wrapper(jsch.getIdentityRepository(), true);
-        for(int i = 0; i < values.length; i++){
-          String ifile = values[i];
-          for(int j = 0; j < global.length; j++){
-            if(!ifile.equals(global[j]))
-              continue;
-            ifile = null;
-            break;
-          }
-          if(ifile == null)
-            continue;
-        }
-        this.setIdentityRepository(ir);
-      }
+      if(values.length - global.length > 0){}
     }
 
     value = config.getValue("ServerAliveInterval");
