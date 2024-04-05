@@ -649,7 +649,7 @@ public abstract class Channel implements Runnable{
       buf.putInt(getRecipient());
       buf.putInt(reasoncode);
       buf.putString(Util.str2byte("open failed"));
-      buf.putString(Util.empty);
+      buf.putString((byte[])Util.str2byte(""));      
       getSession().write(packet);
     }
     catch(Exception e){

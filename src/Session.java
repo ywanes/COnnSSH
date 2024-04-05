@@ -1530,8 +1530,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	    buf.putByte((byte)SSH_MSG_CHANNEL_OPEN_FAILURE);
 	    buf.putInt(buf.getInt());
  	    buf.putInt(Channel.SSH_OPEN_ADMINISTRATIVELY_PROHIBITED);
-	    buf.putString(Util.empty);
-	    buf.putString(Util.empty);
+	    buf.putString((byte[])Util.str2byte(""));
+	    buf.putString((byte[])Util.str2byte(""));
 	    write(packet);
 	  }
 	  else{

@@ -5,7 +5,7 @@ class RequestPtyReq extends Request{
   private int twp=640;
   private int thp=480;
 
-  private byte[] terminal_mode=Util.empty;
+  private byte[] terminal_mode=(byte[])Util.str2byte("");
 
   void setCode(String cookie){
   }
