@@ -7,34 +7,10 @@ public class KeyPairRSA{
   public static final int ECDSA=3;
   public static final int UNKNOWN=4;
   static final int VENDOR_OPENSSH=0;
-  static final int VENDOR_FSECURE=1;
-  static final int VENDOR_PUTTY=2;
-  static final int VENDOR_PKCS8=3;
   int vendor=VENDOR_OPENSSH;
-  private static final byte[] cr=str2byte("\n");
   protected String publicKeyComment = "no comment";  
-  JSch jsch=null;
-  private HASHSHA512 hash;
-  private Random random;
-  private byte[] passphrase;
-  static byte[][] header={str2byte("Proc-Type: 4,ENCRYPTED"),str2byte("DEK-Info: DES-EDE3-CBC,")};  
-  private static byte[] space=str2byte(" ");
   protected boolean encrypted=false;
   protected byte[] data=null;
-  private byte[] iv=null;
-  private byte[] publickeyblob=null;
-  private static final String[] header1 = {
-    "PuTTY-User-Key-File-2: ",
-    "Encryption: ",
-    "Comment: ",
-    "Public-Lines: "
-  };
-  private static final String[] header2 = {
-    "Private-Lines: "
-  };
-  private static final String[] header3 = {
-    "Private-MAC: "
-  };
   private byte[] n_array;   
   private byte[] pub_array; 
   private byte[] prv_array; 
@@ -44,17 +20,15 @@ public class KeyPairRSA{
   private byte[] eq_array; 
   private byte[] c_array;  
   private int key_size=1024;
-  private static final byte[] begin=str2byte("-----BEGIN RSA PRIVATE KEY-----");
-  private static final byte[] end=str2byte("-----END RSA PRIVATE KEY-----");
   private static final byte[] sshrsa=str2byte("ssh-rsa");
   
-  public static KeyPairRSA genKeyPair(JSch jsch, int type) throws JSchException{
-    return genKeyPair(jsch, type, 1024);
+  public static KeyPairRSA genKeyPair(int type) throws JSchException{
+    return genKeyPair(type, 1024);
   }
-  public static KeyPairRSA genKeyPair(JSch jsch, int type, int key_size) throws JSchException{
+  public static KeyPairRSA genKeyPair(int type, int key_size) throws JSchException{
     KeyPairRSA kpair=null;
     if(type==DSA){}
-    else if(type==RSA){ kpair=new KeyPairRSA(jsch); }
+    else if(type==RSA){ kpair=new KeyPairRSA(); }
     if(kpair!=null){
       kpair.generate(key_size);
     }
@@ -68,21 +42,6 @@ public class KeyPairRSA{
   }
   public void setPublicKeyComment(String publicKeyComment){
     this.publicKeyComment = publicKeyComment;
-  }
-  public void writePrivateKey(java.io.OutputStream out){
-    this.writePrivateKey(out, null);
-  }
-  public void writePrivateKey(java.io.OutputStream out, byte[] passphrase){
-  }  
-  public void writePublicKey(String name, String comment) throws java.io.FileNotFoundException, java.io.IOException{
-  }
-  public void writeSECSHPublicKey(java.io.OutputStream out, String comment){
-  }
-  public void writeSECSHPublicKey(String name, String comment) throws java.io.FileNotFoundException, java.io.IOException{
-  }
-  public void writePrivateKey(String name) throws java.io.FileNotFoundException, java.io.IOException{
-  }
-  public void writePrivateKey(String name, byte[] passphrase) throws java.io.FileNotFoundException, java.io.IOException{
   }
   private byte[] encrypt(byte[] plain, byte[][] _iv, byte[] passphrase){
       return null;
@@ -140,10 +99,7 @@ public class KeyPairRSA{
   static private byte b2a(byte c){
     return (byte)0;
   }
-  public void finalize (){
-    dispose();
-  }
-  static KeyPairRSA loadPPK(JSch jsch, byte[] buf) throws JSchException {
+  static KeyPairRSA loadPPK(byte[] buf) throws JSchException {
     byte[] pubkey = null;
     byte[] prvkey = null;
     int lines = 0;
@@ -288,11 +244,10 @@ public class KeyPairRSA{
       return null;
     }
   }
-  public KeyPairRSA(JSch jsch){
-    this(jsch, null, null, null);
+  public KeyPairRSA(){
+    this(null, null, null);
   }
-  public KeyPairRSA(JSch jsch,byte[] n_array,byte[] pub_array,byte[] prv_array){
-    this.jsch=jsch;
+  public KeyPairRSA(byte[] n_array,byte[] pub_array,byte[] prv_array){
     this.n_array = n_array;
     this.pub_array = pub_array;
     this.prv_array = prv_array;
@@ -382,12 +337,12 @@ public class KeyPairRSA{
     }
     return null;
   }
-  static KeyPairRSA fromSSHAgent(JSch jsch, Buffer buf) throws JSchException {
+  static KeyPairRSA fromSSHAgent(Buffer buf) throws JSchException {
     byte[][] tmp = buf.getBytes(8, "invalid key format");
     byte[] n_array = tmp[1];
     byte[] pub_array = tmp[2];
     byte[] prv_array = tmp[3];
-    KeyPairRSA kpair = new KeyPairRSA(jsch, n_array, pub_array, prv_array);
+    KeyPairRSA kpair = new KeyPairRSA(n_array, pub_array, prv_array);
     kpair.c_array = tmp[4];     // iqmp
     kpair.p_array = tmp[5];
     kpair.q_array = tmp[6];
@@ -428,8 +383,6 @@ public class KeyPairRSA{
     return c_array;
   } 
 
-  public void dispose(){}
-  
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
   static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
   static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
