@@ -11,7 +11,7 @@ public class KeyExchangeECDH{
   private KeyAgreement myKeyAgree;
   public void init(int size) throws Exception{
     myKeyAgree = KeyAgreement.getInstance("ECDH");
-    KeyPairGenECDSA kpair = new KeyPairGenECDSA();
+    KeyPairECDSA kpair = new KeyPairECDSA();
     kpair.init(size);
     publicKey = kpair.getPublicKey();
     byte[] r = kpair.getR();

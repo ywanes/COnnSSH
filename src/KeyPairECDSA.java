@@ -1,7 +1,7 @@
 import java.security.interfaces.*;
 import java.security.spec.*;
 
-public class KeyPairGenECDSA{
+public class KeyPairECDSA{
   byte[] d;
   byte[] r;
   byte[] s;

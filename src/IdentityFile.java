@@ -3,22 +3,22 @@ import java.io.*;
 class IdentityFile implements Identity{
 
   private JSch jsch;
-  private KeyPairA kpair;
+  private KeyPairRSA kpair;
   private String identity;
 
   static IdentityFile newInstance(String prvfile, String pubfile, JSch jsch) throws JSchException{
 System.out.println(50000);      
-    KeyPairA kpair = KeyPairA.load(jsch, prvfile, pubfile);
+    KeyPairRSA kpair = KeyPairRSA.load(jsch, prvfile, pubfile);
     return new IdentityFile(jsch, prvfile, kpair);
   }
 
   static IdentityFile newInstance(String name, byte[] prvkey, byte[] pubkey, JSch jsch) throws JSchException{
 System.out.println(50000);
-    KeyPairA kpair = KeyPairA.load(jsch, prvkey, pubkey);
+    KeyPairRSA kpair = KeyPairRSA.load(jsch, prvkey, pubkey);
     return new IdentityFile(jsch, name, kpair);
   }
 
-  private IdentityFile(JSch jsch, String name, KeyPairA kpair) throws JSchException{
+  private IdentityFile(JSch jsch, String name, KeyPairRSA kpair) throws JSchException{
 System.out.println(50000);      
     this.jsch = jsch;
     this.identity = name;
@@ -60,7 +60,7 @@ System.out.println(50000);
     kpair = null;
   }
 
-  public KeyPairA getKeyPair(){
+  public KeyPairRSA getKeyPair(){
     return kpair;
   }
 }
