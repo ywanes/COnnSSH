@@ -1,5 +1,7 @@
 import javax.crypto.spec.*;
-public class CipherAES256CTR implements Cipher{
+public class CipherAES256CTR{// implements CipherZ{
+  public static int ENCRYPT_MODE=0;
+  public static int DECRYPT_MODE=1;
   private static final int ivsize=16;
   private static final int bsize=32;
   private javax.crypto.Cipher cipher;    

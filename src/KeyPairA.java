@@ -54,7 +54,6 @@ public abstract class KeyPairA{
   protected String publicKeyComment = "no comment";
 
   JSch jsch=null;
-  private Cipher cipher;
   private HASH hash;
   private Random random;
 
@@ -167,11 +166,7 @@ public abstract class KeyPairA{
   private Random genRandom(){
     return null;
   }
-
-  private Cipher genCipher(){
-    return null;
-  }
-
+  
   synchronized byte[] genKey(byte[] passphrase, byte[] iv){
     return null;
   } 
@@ -314,27 +309,8 @@ public abstract class KeyPairA{
     kpair.encrypted = !v.get("Encryption").equals("none");
     kpair.vendor = VENDOR_PUTTY;
     kpair.publicKeyComment = (String)v.get("Comment");
-    if(kpair.encrypted){
-      System.out.println(111115);
-      if(Session.checkCipher(ALoadClass.getNameByConfig("aes256-cbc"))){
-        try {
-          kpair.cipher=(Cipher)ALoadClass.getInstanceByConfig("aes256-cbc");
-          kpair.iv=new byte[kpair.cipher.getIVSize()];
-        }
-        catch(Exception e){
-            ALoadClass.DebugPrintException("ex_108");
-          throw new JSchException("The cipher 'aes256-cbc' is required, but it is not available.");
-        }
-      }
-      else {
-        throw new JSchException("The cipher 'aes256-cbc' is required, but it is not available.");
-      }
-      kpair.data = prvkey;
-    }
-    else {
-      kpair.data = prvkey;
-      kpair.parse(prvkey);
-    }
+    kpair.data = prvkey;
+    kpair.parse(prvkey);
     return kpair;
   }
 
@@ -415,13 +391,15 @@ public abstract class KeyPairA{
     return (key != null && value != null);
   }
 
+/*  
   void copy(KeyPairA kpair){
     this.publickeyblob=kpair.publickeyblob;
     this.vendor=kpair.vendor;
     this.publicKeyComment=kpair.publicKeyComment;
     this.cipher=kpair.cipher;
   }
-
+*/
+  
   class ASN1Exception extends Exception {
   }
 

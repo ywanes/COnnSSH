@@ -54,8 +54,8 @@ public class Session implements Runnable{
   private int seqo=0;
 
   String[] guess=null;
-  private Cipher s2ccipher;
-  private Cipher c2scipher;
+  private CipherAES256CTR s2ccipher;
+  private CipherAES256CTR c2scipher;
   private MAC s2cmac;
   private MAC c2smac;
   //private byte[] mac_buf;
@@ -972,7 +972,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     return buf;
   }
 
-  private void start_discard(Buffer buf, Cipher cipher, MAC mac, 
+  private void start_discard(Buffer buf, CipherAES256CTR cipher, MAC mac, 
                              int packet_length, int discard) throws JSchException, IOException{
     MAC discard_mac = null;
 
@@ -1056,7 +1056,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       String method;
   
       method=guess[KeyExchange.PROPOSAL_ENC_ALGS_STOC];
-      s2ccipher=(Cipher)ALoadClass.getInstanceByConfig(method);
+      s2ccipher=(CipherAES256CTR)ALoadClass.getInstanceByConfig(method);
       while(s2ccipher.getBlockSize()>Es2c.length){
         buf.reset();
         buf.putMPInt(K);
@@ -1069,7 +1069,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	System.arraycopy(foo, 0, bar, Es2c.length, foo.length);
 	Es2c=bar;
       }
-      s2ccipher.init(Cipher.DECRYPT_MODE, Es2c, IVs2c);
+      s2ccipher.init(CipherAES256CTR.DECRYPT_MODE, Es2c, IVs2c);
       s2ccipher_size=s2ccipher.getIVSize();
 
       method=guess[KeyExchange.PROPOSAL_MAC_ALGS_STOC];
@@ -1081,7 +1081,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       s2cmac_result2=new byte[s2cmac.getBlockSize()];
 
       method=guess[KeyExchange.PROPOSAL_ENC_ALGS_CTOS];
-      c2scipher = (Cipher)ALoadClass.getInstanceByConfig(method);
+      c2scipher = (CipherAES256CTR)ALoadClass.getInstanceByConfig(method);
       while(c2scipher.getBlockSize()>Ec2s.length){
         buf.reset();
         buf.putMPInt(K);
@@ -1094,7 +1094,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 	System.arraycopy(foo, 0, bar, Ec2s.length, foo.length);
 	Ec2s=bar;
       }
-      c2scipher.init(Cipher.ENCRYPT_MODE, Ec2s, IVc2s);
+      c2scipher.init(CipherAES256CTR.ENCRYPT_MODE, Ec2s, IVc2s);
       c2scipher_size=c2scipher.getIVSize();
 
       method=guess[KeyExchange.PROPOSAL_MAC_ALGS_CTOS];
@@ -1948,8 +1948,8 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
 
   static boolean checkCipher(String cipher){
     try{
-      Cipher _c=(Cipher)ALoadClass.getInstanceByName(cipher);
-      _c.init(Cipher.ENCRYPT_MODE,
+      CipherAES256CTR _c=(CipherAES256CTR)ALoadClass.getInstanceByName(cipher);
+      _c.init(CipherAES256CTR.ENCRYPT_MODE,
               new byte[_c.getBlockSize()],
               new byte[_c.getIVSize()]);
       return true;
