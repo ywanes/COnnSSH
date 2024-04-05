@@ -46,7 +46,6 @@ class ALoadClass {
     static{
         config.put("ecdh-sha2-nistp521","KeyExchangeDHEC521");        
         config.put("ecdh-sha2-nistp","KeyExchangeECDHN");        
-        
         config.put("hmac-sha1","HMACSHA1");
         config.put("sha-512","HASHSHA512");
         config.put("signature.rsa","SignatureRSA");
