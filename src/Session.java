@@ -1974,7 +1974,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     java.util.Vector result=new java.util.Vector();
     String[] _kexes=Util.split(kexes, ",");
     for(int i=0; i<_kexes.length; i++){
-      if ( _kexes[i].equals("ecdh-sha2-nistp521") )  
+      if ( _kexes[i].equals("ecdh-sha2-nistp521") )        
         continue;
       result.addElement(_kexes[i]);
     }

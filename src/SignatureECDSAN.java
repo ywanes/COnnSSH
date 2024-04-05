@@ -10,6 +10,7 @@ public abstract class SignatureECDSAN implements SignatureECDSA {
   abstract String getName();
 
   public void init() throws Exception{
+System.out.println(11111);      
     String name = getName();
     String foo="SHA256withECDSA";
     if(name.equals("ecdsa-sha2-nistp384")) foo="SHA384withECDSA";

@@ -25,7 +25,7 @@ public abstract class KeyPairA{
     KeyPairA kpair=null;
     if(type==DSA){ kpair=new KeyPairDSA(jsch); }
     else if(type==RSA){ kpair=new KeyPairRSA(jsch); }
-    else if(type==ECDSA){ kpair=new KeyPairECDSA(jsch); }
+    //else if(type==ECDSA){ kpair=new KeyPairECDSA(jsch); }
     if(kpair!=null){
       kpair.generate(key_size);
     }

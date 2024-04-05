@@ -1,4 +1,4 @@
-public abstract class KeyExchangeDHECN extends KeyExchange{
+public abstract class KeyExchangeDHEC extends KeyExchange{
   private static final int SSH_MSG_KEX_ECDH_INIT = 30;
   private static final int SSH_MSG_KEX_ECDH_REPLY = 31;
   private int state;
@@ -10,9 +10,9 @@ public abstract class KeyExchangeDHECN extends KeyExchange{
   byte[] e;
   private Buffer buf;
   private Packet packet;
-  private KeyExchangeECDH ecdh;
-  protected String sha_name; 
-  protected int key_size;
+  private KeyExchangeECDHN ecdh;
+  protected String sha_name="sha-512";
+  protected int key_size=521;
   public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
     this.session=session;
     this.V_S=V_S;      
@@ -36,7 +36,7 @@ public abstract class KeyExchangeDHECN extends KeyExchange{
     buf.putByte((byte)SSH_MSG_KEX_ECDH_INIT);
 
     try{
-      ecdh=(KeyExchangeECDH)ALoadClass.getInstanceByConfig("ecdh-sha2-nistp");
+      ecdh=(KeyExchangeECDHN)ALoadClass.getInstanceByConfig("ecdh-sha2-nistp");      
       ecdh.init(key_size);
 
       Q_C = ecdh.getQ();
@@ -86,7 +86,8 @@ public abstract class KeyExchangeDHECN extends KeyExchange{
 
       byte[] Q_S=_buf.getString();
 
-      byte[][] r_s = KeyPairECDSA.fromPoint(Q_S);
+      //byte[][] r_s = KeyPairECDSA.fromPoint(Q_S);
+      byte[][] r_s = fromPoint(Q_S);
 
       // RFC 5656,
       // 4. ECDH Key Exchange
@@ -129,5 +130,19 @@ public abstract class KeyExchangeDHECN extends KeyExchange{
     return false;
   }
 
+  static byte[][] fromPoint(byte[] point) {
+    int i = 0;
+    while(point[i]!=4) i++;
+    i++;
+    byte[][] tmp = new byte[2][];
+    byte[] r_array = new byte[(point.length-i)/2];
+    byte[] s_array = new byte[(point.length-i)/2];
+    System.arraycopy(point, i, r_array, 0, r_array.length);
+    System.arraycopy(point, i+r_array.length, s_array, 0, s_array.length);
+    tmp[0] = r_array;
+    tmp[1] = s_array;
+    return tmp;
+  }
+  
   public int getState(){return state; }
 }
