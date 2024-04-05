@@ -8,7 +8,7 @@ class KnownHosts implements HostKeyRepository{
   private String known_hosts=null;
   private java.util.Vector pool=null;
 
-  private MAC hmacsha1=null;
+  private HMAC hmacsha1=null;
 
   KnownHosts(JSch jsch){
     super();
@@ -380,10 +380,10 @@ loop:
     return hosts;
   }
 
-  private MAC getHMACSHA1(){
+  private HMAC getHMACSHA1(){
     if(hmacsha1==null){
       try{
-        hmacsha1=(MAC)ALoadClass.getInstanceByConfig("hmac-sha1");
+        hmacsha1=(HMAC)ALoadClass.getInstanceByConfig("hmac-sha1");
       }
       catch(Exception e){ 
           ALoadClass.DebugPrintException("ex_128");
@@ -420,7 +420,7 @@ loop:
       if(!hashed){
         return super.isMatched(_host);
       }
-      MAC macsha1=getHMACSHA1();
+      HMAC macsha1=getHMACSHA1();
       return false;
     }
 
@@ -431,7 +431,7 @@ loop:
     void hash(){
       if(hashed)
         return;
-      MAC macsha1=getHMACSHA1();
+      HMAC macsha1=getHMACSHA1();
       if(salt==null){
         Random random=Session.random;
         synchronized(random){

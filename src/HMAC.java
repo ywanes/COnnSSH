@@ -1,7 +1,7 @@
 import javax.crypto.*;
 import javax.crypto.spec.*;
 
-abstract class HMAC implements MAC {
+abstract class HMAC{// implements MACZ {
   protected String name;
   protected int bsize;
   protected String algorithm;
