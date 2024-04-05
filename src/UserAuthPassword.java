@@ -13,17 +13,7 @@ public class UserAuthPassword extends UserAuth{
         return false;
       }
       if(password==null){
-	if(userinfo==null){
-	  return false;
-	}
-	if(!userinfo.promptPassword("Password for "+dest)){
-	  throw new JSchAuthCancelException("password");
-	}
-	String _password=userinfo.getPassword();
-	if(_password==null){
-	  throw new JSchAuthCancelException("password");
-	}
-        password=str2byte(_password);
+	throw new JSchAuthCancelException("password");
       }
 
       byte[] _username=null;
@@ -48,21 +38,12 @@ public class UserAuthPassword extends UserAuth{
 	  byte[] _message=buf.getString();
 	  byte[] lang=buf.getString();
           String message=byte2str(_message);
-	  if(userinfo!=null)
-	    userinfo.showMessage(message);
 	  continue loop;
 	}
 	if(command==SSH_MSG_USERAUTH_PASSWD_CHANGEREQ){
 	  buf.getInt(); buf.getByte(); buf.getByte(); 
 	  byte[] instruction=buf.getString();
 	  byte[] tag=buf.getString();
-	  if(userinfo==null || 
-             !(userinfo instanceof UIKeyboardInteractive)){
-            if(userinfo!=null){
-              userinfo.showMessage("Password must be changed.");
-            }
-            return false;
-          }
           UIKeyboardInteractive kbi=(UIKeyboardInteractive)userinfo;
           String[] response;
           String name="Password Change Required";

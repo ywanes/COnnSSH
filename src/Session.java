@@ -628,22 +628,8 @@ public class Session implements Runnable{
       boolean b=false;
 
       if(userinfo!=null){
-        String message=
-"WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!\n"+
-"IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!\n"+
-"Someone could be eavesdropping on you right now (man-in-the-middle attack)!\n"+
-"It is also possible that the "+key_type+" host key has just been changed.\n"+
-"The fingerprint for the "+key_type+" key sent by the remote host "+chost+" is\n"+
-key_fprint+".\n"+
-"Please contact your system administrator.\n"+
-"Add correct host key in "+file+" to get rid of this message.";
-
         if(shkc.equals("ask")){
-          b=userinfo.promptYesNo(message+
-                                 "\nDo you want to delete the old key and insert the new key?");
-        }
-        else{  // shkc.equals("yes")
-          userinfo.showMessage(message);
+          b=false;
         }
       }
 
@@ -664,24 +650,7 @@ key_fprint+".\n"+
       if(shkc.equals("yes")){
 	throw new JSchException("reject HostKey: "+host);
       }
-      //System.err.println("finger-print: "+key_fprint);
-      if(userinfo!=null){
-	boolean foo=userinfo.promptYesNo(
-"The authenticity of host '"+host+"' can't be established.\n"+
-key_type+" key fingerprint is "+key_fprint+".\n"+
-"Are you sure you want to continue connecting?"
-					 );
-	if(!foo){
-	  throw new JSchException("reject HostKey: "+host);
-	}
-	insert=true;
-      }
-      else{
-	if(i==KnownHosts.NOT_INCLUDED) 
-	  throw new JSchException("UnknownHostKey: "+host+". "+key_type+" key fingerprint is "+key_fprint);
-	else 
-          throw new JSchException("HostKey has been changed: "+host);
-      }
+      insert=true;
     }
 
     if(shkc.equals("no") && KnownHosts.NOT_INCLUDED==i)

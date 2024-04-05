@@ -31,11 +31,6 @@ class UserAuthNone extends UserAuth{
 	byte[] _message=buf.getString();
 	byte[] lang=buf.getString();
 	String message=byte2str(_message);
-	if(userinfo!=null){
-          try{
-            userinfo.showMessage(message);
-          }catch(RuntimeException ee){}
-	}
 	continue loop;
       }
       if(command==SSH_MSG_USERAUTH_FAILURE){
