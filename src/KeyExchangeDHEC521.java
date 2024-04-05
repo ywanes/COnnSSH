@@ -173,48 +173,7 @@ public class KeyExchangeDHEC521 {
         JSch.getLogger().log(Logger.INFO, 
                              "ssh_rsa_verify: signature "+result);
       }
-    }
-    else if(alg.equals("ecdsa-sha2-nistp256") ||
-            alg.equals("ecdsa-sha2-nistp384") ||
-            alg.equals("ecdsa-sha2-nistp521")) {
-      byte[] tmp;
-      byte[] r;
-      byte[] s;
-
-      // RFC 5656, 
-      type=ECDSA;
-      key_alg_name=alg;
-
-      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
-        ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
-      tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); i+=j;
-      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
-        ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
-      i++;
-      tmp=new byte[(j-1)/2];
-      System.arraycopy(K_S, i, tmp, 0, tmp.length); i+=(j-1)/2;
-      r=tmp;
-      tmp=new byte[(j-1)/2];
-      System.arraycopy(K_S, i, tmp, 0, tmp.length); i+=(j-1)/2;
-      s=tmp;
-
-      SignatureECDSA sig=null;
-      try{
-        sig=(SignatureECDSA)ALoadClass.getInstanceByConfig(alg);
-        sig.init();
-      }
-      catch(Exception e){
-          ALoadClass.DebugPrintException("ex_88");
-        System.err.println(e);
-      }
-
-      sig.setPubKey(r, s);
-
-      sig.update(H);
-
-      result=sig.verify(sig_of_H);
-    }
-    else{
+    }else{
       System.err.println("unknown alg");
     }	    
 
