@@ -404,7 +404,7 @@ public class Session implements Runnable{
 
       String cmethods=ALoadClass.getNameByConfig("PreferredAuthentications");
 
-      String[] cmethoda=Util.split(cmethods, ",");
+      String[] cmethoda=split(cmethods, ",");
 
       String smethods=null;
       if(!auth){
@@ -419,7 +419,7 @@ public class Session implements Runnable{
         }
       }
 
-      String[] smethoda=Util.split(smethods, ",");
+      String[] smethoda=split(smethods, ",");
 
       int methodi=0;
 
@@ -472,7 +472,7 @@ public class Session implements Runnable{
 	    catch(JSchPartialAuthException ee){
               String tmp = smethods;
               smethods=ee.getMethods();
-              smethoda=Util.split(smethods, ",");
+              smethoda=split(smethods, ",");
               if(!tmp.equals(smethods)){
                 methodi=0;
               }
@@ -562,6 +562,30 @@ public class Session implements Runnable{
     }
   }
 
+  static String[] split(String foo, String split){
+    if(foo==null)
+      return null;
+    byte[] buf=Util.str2byte(foo);
+    java.util.Vector bar=new java.util.Vector();
+    int start=0;
+    int index;
+    while(true){
+      index=foo.indexOf(split, start);
+      if(index>=0){
+	bar.addElement(Util.byte2str(buf, start, index-start));
+	start=index+1;
+	continue;
+      }
+      bar.addElement(Util.byte2str(buf, start, buf.length-start));
+      break;
+    }
+    String[] result=new String[bar.size()];
+    for(int i=0; i<result.length; i++){
+      result[i]=(String)(bar.elementAt(i));
+    }
+    return result;
+  }
+  
   private KeyExchangeECDH521 receive_kexinit(Buffer buf) throws Exception {
     int j=buf.getInt();
     if(j!=buf.getLength()){    // packet was compressed and
@@ -606,6 +630,23 @@ public class Session implements Runnable{
   public void rekey() throws Exception {
     send_kexinit();
   }
+
+  static String diffString(String str, String[] not_available){
+    String[] stra=split(str, ",");
+    String result=null;
+    loop:
+    for(int i=0; i<stra.length; i++){
+      for(int j=0; j<not_available.length; j++){
+        if(stra[i].equals(not_available[j])){
+          continue loop;
+        }
+      }
+      if(result==null){ result=stra[i]; }
+      else{ result=result+","+stra[i]; }
+    }
+    return result;
+  }
+  
   private void send_kexinit() throws Exception {
     if(in_kex)
       return;
@@ -615,8 +656,8 @@ public class Session implements Runnable{
 
     String[] not_available_ciphers=checkCiphers(ALoadClass.getNameByConfig("CheckCiphers"));
     if(not_available_ciphers!=null && not_available_ciphers.length>0){
-      cipherc2s=Util.diffString(cipherc2s, not_available_ciphers);
-      ciphers2c=Util.diffString(ciphers2c, not_available_ciphers);
+      cipherc2s=diffString(cipherc2s, not_available_ciphers);
+      ciphers2c=diffString(ciphers2c, not_available_ciphers);
       if(cipherc2s==null || ciphers2c==null){
         throw new JSchException("There are not any available ciphers.");
       }
@@ -625,7 +666,7 @@ public class Session implements Runnable{
     String kex=ALoadClass.getNameByConfig("kex");
     String[] not_available_kexes=checkKexes(ALoadClass.getNameByConfig("CheckKexes"));
     if(not_available_kexes!=null && not_available_kexes.length>0){
-      kex=Util.diffString(kex, not_available_kexes);
+      kex=diffString(kex, not_available_kexes);
       if(kex==null){
         throw new JSchException("There are not any available kexes.");
       }
@@ -635,7 +676,7 @@ public class Session implements Runnable{
     String[] not_available_shks =
       checkSignatures(ALoadClass.getNameByConfig("CheckSignatures"));
     if(not_available_shks!=null && not_available_shks.length>0){
-      server_host_key=Util.diffString(server_host_key, not_available_shks);
+      server_host_key=diffString(server_host_key, not_available_shks);
       if(server_host_key==null){
         throw new JSchException("There are not any available sig algorithm.");
       }
@@ -1947,7 +1988,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     String ciphers2c=ALoadClass.getNameByConfig("cipher.s2c");
 
     Vector result=new Vector();
-    String[] _ciphers=Util.split(ciphers, ",");
+    String[] _ciphers=split(ciphers, ",");
     for(int i=0; i<_ciphers.length; i++){
       String cipher=_ciphers[i];
       if(ciphers2c.indexOf(cipher) == -1 && cipherc2s.indexOf(cipher) == -1)
@@ -1995,7 +2036,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
 
     java.util.Vector result=new java.util.Vector();
-    String[] _kexes=Util.split(kexes, ",");
+    String[] _kexes=split(kexes, ",");
     for(int i=0; i<_kexes.length; i++){
       if ( _kexes[i].equals("ecdh-sha2-nistp521") )        
         continue;
@@ -2026,7 +2067,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     }
 
     java.util.Vector result=new java.util.Vector();
-    String[] _sigs=Util.split(sigs, ",");
+    String[] _sigs=split(sigs, ",");
     for(int i=0; i<_sigs.length; i++)
       result.addElement(_sigs[i]);
    if(result.size()==0)

@@ -6,30 +6,6 @@ import java.io.IOException;
 class Util{
   private static final byte[] b64 =Util.str2byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=");
 
-  static String[] split(String foo, String split){
-    if(foo==null)
-      return null;
-    byte[] buf=Util.str2byte(foo);
-    java.util.Vector bar=new java.util.Vector();
-    int start=0;
-    int index;
-    while(true){
-      index=foo.indexOf(split, start);
-      if(index>=0){
-	bar.addElement(Util.byte2str(buf, start, index-start));
-	start=index+1;
-	continue;
-      }
-      bar.addElement(Util.byte2str(buf, start, buf.length-start));
-      break;
-    }
-    String[] result=new String[bar.size()];
-    for(int i=0; i<result.length; i++){
-      result[i]=(String)(bar.elementAt(i));
-    }
-    return result;
-  }
-
   static byte[] str2byte(String str, String encoding){
     if(str==null) 
       return null;
@@ -78,22 +54,6 @@ class Util{
       return;
     for(int i=0; i<foo.length; i++)
       foo[i]=0;
-  }
-
-  static String diffString(String str, String[] not_available){
-    String[] stra=Util.split(str, ",");
-    String result=null;
-    loop:
-    for(int i=0; i<stra.length; i++){
-      for(int j=0; j<not_available.length; j++){
-        if(stra[i].equals(not_available[j])){
-          continue loop;
-        }
-      }
-      if(result==null){ result=stra[i]; }
-      else{ result=result+","+stra[i]; }
-    }
-    return result;
   }
 
   static String checkTilde(String str){
