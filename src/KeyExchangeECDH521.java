@@ -140,7 +140,6 @@ public class KeyExchangeECDH521 {
   byte[] getH(){ return H; }
   HASHSHA512 getHash(){ return sha; }
   byte[] getHostKey(){ return K_S; }
-  
   protected byte[] normalize(byte[] secret) {
     if(secret.length > 1 && secret[0] == 0 && (secret[1]&0x80) == 0) {
       byte[] tmp=new byte[secret.length-1];
@@ -149,7 +148,6 @@ public class KeyExchangeECDH521 {
     }else
       return secret;
   }
-
   protected boolean verify(String alg, byte[] K_S, int index, byte[] sig_of_H) throws Exception {
     int i,j;
     i=index;
@@ -166,7 +164,7 @@ public class KeyExchangeECDH521 {
       ee=tmp;
       j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
         ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
-      tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); i+=j;
+      tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); 
       n=tmp;
       SignatureRSA sig=null;
       try{
