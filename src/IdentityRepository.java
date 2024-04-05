@@ -7,7 +7,6 @@ public interface IdentityRepository {
   public String getName();
   public int getStatus();
   public Vector getIdentities();
-  public boolean add(byte[] identity);
   public boolean remove(byte[] blob);
   public void removeAll();
 
@@ -34,9 +33,6 @@ public interface IdentityRepository {
     }
     public int getStatus() {
       return ir.getStatus();
-    }
-    public boolean add(byte[] identity) {
-      return ir.add(identity);
     }
     public boolean remove(byte[] blob) {
       return ir.remove(blob);
