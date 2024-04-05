@@ -132,6 +132,7 @@ class PortWatcher implements Runnable{
   }
 
   public void run(){
+      /*
     thread=this;
     try{
       while(thread!=null){
@@ -156,7 +157,7 @@ class PortWatcher implements Runnable{
     catch(Exception e){
         ALoadClass.DebugPrintException("ex_132");      
     }
-    delete();
+    delete();*/
   }
 
   void delete(){

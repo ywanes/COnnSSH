@@ -2013,6 +2013,9 @@ break;
    * @param host remote host, which the given stream will be plugged to.
    * @param port remote port, which the given stream will be plugged to.
    */
+  
+  
+  /*
   public Channel getStreamForwarder(String host, int port) throws JSchException {
     ChannelDirectTCPIP channel = new ChannelDirectTCPIP();
     channel.init();
@@ -2021,7 +2024,8 @@ break;
     channel.setPort(port);
     return channel;
   } 
-
+*/
+  
   private class GlobalRequestReply{
     private Thread thread=null;
     private int reply=-1;

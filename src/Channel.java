@@ -22,19 +22,6 @@ public abstract class Channel implements Runnable{
     if(type.equals("shell")){
       return new ChannelShell();
     }
-                /////////////////
-                if(type.equals("session")){
-                  return new ChannelSession();
-                }
-                if(type.equals("auth-agent@openssh.com")){
-                  return new ChannelAgentForwarding();
-                }
-                if(type.equals("direct-tcpip")){
-                  return new ChannelDirectTCPIP();
-                }
-                if(type.equals("subsystem")){
-                  return new ChannelSubsystem();
-                }
     return null;
   }
   static Channel getChannel(int id, Session session){
