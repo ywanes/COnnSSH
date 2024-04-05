@@ -47,14 +47,6 @@ public class ProxyHTTP implements Proxy{
 
       out.write(Util.str2byte("CONNECT "+host+":"+port+" HTTP/1.0\r\n"));
 
-      if(user!=null && passwd!=null){
-	byte[] code=Util.str2byte(user+":"+passwd);
-	code=Util.toBase64(code, 0, code.length);
-	out.write(Util.str2byte("Proxy-Authorization: Basic "));
-	out.write(code);
-	out.write(Util.str2byte("\r\n"));
-      }
-
       out.write(Util.str2byte("\r\n"));
       out.flush();
 

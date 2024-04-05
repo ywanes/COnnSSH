@@ -727,28 +727,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       insert=true;
     }
 
-    if(i==HostKeyRepository.OK){
-      HostKey[] keys =
-        hkr.getHostKey(chost, kex.getKeyAlgorithName());
-      String _key= Util.byte2str(Util.toBase64(K_S, 0, K_S.length));
-      for(int j=0; j< keys.length; j++){
-        if(keys[i].getKey().equals(_key) &&
-           keys[j].getMarker().equals("@revoked")){
-          if(userinfo!=null){
-            userinfo.showMessage(
-"The "+ key_type +" host key for "+ host +" is marked as revoked.\n"+
-"This could mean that a stolen key is being used to "+
-"impersonate this host.");
-          }
-          if(JSch.getLogger().isEnabled(Logger.INFO)){
-            JSch.getLogger().log(Logger.INFO, 
-                                 "Host '"+host+"' has provided revoked key.");
-          }
-          throw new JSchException("revoked HostKey: "+host);
-        }
-      }
-    }
-
     if(i==HostKeyRepository.OK &&
        JSch.getLogger().isEnabled(Logger.INFO)){
       JSch.getLogger().log(Logger.INFO, 

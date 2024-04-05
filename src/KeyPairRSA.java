@@ -59,20 +59,7 @@ public class KeyPairRSA{// extends KeyPairA{
 
   public void writePrivateKey(java.io.OutputStream out, byte[] passphrase){}
   private static byte[] space=Util.str2byte(" ");
-  
-  public void writePublicKey(java.io.OutputStream out, String comment){
-    byte[] pubblob=getPublicKeyBlob();
-    byte[] pub=Util.toBase64(pubblob, 0, pubblob.length);
-    try{
-      out.write(getKeyTypeName()); out.write(space);
-      out.write(pub, 0, pub.length); out.write(space);
-      out.write(Util.str2byte(comment));
-      out.write(cr);
-    }
-    catch(Exception e){
-        ALoadClass.DebugPrintException("ex_99");
-    }
-  }
+
 
   public void writePublicKey(String name, String comment) throws java.io.FileNotFoundException, java.io.IOException{
   }
@@ -233,57 +220,7 @@ public class KeyPairRSA{// extends KeyPairA{
       if(!parseHeader(buffer, v))
         break;
     } 
-
-    prvkey = Util.fromBase64(prvkey, 0, prvkey.length);
-    pubkey = Util.fromBase64(pubkey, 0, pubkey.length);
-
-    KeyPairRSA kpair = null;
-
-    if(typ.equals("ssh-rsa")) {
-
-      Buffer _buf = new Buffer(pubkey);
-      _buf.skip(pubkey.length);
-
-      int len = _buf.getInt();
-      _buf.getByte(new byte[len]);             // ssh-rsa
-      byte[] pub_array = new byte[_buf.getInt()];
-      _buf.getByte(pub_array);
-      byte[] n_array = new byte[_buf.getInt()];
-      _buf.getByte(n_array);
-
-      kpair = new KeyPairRSA(jsch, n_array, pub_array, null);
-    }
-    /*else if(typ.equals("ssh-dss")){
-      Buffer _buf = new Buffer(pubkey);
-      _buf.skip(pubkey.length);
-
-      int len = _buf.getInt();
-      _buf.getByte(new byte[len]);              // ssh-dss
-
-      byte[] p_array = new byte[_buf.getInt()];
-      _buf.getByte(p_array);
-      byte[] q_array = new byte[_buf.getInt()];
-      _buf.getByte(q_array);
-      byte[] g_array = new byte[_buf.getInt()];
-      _buf.getByte(g_array);
-      byte[] y_array = new byte[_buf.getInt()];
-      _buf.getByte(y_array);
-
-      kpair = new KeyPairDSA(jsch, p_array, q_array, g_array, y_array, null);
-    }*/
-    else {
-      return null;
-    }
-
-    if(kpair == null)
-      return null;
-
-    kpair.encrypted = !v.get("Encryption").equals("none");
-    kpair.vendor = VENDOR_PUTTY;
-    kpair.publicKeyComment = (String)v.get("Comment");
-    kpair.data = prvkey;
-    kpair.parse(prvkey);
-    return kpair;
+    return null;
   }
 
   private static byte[] parseLines(Buffer buffer, int lines){

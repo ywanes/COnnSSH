@@ -69,9 +69,6 @@ public class HostKey{
     }
     return UNKNOWN;
   }
-  public String getKey(){
-    return Util.byte2str(Util.toBase64(key, 0, key.length));
-  }  
   public String getComment(){ return comment; }
   public String getMarker(){ return marker; }
 

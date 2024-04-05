@@ -181,14 +181,6 @@ loop:
           comment=sb.toString();
         }
 
-	//System.err.println(host);
-	//System.err.println("|"+key+"|");
-
-	HostKey hk = null;
-        hk = new HashedHostKey(marker, host, type, 
-                               Util.fromBase64(Util.str2byte(key), 0, 
-                                               key.length()), comment);
-	pool.addElement(hk);
       }
       if(error){
 	throw new JSchException("KnownHosts: invalid format");
@@ -426,7 +418,7 @@ loop:
 	out.write(space);
 	out.write(Util.str2byte(type));
 	out.write(space);
-	out.write(Util.str2byte(hk.getKey()));
+	//out.write(Util.str2byte(hk.getKey()));
         if(comment!=null){
           out.write(space);
           out.write(Util.str2byte(comment));
@@ -495,21 +487,6 @@ loop:
     }
     HashedHostKey(String marker, String host, int type, byte[] key, String comment) throws JSchException {
       super(marker, host, type, key, comment);
-      if(this.host.startsWith(HASH_MAGIC) &&
-         this.host.substring(HASH_MAGIC.length()).indexOf(HASH_DELIM)>0){
-        String data=this.host.substring(HASH_MAGIC.length());
-        String _salt=data.substring(0, data.indexOf(HASH_DELIM));
-        String _hash=data.substring(data.indexOf(HASH_DELIM)+1);
-        salt=Util.fromBase64(Util.str2byte(_salt), 0, _salt.length());
-        hash=Util.fromBase64(Util.str2byte(_hash), 0, _hash.length());
-        if(salt.length!=20 ||  // block size of hmac-sha1
-           hash.length!=20){
-          salt=null;
-          hash=null;
-          return;
-        }
-        hashed=true;
-      }
     }
 
     boolean isMatched(String _host){
@@ -561,9 +538,7 @@ loop:
       catch(Exception e){
           ALoadClass.DebugPrintException("ex_130");
       }
-      host=HASH_MAGIC+Util.byte2str(Util.toBase64(salt, 0, salt.length))+
-        HASH_DELIM+Util.byte2str(Util.toBase64(hash, 0, hash.length));
-      hashed=true;
+      //hashed=true;
     }
   }
 }
