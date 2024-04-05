@@ -7,46 +7,29 @@ class UserAuthNone extends UserAuth{
     buf.putByte((byte)Session.SSH_MSG_SERVICE_REQUEST);
     buf.putString(str2byte("ssh-userauth"));
     session.write(packet);
-    if(JSch.getLogger().isEnabled(Logger.INFO)){
-      JSch.getLogger().log(Logger.INFO, 
-                           "SSH_MSG_SERVICE_REQUEST sent");
-    }
-
+    if(JSch.getLogger().isEnabled(Logger.INFO))
+      JSch.getLogger().log(Logger.INFO, "SSH_MSG_SERVICE_REQUEST sent");
     buf=session.read(buf);
     int command=buf.getCommand();
-
     boolean result=(command==SSH_MSG_SERVICE_ACCEPT);
-
-    if(JSch.getLogger().isEnabled(Logger.INFO)){
-      JSch.getLogger().log(Logger.INFO, 
-                           "SSH_MSG_SERVICE_ACCEPT received");
-    }
+    if(JSch.getLogger().isEnabled(Logger.INFO))
+      JSch.getLogger().log(Logger.INFO, "SSH_MSG_SERVICE_ACCEPT received");
     if(!result)
       return false;
-
     byte[] _username=null;
     _username=str2byte(username);
-
-    // send
-    // byte      SSH_MSG_USERAUTH_REQUEST(50)
-    // string    user name
-    // string    service name ("ssh-connection")
-    // string    "none"
     packet.reset();
     buf.putByte((byte)SSH_MSG_USERAUTH_REQUEST);
     buf.putString(_username);
     buf.putString(str2byte("ssh-connection"));
     buf.putString(str2byte("none"));
     session.write(packet);
-
     loop:
     while(true){
       buf=session.read(buf);
       command=buf.getCommand()&0xff;
-
-      if(command==SSH_MSG_USERAUTH_SUCCESS){
+      if(command==SSH_MSG_USERAUTH_SUCCESS)
 	return true;
-      }
       if(command==SSH_MSG_USERAUTH_BANNER){
 	buf.getInt(); buf.getByte(); buf.getByte();
 	byte[] _message=buf.getString();
@@ -55,9 +38,7 @@ class UserAuthNone extends UserAuth{
 	if(userinfo!=null){
           try{
             userinfo.showMessage(message);
-          }
-          catch(RuntimeException ee){
-          }
+          }catch(RuntimeException ee){}
 	}
 	continue loop;
       }
@@ -68,9 +49,7 @@ class UserAuthNone extends UserAuth{
 	methods=byte2str(foo);
         break;
       }
-      else{
-	throw new JSchException("USERAUTH fail ("+command+")");
-      }
+      throw new JSchException("USERAUTH fail ("+command+")");
     }
     return false;
   }

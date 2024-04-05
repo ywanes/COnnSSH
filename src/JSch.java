@@ -1,5 +1,4 @@
 import java.io.InputStream;
-import java.util.Vector;
 
 public class JSch{  
   private java.util.Vector sessionPool = new java.util.Vector();
