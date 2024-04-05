@@ -33,41 +33,25 @@ public class KeyExchangeECDH{
     myKeyAgree.doPhase(theirPublicKey, true);
     return myKeyAgree.generateSecret();
   }
-
   private static BigInteger two = BigInteger.ONE.add(BigInteger.ONE);
   private static BigInteger three = two.add(BigInteger.ONE);
-
-  // SEC 1: Elliptic Curve Cryptography, Version 2.0
-  // http://www.secg.org/sec1-v2.pdf
-  // 3.2.2.1 Elliptic Curve Public Key Validation Primitive
   public boolean validate(byte[] r, byte[] s) throws Exception{
     BigInteger x = new BigInteger(1, r);
     BigInteger y = new BigInteger(1, s);
-
-    // Step.1
-    //   Check that Q != O
     ECPoint w = new ECPoint(x, y);
     if(w.equals(ECPoint.POINT_INFINITY)){
       return false;
     }
 
-    // Step.2
-    // If T represents elliptic curve domain parameters over Fp,
-    // check that xQ and yQ are integers in the interval [0, p-1],
-    // and that:
-    //   y^2 = x^3 + x*a + b (mod p)
-
     ECParameterSpec params = publicKey.getParams();
     EllipticCurve curve = params.getCurve();
     BigInteger p=((ECFieldFp)curve.getField()).getP(); //nistp should be Fp. 
 
-    // xQ and yQ should be integers in the interval [0, p-1]
     BigInteger p_sub1=p.subtract(BigInteger.ONE);
     if(!(x.compareTo(p_sub1)<=0 && y.compareTo(p_sub1)<=0)){
       return false;
     }
 
-    // y^2 = x^3 + x*a + b (mod p)
     BigInteger tmp=x.multiply(curve.getA()).
                      add(curve.getB()).
                      add(x.modPow(three, p)).
@@ -76,15 +60,6 @@ public class KeyExchangeECDH{
     if(!(y_2.equals(tmp))){ 
       return false;
     }
-
-    // Step.3
-    //   Check that nQ = O.
-    // Unfortunately, JCE does not provide the point multiplication method.
-    /*
-    if(!w.multiply(params.getOrder()).equals(ECPoint.POINT_INFINITY)){
-      return false;
-    }
-    */
     return true;
   }
 
