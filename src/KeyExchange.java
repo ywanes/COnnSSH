@@ -23,7 +23,7 @@ public abstract class KeyExchange{
   public static final int STATE_END=0;
 
   protected Session session=null;
-  protected HASH sha=null;
+  protected HASHSHA512 sha=null;
   protected byte[] K=null;
   protected byte[] H=null;
   protected byte[] K_S=null;
@@ -117,13 +117,10 @@ public abstract class KeyExchange{
 
     return guess;
   }
-
-  public String getFingerPrint(){
-    return null;
-  }
+  
   byte[] getK(){ return K; }
   byte[] getH(){ return H; }
-  HASH getHash(){ return sha; }
+  HASHSHA512 getHash(){ return sha; }
   byte[] getHostKey(){ return K_S; }
 
   /*

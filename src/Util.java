@@ -278,28 +278,8 @@ class Util{
 
   private static String[] chars={
     "0","1","2","3","4","5","6","7","8","9", "a","b","c","d","e","f"
-  };
-  static String getFingerPrint(HASH hash, byte[] data){
-    try{
-      hash.init();
-      hash.update(data, 0, data.length);
-      byte[] foo=hash.digest();
-      StringBuffer sb=new StringBuffer();
-      int bar;
-      for(int i=0; i<foo.length;i++){
-        bar=foo[i]&0xff;
-        sb.append(chars[(bar>>>4)&0xf]);
-        sb.append(chars[(bar)&0xf]);
-        if(i+1<foo.length)
-          sb.append(":");
-      }
-      return sb.toString();
-    }
-    catch(Exception e){
-        ALoadClass.DebugPrintException("ex_161");
-      return "???";
-    }
-  }
+  };  
+  
   static boolean array_equals(byte[] foo, byte bar[]){
     int i=foo.length;
     if(i!=bar.length) return false;

@@ -21,7 +21,7 @@ public abstract class KeyExchangeDHECN extends KeyExchange{
     this.I_C=I_C;      
 
     try{
-      sha=(HASH)ALoadClass.getInstanceByConfig(sha_name);
+      sha=new HASHSHA512();
       sha.init();
     }
     catch(Exception e){
@@ -102,20 +102,6 @@ public abstract class KeyExchangeDHECN extends KeyExchange{
       K=normalize(K);
 
       byte[] sig_of_H=_buf.getString();
-
-      //The hash H is computed as the HASH hash of the concatenation of the
-      //following:
-      // string   V_C, client's identification string (CR and LF excluded)
-      // string   V_S, server's identification string (CR and LF excluded)
-      // string   I_C, payload of the client's SSH_MSG_KEXINIT
-      // string   I_S, payload of the server's SSH_MSG_KEXINIT
-      // string   K_S, server's public host key
-      // string   Q_C, client's ephemeral public key octet string
-      // string   Q_S, server's ephemeral public key octet string
-      // mpint    K,   shared secret
-
-      // This value is called the exchange hash, and it is used to authenti-
-      // cate the key exchange.
       buf.reset();
       buf.putString(V_C); buf.putString(V_S);
       buf.putString(I_C); buf.putString(I_S);

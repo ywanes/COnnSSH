@@ -71,18 +71,7 @@ public class HostKey{
   }
   public String getKey(){
     return Util.byte2str(Util.toBase64(key, 0, key.length));
-  }
-  public String getFingerPrint(JSch jsch){
-    HASH hash=null;
-    try{
-      hash=(HASH)ALoadClass.getInstanceByConfig("md5");
-    }
-    catch(Exception e){ 
-        ALoadClass.DebugPrintException("ex_84");
-        System.err.println("getFingerPrint: "+e); 
-    }
-    return Util.getFingerPrint(hash, key);
-  }
+  }  
   public String getComment(){ return comment; }
   public String getMarker(){ return marker; }
 

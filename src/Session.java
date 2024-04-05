@@ -1015,7 +1015,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   private void updateKeys(KeyExchange kex) throws Exception{
     byte[] K=kex.getK();
     byte[] H=kex.getH();
-    HASH hash=kex.getHash();
+    HASHSHA512 hash=kex.getHash();
 
     if(session_id==null){
       session_id=new byte[H.length];
@@ -1119,7 +1119,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
   
     
   private byte[] expandKey(Buffer buf, byte[] K, byte[] H, byte[] key,
-                           HASH hash, int required_length) throws Exception {
+                           HASHSHA512 hash, int required_length) throws Exception {
     byte[] result = key;
     int size = hash.getBlockSize();
     while(result.length < required_length){

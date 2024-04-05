@@ -54,7 +54,7 @@ public abstract class KeyPairA{
   protected String publicKeyComment = "no comment";
 
   JSch jsch=null;
-  private HASH hash;
+  private HASHSHA512 hash;
   private Random random;
 
   private byte[] passphrase;
