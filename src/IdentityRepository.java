@@ -58,16 +58,6 @@ public interface IdentityRepository {
       return result;
     }
     void add(Identity identity) {
-      if(!keep_in_cache && 
-         !identity.isEncrypted() && (identity instanceof IdentityFile)) {
-        try {
-          ir.add(((IdentityFile)identity).getKeyPair().forSSHAgent());
-        }
-        catch(JSchException e){
-          // an exception will not be thrown.
-        }
-      }
-      else
         cache.addElement(identity);
     }
     void check() {

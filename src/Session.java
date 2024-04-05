@@ -2145,14 +2145,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     if(values != null) {
       String[] global =
         configRepository.getConfig("").getValues("IdentityFile");
-      if(global != null){
-        for(int i = 0; i < global.length; i++){
-          jsch.addIdentity(global[i]);
-        }
-      }
-      else {
         global = new String[0];
-      }
       if(values.length - global.length > 0){
         IdentityRepository.Wrapper ir =
           new IdentityRepository.Wrapper(jsch.getIdentityRepository(), true);
@@ -2166,9 +2159,6 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
           }
           if(ifile == null)
             continue;
-          Identity identity =
-            IdentityFile.newInstance(ifile, null, jsch);
-          ir.add(identity);
         }
         this.setIdentityRepository(ir);
       }

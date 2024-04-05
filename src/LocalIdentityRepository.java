@@ -41,18 +41,6 @@ class LocalIdentityRepository implements IdentityRepository {
     }
   }
 
-  public synchronized boolean add(byte[] identity) {
-    try{
-      Identity _identity =
-        IdentityFile.newInstance("from remote:", identity, null, jsch);
-      add(_identity);
-      return true;
-    }
-    catch(JSchException e){
-      return false;
-    }
-  }
-
   synchronized void remove(Identity identity) {
     if(identities.contains(identity)) {
       identities.removeElement(identity);
@@ -103,4 +91,10 @@ class LocalIdentityRepository implements IdentityRepository {
       remove((byte[])v.elementAt(i));
     }
   }
+
+    @Override
+    public boolean add(byte[] identity) {
+        ///////////////
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
 }

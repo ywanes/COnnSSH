@@ -94,33 +94,6 @@ public class JSch{
     return known_hosts; 
   }
 
-  public void addIdentity(String prvkey) throws JSchException{
-    addIdentity(prvkey, (byte[])null);
-  }
-
-  public void addIdentity(String prvkey, String passphrase) throws JSchException{
-    byte[] _passphrase=null;
-    if(passphrase!=null){
-      _passphrase=str2byte(passphrase);
-    }
-    addIdentity(prvkey, _passphrase);
-  }
-
-  public void addIdentity(String prvkey, byte[] passphrase) throws JSchException{
-    Identity identity=IdentityFile.newInstance(prvkey, null, this);
-    addIdentity(identity, passphrase);
-  }
-
-  public void addIdentity(String prvkey, String pubkey, byte[] passphrase) throws JSchException{
-    Identity identity=IdentityFile.newInstance(prvkey, pubkey, this);
-    addIdentity(identity, passphrase);
-  }
-
-  public void addIdentity(String name, byte[]prvkey, byte[]pubkey, byte[] passphrase) throws JSchException{
-    Identity identity=IdentityFile.newInstance(name, prvkey, pubkey, this);
-    addIdentity(identity, passphrase);
-  }
-
   public void addIdentity(Identity identity, byte[] passphrase) throws JSchException{
     if(passphrase!=null){
       try{ 
@@ -135,9 +108,6 @@ public class JSch{
 
     if(identityRepository instanceof LocalIdentityRepository){
       ((LocalIdentityRepository)identityRepository).add(identity);
-    }
-    else if(identity instanceof IdentityFile && !identity.isEncrypted()) {
-      identityRepository.add(((IdentityFile)identity).getKeyPair().forSSHAgent());
     }
     else {
       synchronized(this){
