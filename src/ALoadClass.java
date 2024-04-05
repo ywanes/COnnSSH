@@ -28,8 +28,8 @@ class ALoadClass {
     // Usage in GraalVM
     public static Object getForce(String key, Exception e) throws Exception{
         //DebugPrint("Loading Force... " + key);
-        if ( key.equals("KeyExchangeDHEC521") ) return (Object)(new KeyExchangeDHEC521());        
-        if ( key.equals("KeyExchangeECDHN") ) return (Object)(new KeyExchangeECDHN());
+        if ( key.equals("KeyExchangeECDH521") ) return (Object)(new KeyExchangeECDH521());        
+        if ( key.equals("KeyExchangeECDH") ) return (Object)(new KeyExchangeECDH());
         if ( key.equals("HMACSHA1") ) return (Object)(new HMACSHA1());
         if ( key.equals("HASHSHA512") ) return (Object)(new HASHSHA512());
         if ( key.equals("SignatureRSA") ) return (Object)(new SignatureRSA());
@@ -44,8 +44,8 @@ class ALoadClass {
  
     static java.util.Hashtable config=new java.util.Hashtable();
     static{
-        config.put("ecdh-sha2-nistp521","KeyExchangeDHEC521");        
-        config.put("ecdh-sha2-nistp","KeyExchangeECDHN");        
+        config.put("ecdh-sha2-nistp521","KeyExchangeECDH521");        
+        config.put("ecdh-sha2-nistp","KeyExchangeECDH");        
         config.put("hmac-sha1","HMACSHA1");
         config.put("sha-512","HASHSHA512");
         config.put("signature.rsa","SignatureRSA");

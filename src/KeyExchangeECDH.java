@@ -4,7 +4,7 @@ import javax.crypto.*;
 import java.security.spec.*;
 import java.security.interfaces.*;
  
-public class KeyExchangeECDHN{
+public class KeyExchangeECDH{
   byte[] Q_array;
   ECPublicKey publicKey;
 

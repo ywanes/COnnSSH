@@ -1,5 +1,5 @@
 // KeyExchangeDHEC521
-public class KeyExchangeDHEC521 {
+public class KeyExchangeECDH521 {
 
   static final int PROPOSAL_KEX_ALGS=0;
   static final int PROPOSAL_SERVER_HOST_KEY_ALGS=1;
@@ -32,6 +32,73 @@ public class KeyExchangeDHEC521 {
   private int type=0;
   private String key_alg_name = "";
 
+
+  private static final int SSH_MSG_KEX_ECDH_INIT = 30;
+  private static final int SSH_MSG_KEX_ECDH_REPLY = 31;
+  private int state;
+  byte[] Q_C;
+  byte[] V_S;
+  byte[] V_C;
+  byte[] I_S;
+  byte[] I_C;
+  byte[] e;
+  private Buffer buf;
+  private Packet packet;
+  private KeyExchangeECDH ecdh;
+  protected String sha_name="sha-512";
+  protected int key_size=521;
+  public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
+    this.session=session;
+    this.V_S=V_S;      
+    this.V_C=V_C;      
+    this.I_S=I_S;      
+    this.I_C=I_C;      
+
+    try{
+      sha=new HASHSHA512();
+      sha.init();
+    }
+    catch(Exception e){
+      ALoadClass.DebugPrintException("ex_89");  
+      System.err.println(e);
+    }
+
+    buf=new Buffer();
+    packet=new Packet(buf);
+
+    packet.reset();
+    buf.putByte((byte)SSH_MSG_KEX_ECDH_INIT);
+
+    try{
+      ecdh=(KeyExchangeECDH)ALoadClass.getInstanceByConfig("ecdh-sha2-nistp");      
+      ecdh.init(key_size);
+
+      Q_C = ecdh.getQ();
+      buf.putString(Q_C);
+    }
+    catch(Exception e){
+        ALoadClass.DebugPrintException("ex_90");
+      if(e instanceof Throwable)
+        throw new JSchException(e.toString(), (Throwable)e);
+      throw new JSchException(e.toString());
+    }
+
+    if(V_S==null){  // This is a really ugly hack for Session.checkKexes ;-(
+      return;
+    }
+
+    session.write(packet);
+
+    if(JSch.getLogger().isEnabled(Logger.INFO)){
+      JSch.getLogger().log(Logger.INFO, 
+                           "SSH_MSG_KEX_ECDH_INIT sent");
+      JSch.getLogger().log(Logger.INFO, 
+                           "expecting SSH_MSG_KEX_ECDH_REPLY");
+    }
+
+    state=SSH_MSG_KEX_ECDH_REPLY;
+  }
+  
   public String getKeyType() {
     if(type==DSS) return "DSA";
     if(type==RSA) return "RSA";
@@ -178,73 +245,6 @@ public class KeyExchangeDHEC521 {
     }	    
 
     return result;
-  }
-
-    
-  private static final int SSH_MSG_KEX_ECDH_INIT = 30;
-  private static final int SSH_MSG_KEX_ECDH_REPLY = 31;
-  private int state;
-  byte[] Q_C;
-  byte[] V_S;
-  byte[] V_C;
-  byte[] I_S;
-  byte[] I_C;
-  byte[] e;
-  private Buffer buf;
-  private Packet packet;
-  private KeyExchangeECDHN ecdh;
-  protected String sha_name="sha-512";
-  protected int key_size=521;
-  public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
-    this.session=session;
-    this.V_S=V_S;      
-    this.V_C=V_C;      
-    this.I_S=I_S;      
-    this.I_C=I_C;      
-
-    try{
-      sha=new HASHSHA512();
-      sha.init();
-    }
-    catch(Exception e){
-      ALoadClass.DebugPrintException("ex_89");  
-      System.err.println(e);
-    }
-
-    buf=new Buffer();
-    packet=new Packet(buf);
-
-    packet.reset();
-    buf.putByte((byte)SSH_MSG_KEX_ECDH_INIT);
-
-    try{
-      ecdh=(KeyExchangeECDHN)ALoadClass.getInstanceByConfig("ecdh-sha2-nistp");      
-      ecdh.init(key_size);
-
-      Q_C = ecdh.getQ();
-      buf.putString(Q_C);
-    }
-    catch(Exception e){
-        ALoadClass.DebugPrintException("ex_90");
-      if(e instanceof Throwable)
-        throw new JSchException(e.toString(), (Throwable)e);
-      throw new JSchException(e.toString());
-    }
-
-    if(V_S==null){  // This is a really ugly hack for Session.checkKexes ;-(
-      return;
-    }
-
-    session.write(packet);
-
-    if(JSch.getLogger().isEnabled(Logger.INFO)){
-      JSch.getLogger().log(Logger.INFO, 
-                           "SSH_MSG_KEX_ECDH_INIT sent");
-      JSch.getLogger().log(Logger.INFO, 
-                           "expecting SSH_MSG_KEX_ECDH_REPLY");
-    }
-
-    state=SSH_MSG_KEX_ECDH_REPLY;
   }
 
   public boolean next(Buffer _buf) throws Exception{
