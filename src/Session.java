@@ -612,7 +612,7 @@ public class Session implements Runnable{
 
     KeyExchangeECDH521 kex=null;
     try{
-      kex=(KeyExchangeECDH521)ALoadClass.getInstanceByConfig(guess[KeyExchangeECDH521.PROPOSAL_KEX_ALGS]);
+      kex=new KeyExchangeECDH521();
     }
     catch(Exception e){ 
         ALoadClass.DebugPrintException("ex_147");
