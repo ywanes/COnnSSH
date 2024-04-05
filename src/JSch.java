@@ -4,14 +4,7 @@ public class JSch{
   private java.util.Vector sessionPool = new java.util.Vector();
   private KnownHosts known_hosts=null;
 
-  private static final Logger DEVNULL=new Logger(){
-      public boolean isEnabled(int level){return false;}
-      public void log(int level, String message){}
-    };
-  static Logger logger=DEVNULL;
-
-  public Session getSession(String host)
-     throws JSchException {
+  public Session getSession(String host) throws JSchException {
     return getSession(null, host, 22);
   }
 
@@ -67,13 +60,6 @@ public class JSch{
     return known_hosts; 
   }
 
-  public static void setLogger(Logger logger){
-    if(logger==null) logger=DEVNULL;
-    JSch.logger=logger;
-  }
-  static Logger getLogger(){
-    return logger;
-  }
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
   static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
   static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  

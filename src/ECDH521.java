@@ -69,10 +69,6 @@ public class ECDH521 {
     if(V_S==null)
       return;
     session.write(packet);
-    if(JSch.getLogger().isEnabled(Logger.INFO)){
-      JSch.getLogger().log(Logger.INFO, "SSH_MSG_KEX_ECDH_INIT sent");
-      JSch.getLogger().log(Logger.INFO, "expecting SSH_MSG_KEX_ECDH_REPLY");
-    }
     state=SSH_MSG_KEX_ECDH_REPLY;
   }
   public String getKeyType() {
@@ -87,14 +83,6 @@ public class ECDH521 {
     String[] guess=new String[PROPOSAL_MAX];
     Buffer sb=new Buffer(I_S); sb.setOffSet(17);
     Buffer cb=new Buffer(I_C); cb.setOffSet(17);
-    if(JSch.getLogger().isEnabled(Logger.INFO)){
-      for(int i=0; i<PROPOSAL_MAX; i++)
-        JSch.getLogger().log(Logger.INFO,"kex: server: "+byte2str(sb.getString()));
-      for(int i=0; i<PROPOSAL_MAX; i++)
-        JSch.getLogger().log(Logger.INFO,"kex: client: "+byte2str(cb.getString()));
-      sb.setOffSet(17);
-      cb.setOffSet(17);
-    }
     for(int i=0; i<PROPOSAL_MAX; i++){
       byte[] sp=sb.getString();
       byte[] cp=cb.getString();
@@ -127,10 +115,6 @@ public class ECDH521 {
       else if(guess[i]==null){
 	return null;
       }
-    }
-    if(JSch.getLogger().isEnabled(Logger.INFO)){
-      JSch.getLogger().log(Logger.INFO, "kex: server->client"+" "+guess[PROPOSAL_ENC_ALGS_STOC]+" "+guess[PROPOSAL_MAC_ALGS_STOC]+" "+guess[PROPOSAL_COMP_ALGS_STOC]);
-      JSch.getLogger().log(Logger.INFO, "kex: client->server"+" "+guess[PROPOSAL_ENC_ALGS_CTOS]+" "+guess[PROPOSAL_MAC_ALGS_CTOS]+" "+guess[PROPOSAL_COMP_ALGS_CTOS]);
     }
     return guess;
   }
@@ -177,8 +161,6 @@ public class ECDH521 {
       sig.setPubKey(ee, n);   
       sig.update(H);
       result=sig.verify(sig_of_H);
-      if(JSch.getLogger().isEnabled(Logger.INFO))
-        JSch.getLogger().log(Logger.INFO, "ssh_rsa_verify: signature "+result);
     }else
       System.err.println("unknown alg");
     return result;

@@ -7,13 +7,9 @@ class UserAuthNone extends UserAuth{
     buf.putByte((byte)Session.SSH_MSG_SERVICE_REQUEST);
     buf.putString(str2byte("ssh-userauth"));
     session.write(packet);
-    if(JSch.getLogger().isEnabled(Logger.INFO))
-      JSch.getLogger().log(Logger.INFO, "SSH_MSG_SERVICE_REQUEST sent");
     buf=session.read(buf);
     int command=buf.getCommand();
     boolean result=(command==SSH_MSG_SERVICE_ACCEPT);
-    if(JSch.getLogger().isEnabled(Logger.INFO))
-      JSch.getLogger().log(Logger.INFO, "SSH_MSG_SERVICE_ACCEPT received");
     if(!result)
       return false;
     byte[] _username=null;
