@@ -40,9 +40,11 @@ public abstract class Channel implements Runnable{
     if(type.equals("forwarded-tcpip")){
       return new ChannelForwardedTCPIP();
     }
+    /*
     if(type.equals("sftp")){
       return new ChannelSftp();
-    }
+    }*/
+    
     if(type.equals("subsystem")){
       return new ChannelSubsystem();
     }
