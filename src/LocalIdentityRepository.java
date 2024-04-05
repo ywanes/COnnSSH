@@ -36,15 +36,6 @@ class LocalIdentityRepository implements IdentityRepository {
       }
       for(int i = 0; i<identities.size(); i++){
         byte[] blob2 = ((Identity)identities.elementAt(i)).getPublicKeyBlob();
-        if(blob2 != null && Util.array_equals(blob1, blob2)){
-          if(!identity.isEncrypted() && 
-             ((Identity)identities.elementAt(i)).isEncrypted()){
-            remove(blob2);
-          }
-          else {  
-            return;
-          }
-        }
       }
       identities.addElement(identity);
     }
@@ -77,7 +68,7 @@ class LocalIdentityRepository implements IdentityRepository {
     for(int i=0; i<identities.size(); i++) {
       Identity _identity = (Identity)(identities.elementAt(i));
       byte[] _blob = _identity.getPublicKeyBlob();
-      if(_blob == null || !Util.array_equals(blob, _blob))
+      if(_blob == null)
         continue;
       identities.removeElement(_identity);
       _identity.clear();
@@ -106,11 +97,6 @@ class LocalIdentityRepository implements IdentityRepository {
         Identity bar = (Identity)identities.elementAt(j);
         byte[] bar_blob = bar.getPublicKeyBlob();
         if(bar_blob == null) continue;
-        if(Util.array_equals(foo_blob, bar_blob) &&
-           foo.isEncrypted() == bar.isEncrypted()){
-          v.addElement(foo_blob);
-          break;
-        }
       }
     }
     for(int i=0; i<v.size(); i++){

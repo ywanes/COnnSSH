@@ -225,14 +225,6 @@ loop:
     synchronized(pool){
       for(int i=0; i<pool.size(); i++){
         HostKey _hk=(HostKey)(pool.elementAt(i));
-        if(_hk.isMatched(host) && _hk.type==hk.type){
-          if(Util.array_equals(_hk.key, key)){
-            return OK;
-          }
-          else{
-            result=CHANGED;
-	  }
-        }
       }
     }
 
@@ -355,21 +347,6 @@ loop:
     synchronized(pool){
     for(int i=0; i<pool.size(); i++){
       HostKey hk=(HostKey)(pool.elementAt(i));
-      if(host==null ||
-	 (hk.isMatched(host) && 
-	  (type==null || (hk.getType().equals(type) &&
-			  (key==null || Util.array_equals(key, hk.key)))))){
-        String hosts=hk.getHost();
-        if(hosts.equals(host) || 
-           ((hk instanceof HashedHostKey) &&
-            ((HashedHostKey)hk).isHashed())){
-          pool.removeElement(hk);
-        }
-        else{
-          hk.host=deleteSubString(hosts, host);
-        }
-	sync=true;
-      }
     }
     }
     if(sync){
@@ -494,20 +471,6 @@ loop:
         return super.isMatched(_host);
       }
       MAC macsha1=getHMACSHA1();
-      try{
-        synchronized(macsha1){
-          macsha1.init(salt);
-          byte[] foo=Util.str2byte(_host);
-          macsha1.update(foo, 0, foo.length);
-          byte[] bar=new byte[macsha1.getBlockSize()];
-          macsha1.doFinal(bar, 0);
-          return Util.array_equals(hash, bar);
-        }
-      }
-      catch(Exception e){
-          ALoadClass.DebugPrintException("ex_129");
-        System.out.println(e);
-      }
       return false;
     }
 
