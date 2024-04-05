@@ -1712,6 +1712,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
       deflater=null;
       return;
     }
+    
     String foo=ALoadClass.getNameByConfig(method);
     if(foo!=null){
       if(method.equals("zlib") ||
