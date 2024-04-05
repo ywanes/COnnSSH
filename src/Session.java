@@ -1976,7 +1976,7 @@ key_type+" key fingerprint is "+key_fprint+".\n"+
     for(int i=0; i<_kexes.length; i++){
       if ( _kexes[i].equals("ecdh-sha2-nistp521") )  
         continue;
-        result.addElement(_kexes[i]);
+      result.addElement(_kexes[i]);
     }
     if(result.size()==0)
       return null;
