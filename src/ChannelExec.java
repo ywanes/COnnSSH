@@ -1,7 +1,7 @@
 import java.util.*;
 
-public class ChannelExec extends ChannelSession{
-
+public class ChannelExec{}// extends ChannelSession{
+/*
   byte[] command=new byte[0];
 
   public void start() throws JSchException{
@@ -51,3 +51,4 @@ public class ChannelExec extends ChannelSession{
     return getExtInputStream();
   }
 }
+*/

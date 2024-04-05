@@ -19,35 +19,22 @@ public abstract class Channel implements Runnable{
   static int index=0; 
   private static java.util.Vector pool=new java.util.Vector();
   static Channel getChannel(String type){
-    if(type.equals("session")){
-      return new ChannelSession();
-    }
     if(type.equals("shell")){
       return new ChannelShell();
     }
-    if(type.equals("exec")){
-      return new ChannelExec();
-    }
-    if(type.equals("x11")){
-      return new ChannelX11();
-    }
-    if(type.equals("auth-agent@openssh.com")){
-      return new ChannelAgentForwarding();
-    }
-    if(type.equals("direct-tcpip")){
-      return new ChannelDirectTCPIP();
-    }
-    if(type.equals("forwarded-tcpip")){
-      return new ChannelForwardedTCPIP();
-    }
-    /*
-    if(type.equals("sftp")){
-      return new ChannelSftp();
-    }*/
-    
-    if(type.equals("subsystem")){
-      return new ChannelSubsystem();
-    }
+                /////////////////
+                if(type.equals("session")){
+                  return new ChannelSession();
+                }
+                if(type.equals("auth-agent@openssh.com")){
+                  return new ChannelAgentForwarding();
+                }
+                if(type.equals("direct-tcpip")){
+                  return new ChannelDirectTCPIP();
+                }
+                if(type.equals("subsystem")){
+                  return new ChannelSubsystem();
+                }
     return null;
   }
   static Channel getChannel(int id, Session session){

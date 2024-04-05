@@ -1664,8 +1664,8 @@ break;
     isConnected=false;
 
     PortWatcher.delPort(this);
-    ChannelForwardedTCPIP.delPort(this);
-    ChannelX11.removeFakedCookie(this);
+    //ChannelForwardedTCPIP.delPort(this);
+    //ChannelX11.removeFakedCookie(this);
 
     synchronized(lock){
       if(connectThread!=null){
@@ -1755,10 +1755,13 @@ break;
    * @param lport local port
    * @see #setPortForwardingR(String bind_address, int rport, String host, int lport, SocketFactory sf)
    */
+  
+  /*
   public void setPortForwardingR(int rport, String host, int lport) throws JSchException{
     setPortForwardingR(null, rport, host, lport, (SocketFactory)null);
   }
-
+*/
+  
   /**
    * Registers the remote port forwarding.
    * If <code>bind_address</code> is an empty string or <code>"*"</code>,
@@ -1774,10 +1777,13 @@ break;
    * @param lport local port
    * @see #setPortForwardingR(String bind_address, int rport, String host, int lport, SocketFactory sf)
    */
+  
+  /*
   public void setPortForwardingR(String bind_address, int rport, String host, int lport) throws JSchException{
     setPortForwardingR(bind_address, rport, host, lport, (SocketFactory)null);
   }
-
+*/
+  
   /**
    * Registers the remote port forwarding for the loopback interface
    * of the remote.
@@ -1788,10 +1794,13 @@ break;
    * @param sf socket factory
    * @see #setPortForwardingR(String bind_address, int rport, String host, int lport, SocketFactory sf)
    */
+  
+  /*
   public void setPortForwardingR(int rport, String host, int lport, SocketFactory sf) throws JSchException{
     setPortForwardingR(null, rport, host, lport, sf);
   }
-
+*/
+  
   // TODO: This method should return the integer value as the assigned port.
   /**
    * Registers the remote port forwarding.
@@ -1809,12 +1818,15 @@ break;
    * @param lport local port
    * @param sf socket factory
    */
+  
+  /*
   public void setPortForwardingR(String bind_address, int rport, String host, int lport, SocketFactory sf) throws JSchException{
     int allocated=_setPortForwardingR(bind_address, rport);
     ChannelForwardedTCPIP.addPort(this, bind_address,
                                   rport, allocated, host, lport, sf);
   }
-
+*/
+  
   /**
    * Registers the remote port forwarding for the loopback interface
    * of the remote.
@@ -1827,10 +1839,13 @@ break;
    * @param daemon class name, which implements "ForwardedTCPIPDaemon"
    * @see #setPortForwardingR(String bind_address, int rport, String daemon, Object[] arg)
    */
+  
+  /*
   public void setPortForwardingR(int rport, String daemon) throws JSchException{
     setPortForwardingR(null, rport, daemon, null);
   }
-
+*/
+  
   /**
    * Registers the remote port forwarding for the loopback interface
    * of the remote.
@@ -1844,10 +1859,13 @@ break;
    * @param arg arguments for "daemon"
    * @see #setPortForwardingR(String bind_address, int rport, String daemon, Object[] arg)
    */
+  
+  /*
   public void setPortForwardingR(int rport, String daemon, Object[] arg) throws JSchException{
     setPortForwardingR(null, rport, daemon, arg);
   }
-
+*/
+  
   /**
    * Registers the remote port forwarding.
    * If <code>bind_address</code> is an empty string
@@ -1867,21 +1885,27 @@ break;
    * @param arg arguments for "daemon"
    * @see #setPortForwardingR(String bind_address, int rport, String daemon, Object[] arg)
    */
+  
+  /*
   public void setPortForwardingR(String bind_address, int rport, String daemon, Object[] arg) throws JSchException{
     int allocated = _setPortForwardingR(bind_address, rport);
     ChannelForwardedTCPIP.addPort(this, bind_address,
                                   rport, allocated, daemon, arg);
   }
-
+*/
+  
+  
   /**
    * Lists the registered remote port forwarding.
    *
    * @return a list of "rport:host:hostport"
    */
+  /*
   public String[] getPortForwardingR() throws JSchException{
     return ChannelForwardedTCPIP.getPortForwarding(this);
   }
-
+*/
+  
   private class Forwarding {
     String bind_address = null;
     int port = -1;
@@ -1972,6 +1996,7 @@ break;
    * @return an allocated TCP port on the remote.
    * @see #setPortForwardingR(String bind_address, int rport, String host, int rport)
    */
+  /*
   public int setPortForwardingR(String conf) throws JSchException {
     Forwarding f = parseForwarding(conf);
     int allocated = _setPortForwardingR(f.bind_address, f.port);
@@ -1979,7 +2004,8 @@ break;
                                   f.port, allocated, f.host, f.hostport, null);
     return allocated;
   }
-
+*/
+  
   /**
    * Instantiates an instance of stream-forwarder to <code>host</code>:<code>port</code>.
    * Set I/O stream to the given channel, and then invoke Channel#connect() method.
@@ -2016,7 +2042,7 @@ break;
     Buffer buf=new Buffer(100); // ??
     Packet packet=new Packet(buf);
 
-    String address_to_bind=ChannelForwardedTCPIP.normalize(bind_address);
+    //String address_to_bind=ChannelForwardedTCPIP.normalize(bind_address);
 
     grr.setThread(Thread.currentThread());
     grr.setPort(rport);
@@ -2031,7 +2057,7 @@ break;
       buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
       buf.putString(Util.str2byte("tcpip-forward"));
       buf.putByte((byte)1);
-      buf.putString(Util.str2byte(address_to_bind));
+      //buf.putString(Util.str2byte(address_to_bind));
       buf.putInt(rport);
       write(packet);
     }
@@ -2067,10 +2093,13 @@ break;
    *
    * @param rport remote TCP port
    */
+  
+  /*
   public void delPortForwardingR(int rport) throws JSchException{
     this.delPortForwardingR(null, rport);
   }
-
+*/
+  
   /**
    * Cancels the remote port forwarding assigned at
    * remote TCP port <code>rport</code> bound on the interface at
@@ -2079,10 +2108,12 @@ break;
    * @param bind_address bind address of the interface on the remote
    * @param rport remote TCP port
    */
+  /*
   public void delPortForwardingR(String bind_address, int rport) throws JSchException{
     ChannelForwardedTCPIP.delPort(this, bind_address, rport);
   }
-
+*/
+  
   private void initDeflater(String method) throws JSchException{
     if(method.equals("none")){
       deflater=null;
@@ -2143,9 +2174,9 @@ break;
   public UserInfo getUserInfo(){ return userinfo; }
   public void setInputStream(InputStream in){ this.in=in; }
   public void setOutputStream(OutputStream out){ this.out=out; }
-  public void setX11Host(String host){ ChannelX11.setHost(host); }
-  public void setX11Port(int port){ ChannelX11.setPort(port); }
-  public void setX11Cookie(String cookie){ ChannelX11.setCookie(cookie); }
+  //public void setX11Host(String host){ ChannelX11.setHost(host); }
+  //public void setX11Port(int port){ ChannelX11.setPort(port); }
+  //public void setX11Cookie(String cookie){ ChannelX11.setCookie(cookie); }
   public void setPassword(String password){
     if(password!=null)
       this.password=Util.str2byte(password);
@@ -2659,12 +2690,14 @@ break;
       }
     }
 
+    /*
     values = config.getValues("RemoteForward");
     if(values != null){
       for(int i = 0; i < values.length; i++) {
         setPortForwardingR(values[i]);
       }
     }
+    */
   }
 
   private void checkConfig(ConfigRepository.Config config, String key){
