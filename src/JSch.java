@@ -3,17 +3,10 @@ import java.util.Vector;
 
 public class JSch{  
   private java.util.Vector sessionPool = new java.util.Vector();
-  private IdentityRepository defaultIdentityRepository = new LocalIdentityRepository(this);
-  private IdentityRepository identityRepository = defaultIdentityRepository;
+  private IdentityRepository identityRepository = new LocalIdentityRepository(this);
   private ConfigRepository configRepository = null;
         
   public synchronized void setIdentityRepository(IdentityRepository identityRepository){
-    if(identityRepository == null){
-      this.identityRepository = defaultIdentityRepository;
-    }
-    else{
-      this.identityRepository = identityRepository;
-    }
   }
 
   public synchronized IdentityRepository getIdentityRepository(){
@@ -106,17 +99,12 @@ public class JSch{
       }
     }
 
-    if(identityRepository instanceof LocalIdentityRepository){
-      ((LocalIdentityRepository)identityRepository).add(identity);
-    }
-    else {
       synchronized(this){
         if(!(identityRepository instanceof IdentityRepository.Wrapper)){
           setIdentityRepository(new IdentityRepository.Wrapper(identityRepository));
         }
       }
       ((IdentityRepository.Wrapper)identityRepository).add(identity);
-    }
   }
 
   public void removeIdentity(Identity identity) throws JSchException{
