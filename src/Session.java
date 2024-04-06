@@ -580,7 +580,6 @@ public class Session implements Runnable{
     String key_fprint=null;
     if(hostKeyAlias==null && port!=22)
       chost=("["+chost+"]:"+port);
-    hostkey=new HostKey(chost, K_S);
   }
 
   public Channel openChannel(String type) throws ExceptionC{
@@ -1324,8 +1323,6 @@ public class Session implements Runnable{
     write(packet);
   }
   
-  private HostKey hostkey=null;
-  public HostKey getHostKey(){ return hostkey; }
   public String getHost(){return host;}
   public String getUserName(){return username;}
   public int getPort(){return port;}
