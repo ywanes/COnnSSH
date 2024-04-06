@@ -128,12 +128,9 @@ class ChannelSession extends Channel{
                      -Session.buffer_margin
 		     );
 	if(i==0)continue;
-	if(i==-1){
-	  eof();
+	if(i==-1)
 	  break;
-	}
 	if(close)break;
-        //System.out.println("write: "+i);
         packet.reset();
         buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
         buf.putInt(recipient);

@@ -623,21 +623,9 @@ public class Session implements Runnable{
 	file=hkr.getKnownHostsRepositoryID();
       }
       if(file==null){file="known_hosts";}
-
       boolean b=false;
-
-      //////////
-      /*
-      if(userinfo!=null){
-        if(shkc.equals("ask")){
-          b=false;
-        }
-      }
-      */
-      if(!b){
+      if(!b)
         throw new JSchException("HostKey has been changed: "+chost);
-      }
-
       synchronized(hkr){
         hkr.remove(chost, 
                    kex.getKeyAlgorithName(),
@@ -682,21 +670,13 @@ public class Session implements Runnable{
 
   
   public void encode(Packet packet) throws Exception{
-  //  if(deflater!=null){
-      //compress_len[0]=packet.buffer.index;
-      //packet.buffer.buffer=deflater.compress(packet.buffer.buffer, 
-//                                             5, compress_len);
-//      packet.buffer.index=compress_len[0];
-//    }
     if(c2scipher!=null){
-      //packet.padding(c2scipher.getIVSize());
       packet.padding(c2scipher_size);
       int pad=packet.buffer.buffer[4];
       synchronized(random){
 	random.fill(packet.buffer.buffer, packet.buffer.index-pad, pad);
       }
-    }
-    else{
+    }else{
       packet.padding(8);
     }
 
@@ -758,8 +738,8 @@ public class Session implements Runnable{
       if(s2cmac!=null){
 	s2cmac.update(seqi);
 	s2cmac.update(buf.buffer, 0, buf.index);
-
         s2cmac.doFinal(s2cmac_result1, 0);
+        // text terminal
 	getByte(s2cmac_result2, 0, s2cmac_result2.length);
         if(!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)){
           if(need > PACKET_MAX_SIZE){
@@ -769,28 +749,8 @@ public class Session implements Runnable{
           continue;
 	}
       }
-
       seqi++;
-
-      /*
-      if(inflater!=null){
-        //inflater.uncompress(buf);
-	int pad=buf.buffer[4];
-	uncompress_len[0]=buf.index-5-pad;
-	byte[] foo=inflater.uncompress(buf.buffer, 5, uncompress_len);
-	if(foo!=null){
-	  buf.buffer=foo;
-	  buf.index=5+uncompress_len[0];
-	}
-	else{
-	  System.err.println("fail in inflater");
-	  break;
-	}
-      }
-      */
-      
       int type=buf.getCommand()&0xff;
-      //System.err.println("read: "+type);
       if(type==SSH_MSG_DISCONNECT){
         buf.rewind();
         buf.getInt();buf.getShort();
@@ -825,15 +785,6 @@ public class Session implements Runnable{
       }
       else if(type==UserAuth.SSH_MSG_USERAUTH_SUCCESS){
         isAuthed=true;
-        /*
-        if(inflater==null && deflater==null){
-          String method;
-          method=guess[KeyExchange.PROPOSAL_COMP_ALGS_CTOS];
-          initDeflater(method);
-          method=guess[KeyExchange.PROPOSAL_COMP_ALGS_STOC];
-          initInflater(method);
-        }
-        */
         break;
       }
       else{
@@ -1062,7 +1013,6 @@ public class Session implements Runnable{
         throw new JSchException("timeout in waiting for rekeying process.");
       }
       byte command=packet.buffer.getCommand();
-      //System.err.println("command: "+command);
       if(command==SSH_MSG_KEXINIT ||
          command==SSH_MSG_NEWKEYS ||
          command==SSH_MSG_KEXDH_INIT ||
@@ -1342,7 +1292,7 @@ public class Session implements Runnable{
       }
     }
     catch(Exception e){
-      ALoadClass.DebugPrintException("ex_151");
+      ALoadClass.DebugPrintException("ex_151 " + e.toString());
       in_kex=false;
     }
     try{
@@ -1700,6 +1650,7 @@ public class Session implements Runnable{
     out.flush();
   }
   void put(byte[] array, int begin, int length) throws IOException {
+
     out.write(array, begin, length);
     out.flush();
   }

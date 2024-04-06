@@ -9,19 +9,10 @@ public abstract class Channel implements Runnable{
   OutputStream out=System.out;
   OutputStream out_ext=null;
   
-  private boolean in_dontclose=false;
   private boolean out_dontclose=false;
-  private boolean out_ext_dontclose=false;
-  
   static final int SSH_MSG_CHANNEL_OPEN_CONFIRMATION=      91;
   static final int SSH_MSG_CHANNEL_OPEN_FAILURE=           92;
-  static final int SSH_MSG_CHANNEL_WINDOW_ADJUST=          93;
-
   static final int SSH_OPEN_ADMINISTRATIVELY_PROHIBITED=    1;
-  static final int SSH_OPEN_CONNECT_FAILED=                 2;
-  static final int SSH_OPEN_UNKNOWN_CHANNEL_TYPE=           3;
-  static final int SSH_OPEN_RESOURCE_SHORTAGE=              4;
-
   static int index=0; 
   private static java.util.Vector pool=new java.util.Vector();
   static Channel getChannel(String type){
@@ -49,10 +40,10 @@ public abstract class Channel implements Runnable{
   volatile int recipient=-1;
   protected byte[] type=str2byte("foo");
   volatile int lwsize_max=0x100000;
-  volatile int lwsize=lwsize_max;     // local initial window size
-  volatile int lmpsize=0x4000;     // local maximum packet size
-  volatile long rwsize=0;         // remote initial window size
-  volatile int rmpsize=0;        // remote maximum packet size
+  volatile int lwsize=lwsize_max;
+  volatile int lmpsize=0x4000;
+  volatile long rwsize=0;
+  volatile int rmpsize=0;
   Thread thread=null;
   volatile boolean eof_local=false;
   volatile boolean eof_remote=false;
@@ -140,11 +131,7 @@ public abstract class Channel implements Runnable{
     catch(Exception e){
         ALoadClass.DebugPrintException("ex_3");
     }
-    PipedInputStream in =
-      new MyPipedInputStream(
-                             32*1024,  // this value should be customizable.
-                             max_input_buffer_size
-                             );
+    PipedInputStream in = new MyPipedInputStream(32*1024,max_input_buffer_size);
     boolean resizable = 32*1024<max_input_buffer_size;
     setOutputStream(new PassiveOutputStream(in, resizable), false);
     return in;
@@ -157,11 +144,7 @@ public abstract class Channel implements Runnable{
     catch(Exception e){
         ALoadClass.DebugPrintException("ex_4");
     }
-    PipedInputStream in =
-      new MyPipedInputStream(
-                             32*1024,  // this value should be customizable.
-                             max_input_buffer_size
-                             );
+    PipedInputStream in = new MyPipedInputStream(32*1024,max_input_buffer_size);
     boolean resizable = 32*1024<max_input_buffer_size;
     setExtOutputStream(new PassiveOutputStream(in, resizable), false);
     return in;
@@ -192,27 +175,20 @@ public abstract class Channel implements Runnable{
           write(b, 0, 1);
         }
         public void write(byte[] buf, int s, int l) throws java.io.IOException{
-          if(packet==null){
+          if(packet==null)
             init();
-          }
-
-          if(closed){
+          if(closed)
             throw new java.io.IOException("Already closed");
-          }
-
           byte[] _buf=buffer.buffer;
           int _bufl=_buf.length;
           while(l>0){
             int _l=l;
-            if(l>_bufl-(14+dataLen)-Session.buffer_margin){
+            if(l>_bufl-(14+dataLen)-Session.buffer_margin)
               _l=_bufl-(14+dataLen)-Session.buffer_margin;
-            }
-
             if(_l<=0){
               flush();
               continue;
             }
-
             System.arraycopy(buf, s, _buf, 14+dataLen, _l);
             dataLen+=_l;
             s+=_l;
@@ -221,9 +197,8 @@ public abstract class Channel implements Runnable{
         }
 
         public void flush() throws java.io.IOException{
-          if(closed){
+          if(closed)
             throw new java.io.IOException("Already closed");
-          }
           if(dataLen==0)
             return;
           packet.reset();
@@ -238,31 +213,24 @@ public abstract class Channel implements Runnable{
               if(!channel.close)
                 getSession().write(packet, channel, foo);
             }
-          }
-          catch(Exception e){
-              ALoadClass.DebugPrintException("ex_5");
+          }catch(Exception e){
+            ALoadClass.DebugPrintException("ex_5");
             close();
             throw new java.io.IOException(e.toString());
           }
-
         }
         public void close() throws java.io.IOException{
           if(packet==null){
             try{
               init();
-            }
-            catch(java.io.IOException e){
-              // close should be finished silently.
+            }catch(java.io.IOException e){
               return;
             }
           }
-          if(closed){
+          if(closed)
             return;
-          }
-          if(dataLen>0){
+          if(dataLen>0)
             flush();
-          }
-          channel.eof();
           closed=true;
         }
       };
@@ -289,31 +257,23 @@ public abstract class Channel implements Runnable{
       buffer=new byte[size];
       BUFFER_SIZE=size;
     }
-
-    /*
-     * TODO: We should have our own Piped[I/O]Stream implementation.
-     * Before accepting data, JDK's PipedInputStream will check the existence of
-     * reader thread, and if it is not alive, the stream will be closed.
-     * That behavior may cause the problem if multiple threads make access to it.
-     */
     public synchronized void updateReadSide() throws IOException {
-      if(available() != 0){ // not empty
+      if(available() != 0)
         return;
-      }
       in = 0;
       out = 0;
       buffer[in++] = 0;
       read();
     }
-
     private int freeSpace(){
       int size = 0;
-      if(out < in) {
+      if(out < in){
         size = buffer.length-in;
-      }
-      else if(in < out){
-        if(in == -1) size = buffer.length;
-        else size = out - in;
+      }else if(in < out){
+        if(in == -1)
+          size = buffer.length;
+        else
+          size = out - in;
       }
       return size;
     } 
@@ -322,39 +282,30 @@ public abstract class Channel implements Runnable{
       if(size<len){
         int datasize=buffer.length-size;
         int foo = buffer.length;
-        while((foo - datasize) < len){
+        while((foo - datasize) < len)
           foo*=2;
-        }
-
-        if(foo > max_buffer_size){
+        if(foo > max_buffer_size)
           foo = max_buffer_size;
-        }
-        if((foo - datasize) < len) return;
-
+        if((foo - datasize) < len) 
+          return;
         byte[] tmp = new byte[foo];
-        if(out < in) {
+        if(out < in){
           System.arraycopy(buffer, 0, tmp, 0, buffer.length);
-        }
-        else if(in < out){
-          if(in == -1) {
-          }
-          else {
+        }else if(in < out){
+          if(in != -1) {
             System.arraycopy(buffer, 0, tmp, 0, in);
-            System.arraycopy(buffer, out, 
-                             tmp, tmp.length-(buffer.length-out),
-                             (buffer.length-out));
+            System.arraycopy(buffer, out, tmp, tmp.length-(buffer.length-out),(buffer.length-out));
             out = tmp.length-(buffer.length-out);
           }
-        }
-        else if(in == out){
+        }else if(in == out){
           System.arraycopy(buffer, 0, tmp, 0, buffer.length);
           in=buffer.length;
         }
         buffer=tmp;
-      }
-      else if(buffer.length == size && size > BUFFER_SIZE) { 
+      }else if(buffer.length == size && size > BUFFER_SIZE) { 
         int  i = size/2;
-        if(i<BUFFER_SIZE) i = BUFFER_SIZE;
+        if(i<BUFFER_SIZE) 
+          i = BUFFER_SIZE;
         byte[] tmp = new byte[i];
         buffer=tmp;
       }
@@ -371,8 +322,7 @@ public abstract class Channel implements Runnable{
   }
   void setRemotePacketSize(int foo){ this.rmpsize=foo; }
 
-  public void run(){
-  }
+  public void run(){}
 
   void write(byte[] foo) throws IOException {
     write(foo, 0, foo.length);
@@ -405,8 +355,7 @@ public abstract class Channel implements Runnable{
     eof_remote=true;
     try{
       out_close();
-    }
-    catch(NullPointerException e){}
+    }catch(NullPointerException e){}
   }
 
   void out_close(){
@@ -416,7 +365,8 @@ public abstract class Channel implements Runnable{
     }
     catch(Exception ee){}
   }
-  
+
+  /*  
   void eof(){
     if(eof_local)return;
     eof_local=true;
@@ -434,59 +384,18 @@ public abstract class Channel implements Runnable{
         if(!close)
           getSession().write(packet);
       }
+    }catch(Exception e){
+      ALoadClass.DebugPrintException("ex_6");
     }
-    catch(Exception e){
-        ALoadClass.DebugPrintException("ex_6");
-    }
-    /*
-    if(!isConnected()){ disconnect(); }
-    */
   }
-
-  /*
-  http://www1.ietf.org/internet-drafts/draft-ietf-secsh-connect-24.txt
-
-5.3  Closing a Channel
-  When a party will no longer send more data to a channel, it SHOULD
-   send SSH_MSG_CHANNEL_EOF.
-
-            byte      SSH_MSG_CHANNEL_EOF
-            uint32    recipient_channel
-
-  No explicit response is sent to this message.  However, the
-   application may send EOF to whatever is at the other end of the
-  channel.  Note that the channel remains open after this message, and
-   more data may still be sent in the other direction.  This message
-   does not consume window space and can be sent even if no window space
-   is available.
-
-     When either party wishes to terminate the channel, it sends
-     SSH_MSG_CHANNEL_CLOSE.  Upon receiving this message, a party MUST
-   send back a SSH_MSG_CHANNEL_CLOSE unless it has already sent this
-   message for the channel.  The channel is considered closed for a
-     party when it has both sent and received SSH_MSG_CHANNEL_CLOSE, and
-   the party may then reuse the channel number.  A party MAY send
-   SSH_MSG_CHANNEL_CLOSE without having sent or received
-   SSH_MSG_CHANNEL_EOF.
-
-            byte      SSH_MSG_CHANNEL_CLOSE
-            uint32    recipient_channel
-
-   This message does not consume window space and can be sent even if no
-   window space is available.
-
-   It is recommended that any data sent before this message is delivered
-     to the actual destination, if possible.
   */
-
+  
   void close(){
     if(close)return;
     close=true;
     eof_local=eof_remote=true;
-
     int i = getRecipient();
     if(i == -1) return;
-
     try{
       Buffer buf=new Buffer(100);
       Packet packet=new Packet(buf);
@@ -515,62 +424,44 @@ public abstract class Channel implements Runnable{
 	  if(c.session==session){
 	    channels[count++]=c;
 	  }
-	}
-	catch(Exception e){
-            ALoadClass.DebugPrintException("ex_8");
+	}catch(Exception e){
+          ALoadClass.DebugPrintException("ex_8");
 	}
       } 
     }
-    for(int i=0; i<count; i++){
+    for(int i=0; i<count; i++)
       channels[i].disconnect();
-    }
   }
 
   public void disconnect(){
-    //System.err.println(this+":disconnect "+io+" "+connected);
-    //Thread.dumpStack();
-
     try{
-
       synchronized(this){
         if(!connected){
           return;
         }
         connected=false;
       }
-
       close();
-
       eof_remote=eof_local=true;
-
       thread=null;
-
       try{
         close();
       }
       catch(Exception e){
         ALoadClass.DebugPrintException("ex_9");
       }
-      // io=null;
-    }
-    finally{
+    }finally{
       Channel.del(this);
     }
   }
 
   public boolean isConnected(){
     Session _session=this.session;
-    if(_session!=null){
+    if(_session!=null)
       return _session.isConnected() && connected;
-    }
     return false;
   }
-
-  public void sendSignal(String signal) throws Exception {
-    //RequestSignal request=new RequestSignal();
-    //request.setSignal(signal);
-    //request.request(getSession(), this);
-  }
+  public void sendSignal(String signal) throws Exception {}
 
   class PassiveInputStream extends MyPipedInputStream{
     PipedOutputStream out;
