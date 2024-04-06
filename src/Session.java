@@ -606,18 +606,13 @@ public class Session implements Runnable{
     if( (shkc.equals("ask") || shkc.equals("yes") ) && i == KnownHosts.CHANGED){
       String file=null;
       synchronized(hkr){
-	file=hkr.getKnownHostsRepositoryID();
+	file=null;
       }
       if(file==null){file="known_hosts";}
       boolean b=false;
       if(!b)
         throw new JSchException("HostKey has been changed: "+chost);
-      synchronized(hkr){
-        hkr.remove(chost, 
-                   kex.getKeyAlgorithName(),
-                   null);
-        insert=true;
-      }
+      insert=true;
     }
 
     if((shkc.equals("ask") || shkc.equals("yes")) &&
