@@ -1,35 +1,9 @@
 class ALoadClass {
-    public static Object getInstanceByConfig(String a) throws Exception{
-        a=getNameByConfig(a);
-        return getClassByName(a).newInstance();
-    }
-    public static Object getInstanceByName(String a) throws Exception{
-        return getForce(a, new Exception());
-    }
-    public static Class getClassByConfig(String a) throws Exception{
-        return getClassByName(getNameByConfig(a));
-    }
-    public static Class getClassByName(String a) throws Exception{
-        //DebugPrint("Class Load: "+ a);
-        return Class.forName(a);
-    }
     public static String getNameByConfig(String a){
-        String b=(String)config.get(a);
-        if ( b == null )
-            DebugPrint("getNameByConfig Fail: : " + a);
-        return b;
+        return (String)config.get(a);
     }    
     public static void DebugPrintException(String a) {
-        DebugPrint("       " + a);        
-    }
-    public static void DebugPrint(String a) {
-        System.out.println(a);        
-    }
-    // Usage in GraalVM
-    public static Object getForce(String key, Exception e) throws Exception{
-        //DebugPrint("Loading Force... " + key);
-        DebugPrint("FailLoadClass !! " + key);
-        throw e;
+        System.out.println("       " + a);        
     }
  
     static java.util.Hashtable config=new java.util.Hashtable();

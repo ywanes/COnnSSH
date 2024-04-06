@@ -1557,7 +1557,7 @@ public class Session implements Runnable{
 
   static boolean checkCipher(String cipher){
     try{
-      AES256CTR _c=(AES256CTR)ALoadClass.getInstanceByName(cipher);
+      AES256CTR _c=new AES256CTR();
       _c.init(AES256CTR.ENCRYPT_MODE,
               new byte[_c.getBlockSize()],
               new byte[_c.getIVSize()]);
