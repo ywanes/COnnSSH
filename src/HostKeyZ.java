@@ -1,4 +1,4 @@
-public class HostKey{
+public class HostKeyZ{
 
   private static final byte[][] names = {
     str2byte("ssh-dss"),
@@ -22,17 +22,17 @@ public class HostKey{
   protected byte[] key;
   protected String comment;
 
-  public HostKey(String host, byte[] key) throws JSchException {
+  public HostKeyZ(String host, byte[] key) throws JSchException {
     this(host, GUESS, key);
   }
 
-  public HostKey(String host, int type, byte[] key) throws JSchException {
+  public HostKeyZ(String host, int type, byte[] key) throws JSchException {
     this(host, type, key, null);
   }
-  public HostKey(String host, int type, byte[] key, String comment) throws JSchException {
+  public HostKeyZ(String host, int type, byte[] key, String comment) throws JSchException {
     this("", host, type, key, comment);
   }
-  public HostKey(String marker, String host, int type, byte[] key, String comment) throws JSchException {
+  public HostKeyZ(String marker, String host, int type, byte[] key, String comment) throws JSchException {
     this.marker=marker;
     this.host=host; 
     if(type==GUESS){

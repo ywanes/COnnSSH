@@ -4,9 +4,10 @@ public class SHA512{
   MessageDigest md;
   public int getBlockSize(){return 64;}
   public void init() throws Exception {
-    try{ md=MessageDigest.getInstance("SHA-512"); }
-    catch(Exception e){
-        ALoadClass.DebugPrintException("ex_83");
+    try{
+      md=MessageDigest.getInstance("SHA-512"); 
+    }catch(Exception e){
+      ALoadClass.DebugPrintException("ex_83");
       System.err.println(e);
     }
   }

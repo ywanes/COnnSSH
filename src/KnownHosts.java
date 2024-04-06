@@ -118,8 +118,8 @@ loop:
           sb.append((char)i);
 	}
 	String tmp = sb.toString();
-	if(HostKey.name2type(tmp)!=HostKey.UNKNOWN){
-	  type=HostKey.name2type(tmp);
+	if(HostKeyZ.name2type(tmp)!=HostKeyZ.UNKNOWN){
+	  type=HostKeyZ.name2type(tmp);
 	}
 	else { j=bufl; }
 	if(j>=bufl){
@@ -196,7 +196,7 @@ loop:
     }
   }
   private void addInvalidLine(String line) throws JSchException {
-    HostKey hk = new HostKey(line, HostKey.UNKNOWN, null);
+    HostKeyZ hk = new HostKeyZ(line, HostKeyZ.UNKNOWN, null);
     pool.addElement(hk);
   }
   String getKnownHostsFile(){ return known_hosts; }
@@ -208,9 +208,9 @@ loop:
       return result;
     }
 
-    HostKey hk = null;
+    HostKeyZ hk = null;
     try {
-      hk = new HostKey(host, HostKey.GUESS, key);
+      hk = new HostKeyZ(host, HostKeyZ.GUESS, key);
     }
     catch(JSchException e){  // unsupported key
       return result;
@@ -218,7 +218,7 @@ loop:
 
     synchronized(pool){
       for(int i=0; i<pool.size(); i++){
-        HostKey _hk=(HostKey)(pool.elementAt(i));
+        HostKeyZ _hk=(HostKeyZ)(pool.elementAt(i));
       }
     }
 
@@ -232,15 +232,15 @@ loop:
     return result;
   }
 
-  public void add(HostKey hostkey){
+  public void add(HostKeyZ hostkey){
     int type=hostkey.type;
     String host=hostkey.getHost();
     byte[] key=hostkey.key;
 
-    HostKey hk=null;
+    HostKeyZ hk=null;
     synchronized(pool){
       for(int i=0; i<pool.size(); i++)
-        hk=(HostKey)(pool.elementAt(i));
+        hk=(HostKeyZ)(pool.elementAt(i));
     }
 
     hk=hostkey;
@@ -248,30 +248,30 @@ loop:
     String bar=getKnownHostsRepositoryID();
   }
 
-  public HostKey[] getHostKey(){
+  public HostKeyZ[] getHostKey(){
     return getHostKey(null, (String)null);
   }
-  public HostKey[] getHostKey(String host, String type){
+  public HostKeyZ[] getHostKey(String host, String type){
     synchronized(pool){
       java.util.ArrayList v = new java.util.ArrayList();
       for(int i=0; i<pool.size(); i++){
-	HostKey hk=(HostKey)pool.elementAt(i);
-	if(hk.type==HostKey.UNKNOWN) continue;
+	HostKeyZ hk=(HostKeyZ)pool.elementAt(i);
+	if(hk.type==HostKeyZ.UNKNOWN) continue;
 	if(host==null || 
 	   (hk.isMatched(host) && 
 	    (type==null || hk.getType().equals(type)))){
           v.add(hk);
 	}
       }
-      HostKey[] foo = new HostKey[v.size()];
+      HostKeyZ[] foo = new HostKeyZ[v.size()];
       for(int i=0; i<v.size(); i++){
-        foo[i] = (HostKey)v.get(i);
+        foo[i] = (HostKeyZ)v.get(i);
       }
       if(host != null && host.startsWith("[") && host.indexOf("]:")>1){
-        HostKey[] tmp =
+        HostKeyZ[] tmp =
           getHostKey(host.substring(1, host.indexOf("]:")), type);
         if(tmp.length > 0){
-          HostKey[] bar = new HostKey[foo.length + tmp.length];
+          HostKeyZ[] bar = new HostKeyZ[foo.length + tmp.length];
           System.arraycopy(foo, 0, bar, 0, foo.length);
           System.arraycopy(tmp, 0, bar, foo.length, tmp.length);
           foo = bar;
@@ -287,7 +287,7 @@ loop:
     boolean sync=false;
     synchronized(pool){
     for(int i=0; i<pool.size(); i++){
-      HostKey hk=(HostKey)(pool.elementAt(i));
+      HostKeyZ hk=(HostKeyZ)(pool.elementAt(i));
     }
     }
     if(sync){
@@ -311,10 +311,10 @@ loop:
   private static final byte[] cr=str2byte("\n");
   void dump(OutputStream out) throws IOException {
     try{
-      HostKey hk;
+      HostKeyZ hk;
       synchronized(pool){
       for(int i=0; i<pool.size(); i++){
-        hk=(HostKey)(pool.elementAt(i));
+        hk=(HostKeyZ)(pool.elementAt(i));
         //hk.dump(out);
 	String marker=hk.getMarker();
 	String host=hk.getHost();
@@ -379,74 +379,6 @@ loop:
       }
     }
     return hmacsha1;
-  }
-
-  HostKey createHashedHostKey(String host, byte[]key) throws JSchException {
-    HashedHostKey hhk=new HashedHostKey(host, key);
-    hhk.hash();
-    return hhk;
-  } 
-  class HashedHostKey extends HostKey{
-    private static final String HASH_MAGIC="|1|";
-    private static final String HASH_DELIM="|";
-
-    private boolean hashed=false;
-    byte[] salt=null;
-    byte[] hash=null;
-
-    HashedHostKey(String host, byte[] key) throws JSchException {
-      this(host, GUESS, key);
-    }
-    HashedHostKey(String host, int type, byte[] key) throws JSchException {
-      this("", host, type, key, null);
-    }
-    HashedHostKey(String marker, String host, int type, byte[] key, String comment) throws JSchException {
-      super(marker, host, type, key, comment);
-    }
-
-    boolean isMatched(String _host){
-      if(!hashed){
-        return super.isMatched(_host);
-      }
-      HmacSHA1 macsha1=getHMACSHA1();
-      return false;
-    }
-    boolean isHashed(){
-      return hashed;
-    }
-
-    void hash(){
-      if(hashed)
-        return;
-      HmacSHA1 macsha1=getHMACSHA1();
-      if(salt==null){
-        java.security.SecureRandom random=Session.random;
-        synchronized(random){
-          salt=new byte[macsha1.getBlockSize()];
-          //random fill
-          byte[] foo_fill=salt;
-          int start_fill=0;
-          int len_fill=salt.length;
-          byte[] tmp_fill=new byte[16];
-          if(len_fill>tmp_fill.length){ tmp_fill=new byte[len_fill]; }
-          random.nextBytes(tmp_fill);
-          System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
-        }
-      }
-      try{
-        synchronized(macsha1){
-          macsha1.init(salt);
-          byte[] foo=str2byte(host);
-          macsha1.update(foo, 0, foo.length);
-          hash=new byte[macsha1.getBlockSize()];
-          macsha1.doFinal(hash, 0);
-        }
-      }
-      catch(Exception e){
-          ALoadClass.DebugPrintException("ex_130");
-      }
-      //hashed=true;
-    }
   }
 
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}

@@ -604,12 +604,7 @@ public class Session implements Runnable{
     KnownHosts hkr=getHostKeyRepository();
 
     String hkh=ALoadClass.getNameByConfig("HashKnownHosts");
-    if(hkh.equals("yes") && (hkr instanceof KnownHosts)){
-      hostkey=((KnownHosts)hkr).createHashedHostKey(chost, K_S);
-    }
-    else{
-      hostkey=new HostKey(chost, K_S);
-    }
+    hostkey=new HostKeyZ(chost, K_S);
 
     int i=0;
     synchronized(hkr){
@@ -1517,8 +1512,8 @@ public class Session implements Runnable{
     write(packet);
   }
   
-  private HostKey hostkey=null;
-  public HostKey getHostKey(){ return hostkey; }
+  private HostKeyZ hostkey=null;
+  public HostKeyZ getHostKey(){ return hostkey; }
   public String getHost(){return host;}
   public String getUserName(){return username;}
   public int getPort(){return port;}
