@@ -1,9 +1,9 @@
-class JSchAuthCancelException extends JSchException{
+class ExceptionAuthCancel extends ExceptionCOnn{
   String method;
-  JSchAuthCancelException () {
+  ExceptionAuthCancel () {
     super();
   }
-  JSchAuthCancelException (String s) {
+  ExceptionAuthCancel (String s) {
     super(s);
     this.method=s;
   }

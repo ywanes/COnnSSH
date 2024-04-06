@@ -63,8 +63,8 @@ public class ECDH521 {
     catch(Exception e){
       AConfig.DebugPrintException("ex_90");
       if(e instanceof Throwable)
-        throw new JSchException(e.toString(), (Throwable)e);
-      throw new JSchException(e.toString());
+        throw new ExceptionCOnn(e.toString(), (Throwable)e);
+      throw new ExceptionCOnn(e.toString());
     }
     if(V_S==null)
       return;
@@ -308,7 +308,7 @@ public class ECDH521 {
         else if(key_size==384) name="secp384r1";
         else if(key_size==521) name="secp521r1";
         else 
-          throw new JSchException("unsupported key size: "+key_size);
+          throw new ExceptionCOnn("unsupported key size: "+key_size);
         for(int i = 0; i<1000; i++){
           java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
           ECGenParameterSpec ecsp = new ECGenParameterSpec(name);

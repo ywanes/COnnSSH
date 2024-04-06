@@ -1,12 +1,12 @@
-public class JSchException extends Exception{
+public class ExceptionCOnn extends Exception{
   private Throwable cause=null;
-  public JSchException () {
+  public ExceptionCOnn () {
     super();
   }
-  public JSchException (String s) {
+  public ExceptionCOnn (String s) {
     super(s);
   }
-  public JSchException (String s, Throwable e) {
+  public ExceptionCOnn (String s, Throwable e) {
     super(s);
     this.cause=e;
   }

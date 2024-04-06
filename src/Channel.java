@@ -71,14 +71,14 @@ public abstract class Channel implements Runnable{
     return recipient;
   }
 
-  void init() throws JSchException {
+  void init() throws ExceptionCOnn {
   }
 
-  public void connect() throws JSchException{
+  public void connect() throws ExceptionCOnn{
     connect(0);
   }
 
-  public void connect(int connectTimeout) throws JSchException{
+  public void connect(int connectTimeout) throws ExceptionCOnn{
     this.connectTimeout=connectTimeout;
     try{
       sendChannelOpen();
@@ -88,13 +88,13 @@ public abstract class Channel implements Runnable{
         AConfig.DebugPrintException("ex_2");
       connected=false;
       disconnect();
-      if(e instanceof JSchException) 
-        throw (JSchException)e;
-      throw new JSchException(e.toString(), e);
+      if(e instanceof ExceptionCOnn) 
+        throw (ExceptionCOnn)e;
+      throw new ExceptionCOnn(e.toString(), e);
     }
   }
   public void setXForwarding(boolean foo){}
-  public void start() throws JSchException{}
+  public void start() throws ExceptionCOnn{}
   public boolean isEOF() {return eof_remote;}
   void getData(Buffer buf){
     setRecipient(buf.getInt());
@@ -510,10 +510,10 @@ public abstract class Channel implements Runnable{
     this.session=session;
   }
 
-  public Session getSession() throws JSchException{ 
+  public Session getSession() throws ExceptionCOnn{ 
     Session _session=session;
     if(_session==null){
-      throw new JSchException("session is not available");
+      throw new ExceptionCOnn("session is not available");
     }
     return _session;
   }
@@ -563,7 +563,7 @@ public abstract class Channel implements Runnable{
   protected void sendChannelOpen() throws Exception {
     Session _session=getSession();
     if(!_session.isConnected()){
-      throw new JSchException("session is down");
+      throw new ExceptionCOnn("session is down");
     }
 
     Packet packet = genChannelOpenPacket();
@@ -597,13 +597,13 @@ public abstract class Channel implements Runnable{
       }
     }
     if(!_session.isConnected()){
-      throw new JSchException("session is down");
+      throw new ExceptionCOnn("session is down");
     }
     if(this.getRecipient()==-1){  // timeout
-      throw new JSchException("channel is not opened.");
+      throw new ExceptionCOnn("channel is not opened.");
     }
     if(this.open_confirmation==false){
-      throw new JSchException("channel is not opened.");
+      throw new ExceptionCOnn("channel is not opened.");
     }
     connected=true;
   }

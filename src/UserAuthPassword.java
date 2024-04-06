@@ -12,7 +12,7 @@ public class UserAuthPassword extends UserAuth{
       if(session.auth_failures >= session.max_auth_tries)
         return false;
       if(password==null)
-	throw new JSchAuthCancelException("password");
+	throw new ExceptionAuthCancel("password");
       byte[] _username=null;
       _username=str2byte(username);
       packet.reset();
@@ -52,7 +52,7 @@ public class UserAuthPassword extends UserAuth{
 	  byte[] foo=buf.getString();
 	  int partial_success=buf.getByte();
 	  if(partial_success!=0)
-	    throw new JSchPartialAuthException(byte2str(foo));
+	    throw new ExceptionPartialAuth(byte2str(foo));
           session.auth_failures++;
 	  break;
 	}

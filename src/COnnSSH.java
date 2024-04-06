@@ -12,16 +12,12 @@ public class COnnSSH {
     }    
     
     public void go(){   
-        try{
-            // cd C:\tmp\tmp_teste && xcopy "D:\NetBeansProjects2\teste\src" . /h /i /c /k /e /r /y && y cls && javac teste.java && native-image teste --no-fallback && teste
-            String access="ywanes";
-            File f=new java.io.File("..\\key.txt");
-            if ( f.exists() && f.isFile() )
-                access=lendo_arquivo_ofuscado(f.getAbsolutePath());
-            ssh(new String[]{"ssh",access+"@192.168.0.100"});
-        }catch(Exception e){
-          System.out.println(e);
-        }
+        // cd C:\tmp\tmp_teste && xcopy "D:\NetBeansProjects2\teste\src" . /h /i /c /k /e /r /y && y cls && javac teste.java && native-image teste --no-fallback && teste
+        String access="ywanes";
+        File f=new java.io.File("..\\key.txt");
+        if ( f.exists() && f.isFile() )
+            access=lendo_arquivo_ofuscado(f.getAbsolutePath());
+        ssh(new String[]{"ssh",access+"@192.168.0.100"});
     }
     private void ssh(String[] args) {        
         // créditos
@@ -61,7 +57,7 @@ public class COnnSSH {
             }
             String user = arg0.split("@")[0];
             String host = arg0.split("@")[1];
-            Session session = new JSch().getSession(user, host, port);
+            Session session = new Session(host, user, port);
             session.setPassword(password);
             session.connect(30000);
             channel = session.openChannel("shell");

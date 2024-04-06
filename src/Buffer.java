@@ -192,12 +192,12 @@ public class Buffer{
     }
   }
 
-  byte[][] getBytes(int n, String msg) throws JSchException {
+  byte[][] getBytes(int n, String msg) throws ExceptionCOnn {
     byte[][] tmp = new byte[n][];
     for(int i = 0; i < n; i++){
       int j = getInt();
       if(getLength() < j){
-        throw new JSchException(msg);
+        throw new ExceptionCOnn(msg);
       }
       tmp[i] = new byte[j];
       getByte(tmp[i]);

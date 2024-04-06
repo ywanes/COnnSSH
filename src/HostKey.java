@@ -22,17 +22,17 @@ public class HostKey{
   protected byte[] key;
   protected String comment;
 
-  public HostKey(String host, byte[] key) throws JSchException {
+  public HostKey(String host, byte[] key) throws ExceptionCOnn {
     this(host, GUESS, key);
   }
 
-  public HostKey(String host, int type, byte[] key) throws JSchException {
+  public HostKey(String host, int type, byte[] key) throws ExceptionCOnn {
     this(host, type, key, null);
   }
-  public HostKey(String host, int type, byte[] key, String comment) throws JSchException {
+  public HostKey(String host, int type, byte[] key, String comment) throws ExceptionCOnn {
     this("", host, type, key, comment);
   }
-  public HostKey(String marker, String host, int type, byte[] key, String comment) throws JSchException {
+  public HostKey(String marker, String host, int type, byte[] key, String comment) throws ExceptionCOnn {
     this.marker=marker;
     this.host=host; 
     if(type==GUESS){
@@ -41,7 +41,7 @@ public class HostKey{
       else if(key[8]=='a' && key[20]=='2'){ this.type=ECDSA256; }
       else if(key[8]=='a' && key[20]=='3'){ this.type=ECDSA384; }
       else if(key[8]=='a' && key[20]=='5'){ this.type=ECDSA521; }
-      else { throw new JSchException("invalid key type");}
+      else { throw new ExceptionCOnn("invalid key type");}
     }
     else
       this.type=type; 

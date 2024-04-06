@@ -6,7 +6,7 @@ public class ChannelShell extends ChannelSession{
     pty=true;
   }
 
-  public void start() throws JSchException{
+  public void start() throws ExceptionCOnn{
     Session _session=getSession();
     try{
       sendRequests();
@@ -15,10 +15,10 @@ public class ChannelShell extends ChannelSession{
     }
     catch(Exception e){
         AConfig.DebugPrintException("ex_61");
-      if(e instanceof JSchException) throw (JSchException)e;
+      if(e instanceof ExceptionCOnn) throw (ExceptionCOnn)e;
       if(e instanceof Throwable)
-        throw new JSchException("ChannelShell", (Throwable)e);
-      throw new JSchException("ChannelShell");
+        throw new ExceptionCOnn("ChannelShell", (Throwable)e);
+      throw new ExceptionCOnn("ChannelShell");
     }
 
     if(in!=null){
@@ -31,7 +31,7 @@ public class ChannelShell extends ChannelSession{
     }
   }
 
-  void init() throws JSchException {
+  void init() throws ExceptionCOnn {
     setInputStream(getSession().in);
     setOutputStream(getSession().out);
   }
