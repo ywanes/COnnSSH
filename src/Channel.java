@@ -16,9 +16,8 @@ public abstract class Channel implements Runnable{
   static int index=0; 
   private static java.util.Vector pool=new java.util.Vector();
   static Channel getChannel(String type){
-    if(type.equals("shell")){
+    if(type.equals("shell"))
       return new ChannelShell();
-    }
     return null;
   }
   static Channel getChannel(int id, Session session){

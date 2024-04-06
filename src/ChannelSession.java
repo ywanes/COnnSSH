@@ -2,13 +2,10 @@ import java.util.*;
 
 class ChannelSession extends Channel{
   private static byte[] _session=str2byte("session");
-
   protected boolean agent_forwarding=false;
   protected boolean xforwading=false;
   protected Hashtable env=null;
-
   protected boolean pty=false;
-
   protected String ttype="vt100";
   protected int tcol=80;
   protected int trow=24;
@@ -81,52 +78,24 @@ class ChannelSession extends Channel{
   }
 
   protected void sendRequests() throws Exception{
-    Session _session=getSession();
-    Request request;
-    if(agent_forwarding){
-      //request=new RequestAgentForwarding();
-      //request.request(_session, this);
-    }
-
-    if(xforwading){
-      //request=new RequestX11();
-      //request.request(_session, this);
-    }
-
     if(pty){
-      request=new RequestPtyReq();
+      Session _session=getSession();
+      Request request=new RequestPtyReq();
       ((RequestPtyReq)request).setTType(ttype);
       ((RequestPtyReq)request).setTSize(tcol, trow, twp, thp);
-      if(terminal_mode!=null){
+      if(terminal_mode!=null)
         ((RequestPtyReq)request).setTerminalMode(terminal_mode);
-      }
       request.request(_session, this);
     }
-
-  }
-
-  private byte[] toByteArray(Object o){
-    if(o instanceof String){
-      return str2byte((String)o);
-    }
-    return (byte[])o;
   }
 
   public void run(){
-    //System.err.println(this+":run >");
-
     Buffer buf=new Buffer(rmpsize);
     Packet packet=new Packet(buf);
     int i=-1;
     try{
-      while(isConnected() &&
-	    thread!=null && 
-            in!=null){
-        i=in.read(buf.buffer, 
-                     14,    
-                     buf.buffer.length-14
-                     -Session.buffer_margin
-		     );
+      while(isConnected() &&thread!=null && in!=null){
+        i=in.read(buf.buffer, 14,    buf.buffer.length-14-Session.buffer_margin);
 	if(i==0)continue;
 	if(i==-1)
 	  break;
@@ -138,16 +107,17 @@ class ChannelSession extends Channel{
         buf.skip(i);
 	getSession().write(packet, this, i);
       }
-    }
-    catch(Exception e){
-        AConfig.DebugPrintException("ex_20");
+    }catch(Exception e){
+      AConfig.DebugPrintException("ex_20");
     }
     Thread _thread=thread; 
-    if(_thread!=null){
-      synchronized(_thread){ _thread.notifyAll(); }
-    }
+    if(_thread!=null)
+      synchronized(_thread){ 
+        _thread.notifyAll(); 
+      }
     thread=null;
   }
+  
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
   static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
   static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
