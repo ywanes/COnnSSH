@@ -9,13 +9,10 @@ public class UserAuthPassword extends UserAuth{
     if(session.port!=22)
       dest+=(":"+session.port);
     while(true){
-      if(session.auth_failures >= session.max_auth_tries){
+      if(session.auth_failures >= session.max_auth_tries)
         return false;
-      }
-      if(password==null){
+      if(password==null)
 	throw new JSchAuthCancelException("password");
-      }
-
       byte[] _username=null;
       _username=str2byte(username);
       packet.reset();

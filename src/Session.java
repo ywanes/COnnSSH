@@ -2,13 +2,11 @@ import java.io.*;
 import java.net.*;
 import java.util.Vector;
 public class Session implements Runnable{
-  // http://ietf.org/internet-drafts/draft-ietf-secsh-assignednumbers-01.txt
   static final int SSH_MSG_DISCONNECT=                      1;
   static final int SSH_MSG_IGNORE=                          2;
   static final int SSH_MSG_UNIMPLEMENTED=                   3;
   static final int SSH_MSG_DEBUG=                           4;
   static final int SSH_MSG_SERVICE_REQUEST=                 5;
-  static final int SSH_MSG_SERVICE_ACCEPT=                  6;
   static final int SSH_MSG_KEXINIT=                        20;
   static final int SSH_MSG_NEWKEYS=                        21;
   static final int SSH_MSG_KEXDH_INIT=                     30;
@@ -36,7 +34,6 @@ public class Session implements Runnable{
   private byte[] V_C=str2byte("SSH-2.0-JSCH-0.1.54");
   private byte[] I_C; // the payload of the client's SSH_MSG_KEXINIT
   private byte[] I_S; // the payload of the server's SSH_MSG_KEXINIT
-  private byte[] K_S; // the host key
   private byte[] session_id;
   private byte[] IVc2s;
   private byte[] IVs2c;
@@ -103,15 +100,10 @@ public class Session implements Runnable{
     if(this.username==null) {
       try {
         this.username=(String)(System.getProperties().get("user.name"));
-      }
-      catch(SecurityException e){
-        // ignore e
-      }
+      }catch(SecurityException e){}
     }
-
-    if(this.username==null) {
+    if(this.username==null) 
       throw new JSchException("username is not given.");
-    }
   }
 
   public void connect() throws JSchException{
@@ -187,7 +179,7 @@ public class Session implements Runnable{
 
     if(random==null){
       try{
-        random=(Random)ALoadClass.getInstanceByConfig("random");
+        random=new Random();
       }
       catch(Exception e){ 
           ALoadClass.DebugPrintException("ex_144");
@@ -1450,33 +1442,6 @@ public class Session implements Runnable{
     if(password!=null)
       this.password=str2byte(password);
   }
-  public void setPassword(byte[] password){ 
-    if(password!=null){
-      this.password=new byte[password.length];
-      System.arraycopy(password, 0, this.password, 0, password.length);
-    }
-  }
-  public void setConfig(java.util.Properties newconf){
-    setConfig((java.util.Hashtable)newconf);
-  }
-  public void setConfig(java.util.Hashtable newconf){
-    synchronized(lock){
-      if(config==null) 
-        config=new java.util.Hashtable();
-      for(java.util.Enumeration e=newconf.keys() ; e.hasMoreElements() ;) {
-        String key=(String)(e.nextElement());
-        config.put(key, (String)(newconf.get(key)));
-      }
-    }
-  }
-  public void setConfig(String key, String value){
-    synchronized(lock){ 
-      if(config==null){
-        config=new java.util.Hashtable();
-      }
-      config.put(key, value);
-    }
-  }
   public boolean isConnected(){ return isConnected; }
   public int getTimeout(){ return timeout; }
   public void setTimeout(int timeout) throws JSchException {
@@ -1687,11 +1652,8 @@ public class Session implements Runnable{
     try{
       if(in!=null && !in_dontclose) in.close();
       in=null;
-    }
-    catch(Exception ee){}
-
+    }catch(Exception ee){}
     out_close();
-
     try{
       if(out_ext!=null && !out_ext_dontclose) out_ext.close();
       out_ext=null;

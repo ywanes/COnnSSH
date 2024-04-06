@@ -1,5 +1,5 @@
 import javax.crypto.spec.*;
-public class AES256CTR{// implements CipherZ{
+public class AES256CTR{
   public static int ENCRYPT_MODE=0;
   public static int DECRYPT_MODE=1;
   private static final int ivsize=16;

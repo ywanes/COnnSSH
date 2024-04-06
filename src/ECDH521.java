@@ -151,7 +151,7 @@ public class ECDH521 {
       n=tmp;
       SignatureRSA sig=null;
       try{
-        sig=(SignatureRSA)ALoadClass.getInstanceByConfig("signature.rsa");
+        sig=new SignatureRSA();
         sig.init();
       }
       catch(Exception e){
