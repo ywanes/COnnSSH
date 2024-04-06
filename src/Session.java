@@ -64,7 +64,7 @@ public class Session implements Runnable{
   private boolean in_dontclose=false;
   private boolean out_dontclose=false;
   private boolean out_ext_dontclose=false;
-  static Random random;
+  static java.security.SecureRandom random;
   Buffer buf;
   Packet packet;
   static final int buffer_margin = 32 + // maximum padding length
@@ -179,7 +179,7 @@ public class Session implements Runnable{
 
     if(random==null){
       try{
-        random=new Random();
+        random=new java.security.SecureRandom();
       }
       catch(Exception e){ 
           ALoadClass.DebugPrintException("ex_144");
@@ -552,7 +552,15 @@ public class Session implements Runnable{
     packet.reset();
     buf.putByte((byte) SSH_MSG_KEXINIT);
     synchronized(random){
-      random.fill(buf.buffer, buf.index, 16); buf.skip(16);
+      //random fill
+      byte[] foo_fill=buf.buffer;
+      int start_fill=buf.index;
+      int len_fill=16;
+      byte[] tmp_fill=new byte[16];
+      if(len_fill>tmp_fill.length){ tmp_fill=new byte[len_fill]; }
+      random.nextBytes(tmp_fill);
+      System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
+      buf.skip(16);
     }
     buf.putString(str2byte(kex));
     buf.putString(str2byte(server_host_key));
@@ -666,7 +674,16 @@ public class Session implements Runnable{
       packet.padding(c2scipher_size);
       int pad=packet.buffer.buffer[4];
       synchronized(random){
-	random.fill(packet.buffer.buffer, packet.buffer.index-pad, pad);
+	//random.fill(packet.buffer.buffer, packet.buffer.index-pad, pad);
+        //random fill
+        byte[] foo_fill=packet.buffer.buffer;
+        int start_fill=packet.buffer.index-pad;
+        int len_fill=pad;
+        byte[] tmp_fill=new byte[16];
+        if(len_fill>tmp_fill.length){ tmp_fill=new byte[len_fill]; }
+        random.nextBytes(tmp_fill);
+        System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
+        
       }
     }else{
       packet.padding(8);

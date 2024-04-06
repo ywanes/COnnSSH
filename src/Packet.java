@@ -1,7 +1,7 @@
 public class Packet{
 
-  private static Random random=null;
-  static void setRandom(Random foo){ random=foo;}
+  private static java.security.SecureRandom random=null;
+  static void setRandom(java.security.SecureRandom foo){ random=foo;}
 
   Buffer buffer;
   byte[] ba4=new byte[4]; 
@@ -25,7 +25,14 @@ public class Packet{
     System.arraycopy(ba4, 0, buffer.buffer, 0, 4);
     buffer.buffer[4]=(byte)pad;
     synchronized(random){
-      random.fill(buffer.buffer, buffer.index, pad);
+      //random fill
+      byte[] foo_fill=buffer.buffer;
+      int start_fill=buffer.index;
+      int len_fill=pad;
+      byte[] tmp_fill=new byte[16];
+      if(len_fill>tmp_fill.length){ tmp_fill=new byte[len_fill]; }
+      random.nextBytes(tmp_fill);
+      System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);      
     }
     buffer.skip(pad);
   }

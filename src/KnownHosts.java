@@ -411,7 +411,6 @@ loop:
       HmacSHA1 macsha1=getHMACSHA1();
       return false;
     }
-
     boolean isHashed(){
       return hashed;
     }
@@ -421,10 +420,17 @@ loop:
         return;
       HmacSHA1 macsha1=getHMACSHA1();
       if(salt==null){
-        Random random=Session.random;
+        java.security.SecureRandom random=Session.random;
         synchronized(random){
           salt=new byte[macsha1.getBlockSize()];
-          random.fill(salt, 0, salt.length);
+          //random fill
+          byte[] foo_fill=salt;
+          int start_fill=0;
+          int len_fill=salt.length;
+          byte[] tmp_fill=new byte[16];
+          if(len_fill>tmp_fill.length){ tmp_fill=new byte[len_fill]; }
+          random.nextBytes(tmp_fill);
+          System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
         }
       }
       try{
