@@ -85,7 +85,7 @@ public abstract class Channel implements Runnable{
       start();
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_2");
+        AConfig.DebugPrintException("ex_2");
       connected=false;
       disconnect();
       if(e instanceof JSchException) 
@@ -126,10 +126,10 @@ public abstract class Channel implements Runnable{
     int max_input_buffer_size = 32*1024;
     try {
       max_input_buffer_size =
-        Integer.parseInt(ALoadClass.getNameByConfig("max_input_buffer_size"));
+        Integer.parseInt(AConfig.getNameByConfig("max_input_buffer_size"));
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_3");
+        AConfig.DebugPrintException("ex_3");
     }
     PipedInputStream in = new MyPipedInputStream(32*1024,max_input_buffer_size);
     boolean resizable = 32*1024<max_input_buffer_size;
@@ -139,10 +139,10 @@ public abstract class Channel implements Runnable{
   public InputStream getExtInputStream() throws IOException {
     int max_input_buffer_size = 32*1024;
     try {
-      max_input_buffer_size = Integer.parseInt(ALoadClass.getNameByConfig("max_input_buffer_size"));
+      max_input_buffer_size = Integer.parseInt(AConfig.getNameByConfig("max_input_buffer_size"));
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_4");
+        AConfig.DebugPrintException("ex_4");
     }
     PipedInputStream in = new MyPipedInputStream(32*1024,max_input_buffer_size);
     boolean resizable = 32*1024<max_input_buffer_size;
@@ -214,7 +214,7 @@ public abstract class Channel implements Runnable{
                 getSession().write(packet, channel, foo);
             }
           }catch(Exception e){
-            ALoadClass.DebugPrintException("ex_5");
+            AConfig.DebugPrintException("ex_5");
             close();
             throw new java.io.IOException(e.toString());
           }
@@ -407,7 +407,7 @@ public abstract class Channel implements Runnable{
       }
     }
     catch(Exception e){
-      ALoadClass.DebugPrintException("ex_7");
+      AConfig.DebugPrintException("ex_7");
     }
   }
   public boolean isClosed(){
@@ -425,7 +425,7 @@ public abstract class Channel implements Runnable{
 	    channels[count++]=c;
 	  }
 	}catch(Exception e){
-          ALoadClass.DebugPrintException("ex_8");
+          AConfig.DebugPrintException("ex_8");
 	}
       } 
     }
@@ -448,7 +448,7 @@ public abstract class Channel implements Runnable{
         close();
       }
       catch(Exception e){
-        ALoadClass.DebugPrintException("ex_9");
+        AConfig.DebugPrintException("ex_9");
       }
     }finally{
       Channel.del(this);
@@ -544,7 +544,7 @@ public abstract class Channel implements Runnable{
       getSession().write(packet);
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_10");
+        AConfig.DebugPrintException("ex_10");
     }
   }
 

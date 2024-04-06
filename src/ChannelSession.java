@@ -64,7 +64,7 @@ class ChannelSession extends Channel{
       //request.request(getSession(), this);
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_19");
+        AConfig.DebugPrintException("ex_19");
     }
   }
 
@@ -140,7 +140,7 @@ class ChannelSession extends Channel{
       }
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_20");
+        AConfig.DebugPrintException("ex_20");
     }
     Thread _thread=thread; 
     if(_thread!=null){

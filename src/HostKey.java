@@ -1,4 +1,4 @@
-public class HostKeyZ{
+public class HostKey{
 
   private static final byte[][] names = {
     str2byte("ssh-dss"),
@@ -10,7 +10,7 @@ public class HostKeyZ{
 
   protected static final int GUESS=0;
   public static final int SSHDSS=1;
-  public static final int SSHRSA=2;
+  public static final int SSHRSA=2;//used!
   public static final int ECDSA256=3;
   public static final int ECDSA384=4;
   public static final int ECDSA521=5;
@@ -22,17 +22,17 @@ public class HostKeyZ{
   protected byte[] key;
   protected String comment;
 
-  public HostKeyZ(String host, byte[] key) throws JSchException {
+  public HostKey(String host, byte[] key) throws JSchException {
     this(host, GUESS, key);
   }
 
-  public HostKeyZ(String host, int type, byte[] key) throws JSchException {
+  public HostKey(String host, int type, byte[] key) throws JSchException {
     this(host, type, key, null);
   }
-  public HostKeyZ(String host, int type, byte[] key, String comment) throws JSchException {
+  public HostKey(String host, int type, byte[] key, String comment) throws JSchException {
     this("", host, type, key, comment);
   }
-  public HostKeyZ(String marker, String host, int type, byte[] key, String comment) throws JSchException {
+  public HostKey(String marker, String host, int type, byte[] key, String comment) throws JSchException {
     this.marker=marker;
     this.host=host; 
     if(type==GUESS){
@@ -43,9 +43,8 @@ public class HostKeyZ{
       else if(key[8]=='a' && key[20]=='5'){ this.type=ECDSA521; }
       else { throw new JSchException("invalid key type");}
     }
-    else{
+    else
       this.type=type; 
-    }
     this.key=key;
     this.comment=comment;
   }
@@ -89,7 +88,8 @@ public class HostKeyZ{
        return hosts.regionMatches(true, i, _host, 0, hostlen);
       }
       if(hostlen==(j-i)){
-	if(hosts.regionMatches(true, i, _host, 0, hostlen)) return true;
+	if(hosts.regionMatches(true, i, _host, 0, hostlen)) 
+          return true;
       }
       i=j+1;
     }

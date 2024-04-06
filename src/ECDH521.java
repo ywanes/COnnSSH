@@ -47,7 +47,7 @@ public class ECDH521 {
       sha.init();
     }
     catch(Exception e){
-      ALoadClass.DebugPrintException("ex_89");  
+      AConfig.DebugPrintException("ex_89");  
       System.err.println(e);
     }
     buf=new Buffer();
@@ -61,7 +61,7 @@ public class ECDH521 {
       buf.putString(Q_C);
     }
     catch(Exception e){
-      ALoadClass.DebugPrintException("ex_90");
+      AConfig.DebugPrintException("ex_90");
       if(e instanceof Throwable)
         throw new JSchException(e.toString(), (Throwable)e);
       throw new JSchException(e.toString());
@@ -155,7 +155,7 @@ public class ECDH521 {
         sig.init();
       }
       catch(Exception e){
-        ALoadClass.DebugPrintException("ex_86");
+        AConfig.DebugPrintException("ex_86");
         System.err.println(e);
       }
       sig.setPubKey(ee, n);   

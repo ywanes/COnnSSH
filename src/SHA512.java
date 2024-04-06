@@ -7,7 +7,7 @@ public class SHA512{
     try{
       md=MessageDigest.getInstance("SHA-512"); 
     }catch(Exception e){
-      ALoadClass.DebugPrintException("ex_83");
+      AConfig.DebugPrintException("ex_83");
       System.err.println(e);
     }
   }

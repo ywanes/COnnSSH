@@ -1,4 +1,4 @@
-class ALoadClass {
+class AConfig {
     public static String getNameByConfig(String a){
         return (String)config.get(a);
     }    

@@ -6,15 +6,13 @@ public class KnownHosts{
   static final int CHANGED=2;
     
   private static final String _known_hosts="known_hosts";
-  private JSch jsch=null;
   private String known_hosts=null;
   private java.util.Vector pool=null;
 
   private HmacSHA1 hmacsha1=null;
 
-  KnownHosts(JSch jsch){
+  KnownHosts(){
     super();
-    this.jsch=jsch;
     this.hmacsha1 = getHMACSHA1();
     pool=new java.util.Vector();
   }
@@ -118,8 +116,8 @@ loop:
           sb.append((char)i);
 	}
 	String tmp = sb.toString();
-	if(HostKeyZ.name2type(tmp)!=HostKeyZ.UNKNOWN){
-	  type=HostKeyZ.name2type(tmp);
+	if(HostKey.name2type(tmp)!=HostKey.UNKNOWN){
+	  type=HostKey.name2type(tmp);
 	}
 	else { j=bufl; }
 	if(j>=bufl){
@@ -181,7 +179,7 @@ loop:
       }
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_124");
+        AConfig.DebugPrintException("ex_124");
       if(e instanceof JSchException)
 	throw (JSchException)e;         
       if(e instanceof Throwable)
@@ -196,7 +194,7 @@ loop:
     }
   }
   private void addInvalidLine(String line) throws JSchException {
-    HostKeyZ hk = new HostKeyZ(line, HostKeyZ.UNKNOWN, null);
+    HostKey hk = new HostKey(line, HostKey.UNKNOWN, null);
     pool.addElement(hk);
   }
   String getKnownHostsFile(){ return known_hosts; }
@@ -208,9 +206,9 @@ loop:
       return result;
     }
 
-    HostKeyZ hk = null;
+    HostKey hk = null;
     try {
-      hk = new HostKeyZ(host, HostKeyZ.GUESS, key);
+      hk = new HostKey(host, HostKey.GUESS, key);
     }
     catch(JSchException e){  // unsupported key
       return result;
@@ -218,7 +216,7 @@ loop:
 
     synchronized(pool){
       for(int i=0; i<pool.size(); i++){
-        HostKeyZ _hk=(HostKeyZ)(pool.elementAt(i));
+        HostKey _hk=(HostKey)(pool.elementAt(i));
       }
     }
 
@@ -232,15 +230,15 @@ loop:
     return result;
   }
 
-  public void add(HostKeyZ hostkey){
+  public void add(HostKey hostkey){
     int type=hostkey.type;
     String host=hostkey.getHost();
     byte[] key=hostkey.key;
 
-    HostKeyZ hk=null;
+    HostKey hk=null;
     synchronized(pool){
       for(int i=0; i<pool.size(); i++)
-        hk=(HostKeyZ)(pool.elementAt(i));
+        hk=(HostKey)(pool.elementAt(i));
     }
 
     hk=hostkey;
@@ -248,30 +246,30 @@ loop:
     String bar=getKnownHostsRepositoryID();
   }
 
-  public HostKeyZ[] getHostKey(){
+  public HostKey[] getHostKey(){
     return getHostKey(null, (String)null);
   }
-  public HostKeyZ[] getHostKey(String host, String type){
+  public HostKey[] getHostKey(String host, String type){
     synchronized(pool){
       java.util.ArrayList v = new java.util.ArrayList();
       for(int i=0; i<pool.size(); i++){
-	HostKeyZ hk=(HostKeyZ)pool.elementAt(i);
-	if(hk.type==HostKeyZ.UNKNOWN) continue;
+	HostKey hk=(HostKey)pool.elementAt(i);
+	if(hk.type==HostKey.UNKNOWN) continue;
 	if(host==null || 
 	   (hk.isMatched(host) && 
 	    (type==null || hk.getType().equals(type)))){
           v.add(hk);
 	}
       }
-      HostKeyZ[] foo = new HostKeyZ[v.size()];
+      HostKey[] foo = new HostKey[v.size()];
       for(int i=0; i<v.size(); i++){
-        foo[i] = (HostKeyZ)v.get(i);
+        foo[i] = (HostKey)v.get(i);
       }
       if(host != null && host.startsWith("[") && host.indexOf("]:")>1){
-        HostKeyZ[] tmp =
+        HostKey[] tmp =
           getHostKey(host.substring(1, host.indexOf("]:")), type);
         if(tmp.length > 0){
-          HostKeyZ[] bar = new HostKeyZ[foo.length + tmp.length];
+          HostKey[] bar = new HostKey[foo.length + tmp.length];
           System.arraycopy(foo, 0, bar, 0, foo.length);
           System.arraycopy(tmp, 0, bar, foo.length, tmp.length);
           foo = bar;
@@ -287,14 +285,14 @@ loop:
     boolean sync=false;
     synchronized(pool){
     for(int i=0; i<pool.size(); i++){
-      HostKeyZ hk=(HostKeyZ)(pool.elementAt(i));
+      HostKey hk=(HostKey)(pool.elementAt(i));
     }
     }
     if(sync){
       try{
           sync();
       }catch(Exception e){
-          ALoadClass.DebugPrintException("ex_126");
+          AConfig.DebugPrintException("ex_126");
       };
     }
   }
@@ -311,10 +309,10 @@ loop:
   private static final byte[] cr=str2byte("\n");
   void dump(OutputStream out) throws IOException {
     try{
-      HostKeyZ hk;
+      HostKey hk;
       synchronized(pool){
       for(int i=0; i<pool.size(); i++){
-        hk=(HostKeyZ)(pool.elementAt(i));
+        hk=(HostKey)(pool.elementAt(i));
         //hk.dump(out);
 	String marker=hk.getMarker();
 	String host=hk.getHost();
@@ -343,7 +341,7 @@ loop:
       }
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_127");
+        AConfig.DebugPrintException("ex_127");
       System.err.println(e);
     }
   }
@@ -374,7 +372,7 @@ loop:
         hmacsha1=new HmacSHA1();
       }
       catch(Exception e){ 
-          ALoadClass.DebugPrintException("ex_128");
+          AConfig.DebugPrintException("ex_128");
         System.err.println("hmacsha1: "+e); 
       }
     }

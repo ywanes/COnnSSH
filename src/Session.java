@@ -32,8 +32,8 @@ public class Session implements Runnable{
   private static final int PACKET_MAX_SIZE = 256 * 1024;
   private byte[] V_S;                                 
   private byte[] V_C=str2byte("SSH-2.0-JSCH-0.1.54");
-  private byte[] I_C; // the payload of the client's SSH_MSG_KEXINIT
-  private byte[] I_S; // the payload of the server's SSH_MSG_KEXINIT
+  private byte[] I_C;
+  private byte[] I_S;
   private byte[] session_id;
   private byte[] IVc2s;
   private byte[] IVs2c;
@@ -67,9 +67,9 @@ public class Session implements Runnable{
   static java.security.SecureRandom random;
   Buffer buf;
   Packet packet;
-  static final int buffer_margin = 32 + // maximum padding length
-                                   64 + // maximum mac length
-                                   32;  // margin for deflater; deflater may inflate data
+  static final int buffer_margin = 32 + 
+                                   64 + 
+                                   32;  
 
   private java.util.Hashtable config=null;
   private Proxy proxy=null;
@@ -118,7 +118,7 @@ public class Session implements Runnable{
         return socket;
       }
       catch(Exception e){
-          ALoadClass.DebugPrintException("ex_162");
+          AConfig.DebugPrintException("ex_162");
         String message=e.toString();
         if(e instanceof Throwable)
           throw new JSchException(message, (Throwable)e);
@@ -137,7 +137,7 @@ public class Session implements Runnable{
             sockp[0]=new Socket(_host, _port);
           }
           catch(Exception e){
-              ALoadClass.DebugPrintException("ex_163");
+              AConfig.DebugPrintException("ex_163");
             ee[0]=e;
             if(sockp[0]!=null && sockp[0].isConnected()){
               try{
@@ -182,7 +182,7 @@ public class Session implements Runnable{
         random=new java.security.SecureRandom();
       }
       catch(Exception e){ 
-          ALoadClass.DebugPrintException("ex_144");
+          AConfig.DebugPrintException("ex_144");
         throw new JSchException(e.toString(), e);
       }
     }
@@ -201,7 +201,6 @@ public class Session implements Runnable{
         socket.setSoTimeout(connectTimeout);
       }
       isConnected=true;
-      jsch.addSession(this);
       byte[] foo=new byte[V_C.length+1];
       System.arraycopy(V_C, 0, foo, 0, V_C.length);
       foo[foo.length-1]=(byte)'\n';
@@ -218,7 +217,7 @@ public class Session implements Runnable{
         }
         if(j<0)
           throw new JSchException("connection is closed by foreign host");
-        if(buf.buffer[i-1]==10){    // 0x0a
+        if(buf.buffer[i-1]==10){
           i--;
           if(i>0 && buf.buffer[i-1]==13)
             i--;
@@ -286,13 +285,13 @@ public class Session implements Runnable{
 	throw new JSchException("invalid protocol(newkyes): "+buf.getCommand());
       }
       try{
-        String s = ALoadClass.getNameByConfig("MaxAuthTries");
+        String s = AConfig.getNameByConfig("MaxAuthTries");
         if(s!=null){
           max_auth_tries = Integer.parseInt(s);
         }
       }
       catch(NumberFormatException e){
-        throw new JSchException("MaxAuthTries: "+ALoadClass.getNameByConfig("MaxAuthTries"), e);
+        throw new JSchException("MaxAuthTries: "+AConfig.getNameByConfig("MaxAuthTries"), e);
       }
 
       boolean auth=false;
@@ -303,13 +302,13 @@ public class Session implements Runnable{
         ua = new UserAuthNone();        
       }
       catch(Exception e){ 
-          ALoadClass.DebugPrintException("ex_145");
+          AConfig.DebugPrintException("ex_145");
         throw new JSchException(e.toString(), e);
       }
 
       auth=ua.start(this);
 
-      String cmethods=ALoadClass.getNameByConfig("PreferredAuthentications");
+      String cmethods=AConfig.getNameByConfig("PreferredAuthentications");
 
       String[] cmethoda=split(cmethods, ",");
 
@@ -481,7 +480,7 @@ public class Session implements Runnable{
       kex=new ECDH521();
     }
     catch(Exception e){ 
-        ALoadClass.DebugPrintException("ex_147");
+        AConfig.DebugPrintException("ex_147");
       throw new JSchException(e.toString(), e);
     }
 
@@ -515,10 +514,10 @@ public class Session implements Runnable{
     if(in_kex)
       return;
 
-    String cipherc2s=ALoadClass.getNameByConfig("cipher.c2s");
-    String ciphers2c=ALoadClass.getNameByConfig("cipher.s2c");
+    String cipherc2s=AConfig.getNameByConfig("cipher.c2s");
+    String ciphers2c=AConfig.getNameByConfig("cipher.s2c");
 
-    String[] not_available_ciphers=checkCiphers(ALoadClass.getNameByConfig("CheckCiphers"));
+    String[] not_available_ciphers=checkCiphers(AConfig.getNameByConfig("CheckCiphers"));
     if(not_available_ciphers!=null && not_available_ciphers.length>0){
       cipherc2s=diffString(cipherc2s, not_available_ciphers);
       ciphers2c=diffString(ciphers2c, not_available_ciphers);
@@ -527,8 +526,8 @@ public class Session implements Runnable{
       }
     }
 
-    String kex=ALoadClass.getNameByConfig("kex");
-    String[] not_available_kexes=checkKexes(ALoadClass.getNameByConfig("CheckKexes"));
+    String kex=AConfig.getNameByConfig("kex");
+    String[] not_available_kexes=checkKexes(AConfig.getNameByConfig("CheckKexes"));
     if(not_available_kexes!=null && not_available_kexes.length>0){
       kex=diffString(kex, not_available_kexes);
       if(kex==null){
@@ -536,9 +535,9 @@ public class Session implements Runnable{
       }
     }
 
-    String server_host_key = ALoadClass.getNameByConfig("server_host_key");
+    String server_host_key = AConfig.getNameByConfig("server_host_key");
     String[] not_available_shks =
-      checkSignatures(ALoadClass.getNameByConfig("CheckSignatures"));
+      checkSignatures(AConfig.getNameByConfig("CheckSignatures"));
     if(not_available_shks!=null && not_available_shks.length>0){
       server_host_key=diffString(server_host_key, not_available_shks);
       if(server_host_key==null){
@@ -566,12 +565,12 @@ public class Session implements Runnable{
     buf.putString(str2byte(server_host_key));
     buf.putString(str2byte(cipherc2s));
     buf.putString(str2byte(ciphers2c));
-    buf.putString(str2byte(ALoadClass.getNameByConfig("mac.c2s")));
-    buf.putString(str2byte(ALoadClass.getNameByConfig("mac.s2c")));
-    buf.putString(str2byte(ALoadClass.getNameByConfig("compression.c2s")));
-    buf.putString(str2byte(ALoadClass.getNameByConfig("compression.s2c")));
-    buf.putString(str2byte(ALoadClass.getNameByConfig("lang.c2s")));
-    buf.putString(str2byte(ALoadClass.getNameByConfig("lang.s2c")));
+    buf.putString(str2byte(AConfig.getNameByConfig("mac.c2s")));
+    buf.putString(str2byte(AConfig.getNameByConfig("mac.s2c")));
+    buf.putString(str2byte(AConfig.getNameByConfig("compression.c2s")));
+    buf.putString(str2byte(AConfig.getNameByConfig("compression.s2c")));
+    buf.putString(str2byte(AConfig.getNameByConfig("lang.c2s")));
+    buf.putString(str2byte(AConfig.getNameByConfig("lang.s2c")));
     buf.putByte((byte)0);
     buf.putInt(0);
     buf.setOffSet(5);
@@ -587,25 +586,17 @@ public class Session implements Runnable{
   }
 
   private void checkHost(String chost, int port, ECDH521 kex) throws JSchException {
-    String shkc=ALoadClass.getNameByConfig("StrictHostKeyChecking");
-
-    if(hostKeyAlias!=null){
+    String shkc=AConfig.getNameByConfig("StrictHostKeyChecking");
+    if(hostKeyAlias!=null)
       chost=hostKeyAlias;
-    }
-
     byte[] K_S=kex.getHostKey();
     String key_type=kex.getKeyType();
     String key_fprint=null;
-
-    if(hostKeyAlias==null && port!=22){
+    if(hostKeyAlias==null && port!=22)
       chost=("["+chost+"]:"+port);
-    }
-
-    KnownHosts hkr=getHostKeyRepository();
-
-    String hkh=ALoadClass.getNameByConfig("HashKnownHosts");
-    hostkey=new HostKeyZ(chost, K_S);
-
+    KnownHosts hkr=new KnownHosts();
+    String hkh=AConfig.getNameByConfig("HashKnownHosts");
+    hostkey=new HostKey(chost, K_S);
     int i=0;
     synchronized(hkr){
       i=hkr.check(chost, K_S);
@@ -658,7 +649,7 @@ public class Session implements Runnable{
       return channel;
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_148");      
+        AConfig.DebugPrintException("ex_148");      
     }
     return null;
   }
@@ -669,7 +660,6 @@ public class Session implements Runnable{
       packet.padding(c2scipher_size);
       int pad=packet.buffer.buffer[4];
       synchronized(random){
-	//random.fill(packet.buffer.buffer, packet.buffer.index-pad, pad);
         //random fill
         byte[] foo_fill=packet.buffer.buffer;
         int start_fill=packet.buffer.index-pad;
@@ -915,7 +905,7 @@ public class Session implements Runnable{
       method=guess[ECDH521.PROPOSAL_COMP_ALGS_STOC];
       initInflater(method);
     }catch(Exception e){ 
-      ALoadClass.DebugPrintException("ex_149");
+      AConfig.DebugPrintException("ex_149");
       if(e instanceof JSchException)
         throw e;
       throw new JSchException(e.toString(), e);       
@@ -1102,7 +1092,7 @@ public class Session implements Runnable{
           try{
             channel.write(foo, start[0], length[0]);
           }catch(Exception e){
-            ALoadClass.DebugPrintException("ex_150");
+            AConfig.DebugPrintException("ex_150");
             try{channel.disconnect();}catch(Exception ee){}
             break;
           }
@@ -1279,31 +1269,21 @@ public class Session implements Runnable{
 	  break;
 	case SSH_MSG_REQUEST_FAILURE:
 	case SSH_MSG_REQUEST_SUCCESS:
-          Thread t=grr.getThread();
-          if(t!=null){
-            grr.setReply(msgType==SSH_MSG_REQUEST_SUCCESS? 1 : 0);
-            if(msgType==SSH_MSG_REQUEST_SUCCESS && grr.getPort()==0){
-              buf.getInt(); 
-              buf.getShort(); 
-              grr.setPort(buf.getInt());
-            }
-            t.interrupt();
-          }
-	  break;
+          throw new IOException("removido");
 	default:
 	  throw new IOException("Unknown SSH message type "+msgType);
 	}
       }
     }
     catch(Exception e){
-      ALoadClass.DebugPrintException("ex_151 " + e.toString());
+      AConfig.DebugPrintException("ex_151 " + e.toString());
       in_kex=false;
     }
     try{
       disconnect();
     }catch(NullPointerException e){
     }catch(Exception e){
-      ALoadClass.DebugPrintException("ex_152");      
+      AConfig.DebugPrintException("ex_152");      
     }
     isConnected=false;
   }
@@ -1326,112 +1306,11 @@ public class Session implements Runnable{
       if(socket!=null)
         socket.close();
     }catch(Exception e){
-        ALoadClass.DebugPrintException("ex_153");
+        AConfig.DebugPrintException("ex_153");
     }
     socket=null;
-    jsch.removeSession(this);
   }
-  private class Forwarding {
-    String bind_address = null;
-    int port = -1;
-    String host = null;
-    int hostport = -1;
-  }
-  private Forwarding parseForwarding(String conf) throws JSchException {
-    String[] tmp = conf.split(" ");
-    if(tmp.length>1){   // "[bind_address:]port host:hostport"
-      Vector foo = new Vector();
-      for(int i=0; i<tmp.length; i++){
-        if(tmp[i].length()==0) continue;
-        foo.addElement(tmp[i].trim());
-      }
-      StringBuffer sb = new StringBuffer(); // join
-      for(int i=0; i<foo.size(); i++){
-        sb.append((String)(foo.elementAt(i)));
-        if(i+1<foo.size())
-          sb.append(":");
-      }
-      conf = sb.toString(); 
-    }
-    String org = conf;
-    Forwarding f = new Forwarding();
-    try {
-      if(conf.lastIndexOf(":") == -1)
-        throw new JSchException ("parseForwarding: "+org);
-      f.hostport = Integer.parseInt(conf.substring(conf.lastIndexOf(":")+1));
-      conf = conf.substring(0, conf.lastIndexOf(":"));
-      if(conf.lastIndexOf(":") == -1)
-        throw new JSchException ("parseForwarding: "+org);
-      f.host = conf.substring(conf.lastIndexOf(":")+1);
-      conf = conf.substring(0, conf.lastIndexOf(":"));
-      if(conf.lastIndexOf(":") != -1){
-        f.port = Integer.parseInt(conf.substring(conf.lastIndexOf(":")+1));
-        conf = conf.substring(0, conf.lastIndexOf(":"));
-        if(conf.length() ==0 || conf.equals("*")) conf="0.0.0.0";
-        if(conf.equals("localhost")) conf="127.0.0.1";
-        f.bind_address = conf;
-      }else {
-        f.port = Integer.parseInt(conf);
-        f.bind_address = "127.0.0.1";
-      }
-    }catch(NumberFormatException e){
-      throw new JSchException ("parseForwarding: "+e.toString());
-    }
-    return f;
-  }
-  private class GlobalRequestReply{
-    private Thread thread=null;
-    private int reply=-1;
-    private int port=0;
-    void setThread(Thread thread){
-      this.thread=thread;
-      this.reply=-1;
-    }
-    Thread getThread(){ return thread; }
-    void setReply(int reply){ this.reply=reply; }
-    int getReply(){ return this.reply; }
-    int getPort(){ return this.port; }
-    void setPort(int port){ this.port=port; }
-  }
-  private GlobalRequestReply grr=new GlobalRequestReply();
-  private int _setPortForwardingR(String bind_address, int rport) throws JSchException{
-    synchronized(grr){
-      Buffer buf=new Buffer(100); // ??
-      Packet packet=new Packet(buf);
-      grr.setThread(Thread.currentThread());
-      grr.setPort(rport);
-      try{
-        packet.reset();
-        buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
-        buf.putString(str2byte("tcpip-forward"));
-        buf.putByte((byte)1);
-        buf.putInt(rport);
-        write(packet);
-      }catch(Exception e){
-        ALoadClass.DebugPrintException("ex_154");
-        grr.setThread(null);
-        if(e instanceof Throwable)
-          throw new JSchException(e.toString(), (Throwable)e);
-        throw new JSchException(e.toString());
-      }
-      int count = 0;
-      int reply = grr.getReply();
-      while(count < 10 && reply == -1){
-        try{ 
-          Thread.sleep(1000); 
-        }catch(Exception e){
-          ALoadClass.DebugPrintException("ex_155");
-        }
-        count++; 
-        reply = grr.getReply();
-      }
-      grr.setThread(null);
-      if(reply != 1)
-        throw new JSchException("remote port forwarding failed for listen port "+rport);
-      rport=grr.getPort();
-    }
-    return rport;
-  }
+
   private void initDeflater(String method) throws JSchException{
     if(method.equals("none"))
       return;
@@ -1469,7 +1348,7 @@ public class Session implements Runnable{
       this.timeout=timeout;
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_156");
+        AConfig.DebugPrintException("ex_156");
       if(e instanceof Throwable)
         throw new JSchException(e.toString(), (Throwable)e);
       throw new JSchException(e.toString());
@@ -1512,8 +1391,8 @@ public class Session implements Runnable{
     write(packet);
   }
   
-  private HostKeyZ hostkey=null;
-  public HostKeyZ getHostKey(){ return hostkey; }
+  private HostKey hostkey=null;
+  public HostKey getHostKey(){ return hostkey; }
   public String getHost(){return host;}
   public String getUserName(){return username;}
   public int getPort(){return port;}
@@ -1548,8 +1427,8 @@ public class Session implements Runnable{
   private String[] checkCiphers(String ciphers){
     if(ciphers==null || ciphers.length()==0)
       return null;
-    String cipherc2s=ALoadClass.getNameByConfig("cipher.c2s");
-    String ciphers2c=ALoadClass.getNameByConfig("cipher.s2c");
+    String cipherc2s=AConfig.getNameByConfig("cipher.c2s");
+    String ciphers2c=AConfig.getNameByConfig("cipher.s2c");
     Vector result=new Vector();
     String[] _ciphers=split(ciphers, ",");
     for(int i=0; i<_ciphers.length; i++){
@@ -1576,7 +1455,7 @@ public class Session implements Runnable{
       return true;
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_157 " + cipher);
+        AConfig.DebugPrintException("ex_157 " + cipher);
       return false;
     }
   }
@@ -1610,16 +1489,6 @@ public class Session implements Runnable{
     String[] foo=new String[result.size()];
     System.arraycopy(result.toArray(), 0, foo, 0, result.size());
     return foo;
-  }
-
-  public void setHostKeyRepository(KnownHosts hostkeyRepository){
-    this.hostkeyRepository = hostkeyRepository;
-  }
-
-  public KnownHosts getHostKeyRepository(){
-    if(hostkeyRepository == null)
-      return jsch.getHostKeyRepository();
-    return hostkeyRepository;
   }
   
   public void put(Packet p) throws IOException, java.net.SocketException {

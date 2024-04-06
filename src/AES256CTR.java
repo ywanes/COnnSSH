@@ -31,7 +31,7 @@ public class AES256CTR{
       }
     }
     catch(Exception e){
-        ALoadClass.DebugPrintException("ex_70");
+        AConfig.DebugPrintException("ex_70");
       cipher=null;
       throw e;
     }
