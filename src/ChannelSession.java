@@ -52,17 +52,6 @@ class ChannelSession extends Channel{
 
   public void setPtySize(int col, int row, int wp, int hp){
     setPtyType(this.ttype, col, row, wp, hp);
-    if(!pty || !isConnected()){
-      return;
-    }
-    try{
-      //RequestWindowChange request=new RequestWindowChange();
-      //request.setSize(col, row, wp, hp);
-      //request.request(getSession(), this);
-    }
-    catch(Exception e){
-        AConfig.DebugPrintException("ex_19");
-    }
   }
 
   public void setPtyType(String ttype){

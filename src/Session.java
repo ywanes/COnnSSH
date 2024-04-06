@@ -588,7 +588,7 @@ public class Session implements Runnable{
       throw new ExceptionC("session is down");
     }
     try{
-      Channel channel=Channel.getChannel(type);
+      Channel channel=new ChannelSessionShell();
       addChannel(channel);
       channel.init();
       return channel;
@@ -1169,18 +1169,6 @@ public class Session implements Runnable{
 	    buf.putString((byte[])str2byte(""));
 	    buf.putString((byte[])str2byte(""));
 	    write(packet);
-	  }else{
-	    channel=Channel.getChannel(ctyp);
-	    addChannel(channel);
-	    channel.getData(buf);
-	    channel.init();
-
-	    Thread tmp=new Thread(channel);
-	    tmp.setName("Channel "+ctyp+" "+host);
-            if(daemon_thread){
-              tmp.setDaemon(daemon_thread);
-            }
-	    tmp.start();
 	  }
           break;
 	case SSH_MSG_CHANNEL_SUCCESS:
