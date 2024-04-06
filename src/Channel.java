@@ -19,7 +19,8 @@ public abstract class Channel implements Runnable{
     synchronized(pool){
       for(int i=0; i<pool.size(); i++){
         Channel c=(Channel)(pool.elementAt(i));
-        if(c.id==id && c.session==session) return c;
+        if(c.id==id && c.session==session)
+          return c;
       }
     }
     return null;
@@ -77,9 +78,8 @@ public abstract class Channel implements Runnable{
     try{
       sendChannelOpen();
       start();
-    }
-    catch(Exception e){
-        AConfig.DebugPrintException("ex_2");
+    }catch(Exception e){
+      AConfig.DebugPrintException("ex_2");
       connected=false;
       disconnect();
       if(e instanceof ExceptionC) 
@@ -144,91 +144,7 @@ public abstract class Channel implements Runnable{
     return in;
   }
   public OutputStream getOutputStream() throws IOException {
-
-    final Channel channel=this;
-    OutputStream out=new OutputStream(){
-        private int dataLen=0;
-        private Buffer buffer=null;
-        private Packet packet=null;
-        private boolean closed=false;
-        private synchronized void init() throws java.io.IOException{
-          buffer=new Buffer(rmpsize);
-          packet=new Packet(buffer);
-
-          byte[] _buf=buffer.buffer;
-          if(_buf.length-(14+0)-Session.buffer_margin<=0){
-            buffer=null;
-            packet=null;
-            throw new IOException("failed to initialize the channel.");
-          }
-
-        }
-        byte[] b=new byte[1];
-        public void write(int w) throws java.io.IOException{
-          b[0]=(byte)w;
-          write(b, 0, 1);
-        }
-        public void write(byte[] buf, int s, int l) throws java.io.IOException{
-          if(packet==null)
-            init();
-          if(closed)
-            throw new java.io.IOException("Already closed");
-          byte[] _buf=buffer.buffer;
-          int _bufl=_buf.length;
-          while(l>0){
-            int _l=l;
-            if(l>_bufl-(14+dataLen)-Session.buffer_margin)
-              _l=_bufl-(14+dataLen)-Session.buffer_margin;
-            if(_l<=0){
-              flush();
-              continue;
-            }
-            System.arraycopy(buf, s, _buf, 14+dataLen, _l);
-            dataLen+=_l;
-            s+=_l;
-            l-=_l;
-          }
-        }
-
-        public void flush() throws java.io.IOException{
-          if(closed)
-            throw new java.io.IOException("Already closed");
-          if(dataLen==0)
-            return;
-          packet.reset();
-          buffer.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
-          buffer.putInt(recipient);
-          buffer.putInt(dataLen);
-          buffer.skip(dataLen);
-          try{
-            int foo=dataLen;
-            dataLen=0;
-            synchronized(channel){
-              if(!channel.close)
-                getSession().write(packet, channel, foo);
-            }
-          }catch(Exception e){
-            AConfig.DebugPrintException("ex_5");
-            close();
-            throw new java.io.IOException(e.toString());
-          }
-        }
-        public void close() throws java.io.IOException{
-          if(packet==null){
-            try{
-              init();
-            }catch(java.io.IOException e){
-              return;
-            }
-          }
-          if(closed)
-            return;
-          if(dataLen>0)
-            flush();
-          closed=true;
-        }
-      };
-    return out;
+    return null;
   }
 
   class MyPipedInputStream extends PipedInputStream{
@@ -359,31 +275,6 @@ public abstract class Channel implements Runnable{
     }
     catch(Exception ee){}
   }
-
-  /*  
-  void eof(){
-    if(eof_local)return;
-    eof_local=true;
-
-    int i = getRecipient();
-    if(i == -1) return;
-
-    try{
-      Buffer buf=new Buffer(100);
-      Packet packet=new Packet(buf);
-      packet.reset();
-      buf.putByte((byte)Session.SSH_MSG_CHANNEL_EOF);
-      buf.putInt(i);
-      synchronized(this){
-        if(!close)
-          getSession().write(packet);
-      }
-    }catch(Exception e){
-      ALoadClass.DebugPrintException("ex_6");
-    }
-  }
-  */
-  
   void close(){
     if(close)return;
     close=true;
