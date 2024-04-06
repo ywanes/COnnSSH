@@ -25,7 +25,6 @@ public class HostKey{
   public HostKey(String host, byte[] key) throws ExceptionC {
     this(host, GUESS, key);
   }
-
   public HostKey(String host, int type, byte[] key) throws ExceptionC {
     this(host, type, key, null);
   }
@@ -47,8 +46,9 @@ public class HostKey{
     this.key=key;
     this.comment=comment;
   }
-
-  public String getHost(){ return host; }
+  public String getHost(){ 
+    return host; 
+  }
   public String getType(){
     if(type==SSHDSS ||
        type==SSHRSA ||
@@ -70,26 +70,6 @@ public class HostKey{
   public String getComment(){ return comment; }
   public String getMarker(){ return marker; }
 
-  private boolean isIncluded(String _host){
-    int i=0;
-    String hosts=this.host; 
-    int hostslen=hosts.length();
-    int hostlen=_host.length();
-    int j;
-    while(i<hostslen){
-      j=hosts.indexOf(',', i);
-      if(j==-1){
-       if(hostlen!=hostslen-i) return false;
-       return hosts.regionMatches(true, i, _host, 0, hostlen);
-      }
-      if(hostlen==(j-i)){
-	if(hosts.regionMatches(true, i, _host, 0, hostlen)) 
-          return true;
-      }
-      i=j+1;
-    }
-    return false;
-  }
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
   static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
   static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  

@@ -7,9 +7,6 @@ class RequestPtyReq extends Request{
 
   private byte[] terminal_mode=(byte[])str2byte("");
 
-  void setCode(String cookie){
-  }
-
   void setTType(String ttype){
     this.ttype=ttype;
   }
