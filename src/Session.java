@@ -586,7 +586,6 @@ public class Session implements Runnable{
   }
 
   private void checkHost(String chost, int port, ECDH521 kex) throws JSchException {
-    String shkc=AConfig.getNameByConfig("StrictHostKeyChecking");
     if(hostKeyAlias!=null)
       chost=hostKeyAlias;
     byte[] K_S=kex.getHostKey();
@@ -597,40 +596,6 @@ public class Session implements Runnable{
     KnownHosts hkr=new KnownHosts();
     String hkh=AConfig.getNameByConfig("HashKnownHosts");
     hostkey=new HostKey(chost, K_S);
-    int i=0;
-    synchronized(hkr){
-      i=hkr.check(chost, K_S);
-    }
-
-    boolean insert=false;
-    if( (shkc.equals("ask") || shkc.equals("yes") ) && i == KnownHosts.CHANGED){
-      String file=null;
-      synchronized(hkr){
-	file=null;
-      }
-      if(file==null){file="known_hosts";}
-      boolean b=false;
-      if(!b)
-        throw new JSchException("HostKey has been changed: "+chost);
-      insert=true;
-    }
-
-    if((shkc.equals("ask") || shkc.equals("yes")) &&
-       (i!=KnownHosts.OK) && !insert){
-      if(shkc.equals("yes")){
-	throw new JSchException("reject HostKey: "+host);
-      }
-      insert=true;
-    }
-
-    if(shkc.equals("no") && KnownHosts.NOT_INCLUDED==i)
-      insert=true;
-
-    if(insert){
-      synchronized(hkr){
-	hkr.add(hostkey);
-      }
-    }
   }
 
   public Channel openChannel(String type) throws JSchException{

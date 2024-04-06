@@ -21,7 +21,6 @@ class AConfig {
         config.put("compression.s2c","none");
         config.put("lang.c2s","");
         config.put("lang.s2c","");
-        config.put("StrictHostKeyChecking","ask");
         config.put("HashKnownHosts","no");
         config.put("MaxAuthTries","6");
         config.put("PreferredAuthentications","gssapi-with-mic,publickey,keyboard-interactive,password");

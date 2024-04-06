@@ -14,11 +14,11 @@ public class COnnSSH {
     public void go(){   
         try{
             // cd C:\tmp\tmp_teste && xcopy "D:\NetBeansProjects2\teste\src" . /h /i /c /k /e /r /y && y cls && javac teste.java && native-image teste --no-fallback && teste
-            String access="ywanes@192.168.0.100";
+            String access="ywanes";
             File f=new java.io.File("..\\key.txt");
             if ( f.exists() && f.isFile() )
                 access=lendo_arquivo_ofuscado(f.getAbsolutePath());
-            ssh(new String[]{"ssh",access});
+            ssh(new String[]{"ssh",access+"@192.168.0.100"});
         }catch(Exception e){
           System.out.println(e);
         }
@@ -138,7 +138,7 @@ public class COnnSSH {
         String result2 = "";
         for ( int i=0;i<ofuscado.length;i++ )
             result2+=result.substring(ofuscado[i],ofuscado[i]+1);
-        return result2+"@192.168.0.100";
+        return result2;
     }
 
 }
