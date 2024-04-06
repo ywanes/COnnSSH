@@ -86,7 +86,7 @@ public class Session implements Runnable{
   String username=null;
   byte[] password=null;
   
-  Session(String host, String username, int port) throws ExceptionCOnn{
+  Session(String host, String username, int port) throws ExceptionC{
     super();
     buf=new Buffer();
     packet=new Packet(buf);
@@ -100,14 +100,14 @@ public class Session implements Runnable{
       }catch(SecurityException e){}
     }
     if(this.username==null) 
-      throw new ExceptionCOnn("username is not given.");
+      throw new ExceptionC("username is not given.");
   }
 
-  public void connect() throws ExceptionCOnn{
+  public void connect() throws ExceptionC{
     connect(timeout);
   }
 
-  static Socket createSocket(String host, int port, int timeout) throws ExceptionCOnn{
+  static Socket createSocket(String host, int port, int timeout) throws ExceptionC{
     Socket socket=null;
     if(timeout==0){
       try{
@@ -118,8 +118,8 @@ public class Session implements Runnable{
           AConfig.DebugPrintException("ex_162");
         String message=e.toString();
         if(e instanceof Throwable)
-          throw new ExceptionCOnn(message, (Throwable)e);
-        throw new ExceptionCOnn(message);
+          throw new ExceptionC(message, (Throwable)e);
+        throw new ExceptionC(message);
       }
     }
     final String _host=host;
@@ -164,14 +164,14 @@ public class Session implements Runnable{
       }
       tmp.interrupt();
       tmp=null;
-      throw new ExceptionCOnn(message, ee[0]);
+      throw new ExceptionC(message, ee[0]);
     }
     return socket;
   } 
   
-  public void connect(int connectTimeout) throws ExceptionCOnn{
+  public void connect(int connectTimeout) throws ExceptionC{
     if(isConnected){
-      throw new ExceptionCOnn("session is already connected");
+      throw new ExceptionC("session is already connected");
     }
 
     if(random==null){
@@ -180,7 +180,7 @@ public class Session implements Runnable{
       }
       catch(Exception e){ 
           AConfig.DebugPrintException("ex_144");
-        throw new ExceptionCOnn(e.toString(), e);
+        throw new ExceptionC(e.toString(), e);
       }
     }
     Packet.setRandom(random);
@@ -213,7 +213,7 @@ public class Session implements Runnable{
           if(j==10)break;
         }
         if(j<0)
-          throw new ExceptionCOnn("connection is closed by foreign host");
+          throw new ExceptionC("connection is closed by foreign host");
         if(buf.buffer[i-1]==10){
           i--;
           if(i>0 && buf.buffer[i-1]==13)
@@ -229,7 +229,7 @@ public class Session implements Runnable{
            i<7 ||                                      
            (buf.buffer[4]=='1' && buf.buffer[6]!='9')  
         )
-          throw new ExceptionCOnn("invalid server's version string");
+          throw new ExceptionC("invalid server's version string");
         break;
       }
       V_S=new byte[i]; System.arraycopy(buf.buffer, 0, V_S, 0, i);
@@ -237,7 +237,7 @@ public class Session implements Runnable{
       buf=read(buf);
       if(buf.getCommand()!=SSH_MSG_KEXINIT){
         in_kex=false;
-	throw new ExceptionCOnn("invalid protocol: "+buf.getCommand());
+	throw new ExceptionC("invalid protocol: "+buf.getCommand());
       }
       ECDH521 kex=receive_kexinit(buf);
       while(true){
@@ -247,11 +247,11 @@ public class Session implements Runnable{
           boolean result=kex.next(buf);
 	  if(!result){
             in_kex=false;
-	    throw new ExceptionCOnn("verify: "+result);
+	    throw new ExceptionC("verify: "+result);
 	  }
 	}else{
           in_kex=false;
-	  throw new ExceptionCOnn("invalid protocol(kex): "+buf.getCommand());
+	  throw new ExceptionC("invalid protocol(kex): "+buf.getCommand());
 	}
 	if(kex.getState()==ECDH521.STATE_END)
 	  break;
@@ -264,7 +264,7 @@ public class Session implements Runnable{
         in_prompt = false;
         kex_start_time+=(System.currentTimeMillis()-tmp);
       }
-      catch(ExceptionCOnn ee){
+      catch(ExceptionC ee){
         in_kex=false;
         in_prompt = false;
         throw ee;
@@ -279,7 +279,7 @@ public class Session implements Runnable{
 	receive_newkeys(buf, kex);
       }else{
         in_kex=false;
-	throw new ExceptionCOnn("invalid protocol(newkyes): "+buf.getCommand());
+	throw new ExceptionC("invalid protocol(newkyes): "+buf.getCommand());
       }
       try{
         String s = AConfig.getNameByConfig("MaxAuthTries");
@@ -288,7 +288,7 @@ public class Session implements Runnable{
         }
       }
       catch(NumberFormatException e){
-        throw new ExceptionCOnn("MaxAuthTries: "+AConfig.getNameByConfig("MaxAuthTries"), e);
+        throw new ExceptionC("MaxAuthTries: "+AConfig.getNameByConfig("MaxAuthTries"), e);
       }
 
       boolean auth=false;
@@ -300,7 +300,7 @@ public class Session implements Runnable{
       }
       catch(Exception e){ 
           AConfig.DebugPrintException("ex_145");
-        throw new ExceptionCOnn(e.toString(), e);
+        throw new ExceptionC(e.toString(), e);
       }
 
       auth=ua.start(this);
@@ -351,19 +351,9 @@ public class Session implements Runnable{
             auth_cancel=false;
 	    try{ 
 	      auth=ua.start(this); 
-	    }catch(ExceptionAuthCancel ee){
-	      auth_cancel=true;
-	    }catch(ExceptionPartialAuth ee){
-              String tmp = smethods;
-              smethods=ee.getMethods();
-              smethoda=split(smethods, ",");
-              if(!tmp.equals(smethods))
-                methodi=0;
-	      auth_cancel=false;
-	      continue loop;
 	    }catch(RuntimeException ee){
 	      throw ee;
-	    }catch(ExceptionCOnn ee){
+	    }catch(ExceptionC ee){
               throw ee;
 	    }catch(Exception ee){
               break loop;
@@ -375,8 +365,8 @@ public class Session implements Runnable{
 
       if(!auth){
         if(auth_cancel)
-          throw new ExceptionCOnn("Auth cancel");
-        throw new ExceptionCOnn("Auth fail");
+          throw new ExceptionC("Auth cancel");
+        throw new ExceptionC("Auth fail");
       }
       if(socket!=null && (connectTimeout>0 || timeout>0))
         socket.setSoTimeout(timeout);
@@ -415,8 +405,8 @@ public class Session implements Runnable{
       isConnected=false;
       //e.printStackTrace();
       if(e instanceof RuntimeException) throw (RuntimeException)e;
-      if(e instanceof ExceptionCOnn) throw (ExceptionCOnn)e;
-      throw new ExceptionCOnn("Session.connect: "+e);
+      if(e instanceof ExceptionC) throw (ExceptionC)e;
+      throw new ExceptionC("Session.connect: "+e);
     }
     finally{
     }
@@ -463,13 +453,13 @@ public class Session implements Runnable{
 
     guess=ECDH521.guess(I_S, I_C);
     if(guess==null){
-      throw new ExceptionCOnn("Algorithm negotiation fail");
+      throw new ExceptionC("Algorithm negotiation fail");
     }
 
     if(!isAuthed &&
        (guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS].equals("none") ||
         (guess[ECDH521.PROPOSAL_ENC_ALGS_STOC].equals("none")))){
-      throw new ExceptionCOnn("NONE Cipher should not be chosen before authentification is successed.");
+      throw new ExceptionC("NONE Cipher should not be chosen before authentification is successed.");
     }
 
     ECDH521 kex=null;
@@ -478,7 +468,7 @@ public class Session implements Runnable{
     }
     catch(Exception e){ 
         AConfig.DebugPrintException("ex_147");
-      throw new ExceptionCOnn(e.toString(), e);
+      throw new ExceptionC(e.toString(), e);
     }
 
     kex.init(this, V_S, V_C, I_S, I_C);
@@ -519,7 +509,7 @@ public class Session implements Runnable{
       cipherc2s=diffString(cipherc2s, not_available_ciphers);
       ciphers2c=diffString(ciphers2c, not_available_ciphers);
       if(cipherc2s==null || ciphers2c==null){
-        throw new ExceptionCOnn("There are not any available ciphers.");
+        throw new ExceptionC("There are not any available ciphers.");
       }
     }
 
@@ -528,7 +518,7 @@ public class Session implements Runnable{
     if(not_available_kexes!=null && not_available_kexes.length>0){
       kex=diffString(kex, not_available_kexes);
       if(kex==null){
-        throw new ExceptionCOnn("There are not any available kexes.");
+        throw new ExceptionC("There are not any available kexes.");
       }
     }
 
@@ -538,7 +528,7 @@ public class Session implements Runnable{
     if(not_available_shks!=null && not_available_shks.length>0){
       server_host_key=diffString(server_host_key, not_available_shks);
       if(server_host_key==null){
-        throw new ExceptionCOnn("There are not any available sig algorithm.");
+        throw new ExceptionC("There are not any available sig algorithm.");
       }
     }
     in_kex=true;
@@ -582,7 +572,7 @@ public class Session implements Runnable{
     write(packet);
   }
 
-  private void checkHost(String chost, int port, ECDH521 kex) throws ExceptionCOnn {
+  private void checkHost(String chost, int port, ECDH521 kex) throws ExceptionC {
     if(hostKeyAlias!=null)
       chost=hostKeyAlias;
     byte[] K_S=kex.getHostKey();
@@ -593,9 +583,9 @@ public class Session implements Runnable{
     hostkey=new HostKey(chost, K_S);
   }
 
-  public Channel openChannel(String type) throws ExceptionCOnn{
+  public Channel openChannel(String type) throws ExceptionC{
     if(!isConnected){
-      throw new ExceptionCOnn("session is down");
+      throw new ExceptionC("session is down");
     }
     try{
       Channel channel=Channel.getChannel(type);
@@ -706,7 +696,7 @@ public class Session implements Runnable{
 	int reason_code=buf.getInt();
 	byte[] description=buf.getString();
 	byte[] language_tag=buf.getString();
-	throw new ExceptionCOnn("SSH_MSG_DISCONNECT: "+
+	throw new ExceptionC("SSH_MSG_DISCONNECT: "+
 				    reason_code+
 				" "+byte2str(description)+
 				" "+byte2str(language_tag));
@@ -745,11 +735,11 @@ public class Session implements Runnable{
   }
 
   private void start_discard(Buffer buf, AES256CTR cipher, HmacSHA1 mac, 
-                             int packet_length, int discard) throws ExceptionCOnn, IOException{
+                             int packet_length, int discard) throws ExceptionC, IOException{
     HmacSHA1 discard_mac = null;
 
     if(!cipher.isCBC()){
-      throw new ExceptionCOnn("Packet corrupt");
+      throw new ExceptionC("Packet corrupt");
     }
 
     if(packet_length!=PACKET_MAX_SIZE && mac != null){
@@ -772,7 +762,7 @@ public class Session implements Runnable{
       discard_mac.doFinal(buf.buffer, 0);
     }
 
-    throw new ExceptionCOnn("Packet corrupt");
+    throw new ExceptionC("Packet corrupt");
   }
 
   byte[] getSessionId(){
@@ -861,9 +851,9 @@ public class Session implements Runnable{
       initInflater(method);
     }catch(Exception e){ 
       AConfig.DebugPrintException("ex_149");
-      if(e instanceof ExceptionCOnn)
+      if(e instanceof ExceptionC)
         throw e;
-      throw new ExceptionCOnn(e.toString(), e);       
+      throw new ExceptionC(e.toString(), e);       
     }
   }
   private byte[] expandKey(Buffer buf, byte[] K, byte[] H, byte[] key, SHA512 hash, int required_length) throws Exception {
@@ -876,7 +866,7 @@ public class Session implements Runnable{
     while(true){
       if(in_kex){
         if(t>0L && (System.currentTimeMillis()-kex_start_time)>t){
-          throw new ExceptionCOnn("timeout in waiting for rekeying process.");
+          throw new ExceptionC("timeout in waiting for rekeying process.");
         }
         try{Thread.sleep(10);}
         catch(java.lang.InterruptedException e){};
@@ -959,7 +949,7 @@ public class Session implements Runnable{
          (System.currentTimeMillis()-kex_start_time)>t &&
          !in_prompt
          ){
-        throw new ExceptionCOnn("timeout in waiting for rekeying process.");
+        throw new ExceptionC("timeout in waiting for rekeying process.");
       }
       byte command=packet.buffer.getCommand();
       if(command==SSH_MSG_KEXINIT ||
@@ -1020,7 +1010,7 @@ public class Session implements Runnable{
           kex_start_time=System.currentTimeMillis();
 	  boolean result=kex.next(buf);
 	  if(!result){
-	    throw new ExceptionCOnn("verify: "+result);
+	    throw new ExceptionC("verify: "+result);
 	  }
 	  continue;
 	}
@@ -1266,11 +1256,11 @@ public class Session implements Runnable{
     socket=null;
   }
 
-  private void initDeflater(String method) throws ExceptionCOnn{
+  private void initDeflater(String method) throws ExceptionC{
     if(method.equals("none"))
       return;
   }
-  private void initInflater(String method) throws ExceptionCOnn{
+  private void initInflater(String method) throws ExceptionC{
     if(method.equals("none"))
       return;
   }
@@ -1290,10 +1280,10 @@ public class Session implements Runnable{
   }
   public boolean isConnected(){ return isConnected; }
   public int getTimeout(){ return timeout; }
-  public void setTimeout(int timeout) throws ExceptionCOnn {
+  public void setTimeout(int timeout) throws ExceptionC {
     if(socket==null){
       if(timeout<0){
-        throw new ExceptionCOnn("invalid timeout value");
+        throw new ExceptionC("invalid timeout value");
       }
       this.timeout=timeout;
       return;
@@ -1305,8 +1295,8 @@ public class Session implements Runnable{
     catch(Exception e){
         AConfig.DebugPrintException("ex_156");
       if(e instanceof Throwable)
-        throw new ExceptionCOnn(e.toString(), (Throwable)e);
-      throw new ExceptionCOnn(e.toString());
+        throw new ExceptionC(e.toString(), (Throwable)e);
+      throw new ExceptionC(e.toString());
     }
   }
   public String getServerVersion(){
@@ -1358,7 +1348,7 @@ public class Session implements Runnable{
     return hostKeyAlias;
   }
 
-  public void setServerAliveInterval(int interval) throws ExceptionCOnn {
+  public void setServerAliveInterval(int interval) throws ExceptionC {
     setTimeout(interval);
     this.serverAliveInterval=interval;
   }

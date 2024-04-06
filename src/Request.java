@@ -23,11 +23,11 @@ abstract class Request{
         }catch(Exception ee){}
         if(timeout>0L && (System.currentTimeMillis()-start)>timeout){
           channel.reply=0;
-          throw new ExceptionCOnn("channel request: timeout");
+          throw new ExceptionC("channel request: timeout");
         }
       }
       if(channel.reply==0)
-	throw new ExceptionCOnn("failed to send channel request");
+	throw new ExceptionC("failed to send channel request");
     }
   }
 }

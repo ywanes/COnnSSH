@@ -192,12 +192,12 @@ public class Buffer{
     }
   }
 
-  byte[][] getBytes(int n, String msg) throws ExceptionCOnn {
+  byte[][] getBytes(int n, String msg) throws ExceptionC {
     byte[][] tmp = new byte[n][];
     for(int i = 0; i < n; i++){
       int j = getInt();
       if(getLength() < j){
-        throw new ExceptionCOnn(msg);
+        throw new ExceptionC(msg);
       }
       tmp[i] = new byte[j];
       getByte(tmp[i]);

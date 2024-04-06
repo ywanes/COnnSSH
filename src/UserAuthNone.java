@@ -40,7 +40,7 @@ class UserAuthNone extends UserAuth{
 	methods=byte2str(foo);
         break;
       }
-      throw new ExceptionCOnn("USERAUTH fail ("+command+")");
+      throw new ExceptionC("USERAUTH fail ("+command+")");
     }
     return false;
   }

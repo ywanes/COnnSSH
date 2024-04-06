@@ -2,9 +2,9 @@ public class Packet{
 
   private static java.security.SecureRandom random=null;
   static void setRandom(java.security.SecureRandom foo){ random=foo;}
-
   Buffer buffer;
   byte[] ba4=new byte[4]; 
+  
   public Packet(Buffer buffer){
     this.buffer=buffer;
   }
@@ -14,9 +14,8 @@ public class Packet{
   void padding(int bsize){
     int len=buffer.index;
     int pad=(-len)&(bsize-1);
-    if(pad<bsize){
+    if(pad<bsize)
       pad+=bsize;
-    }
     len=len+pad-4;
     ba4[0]=(byte)(len>>>24);
     ba4[1]=(byte)(len>>>16);
@@ -44,25 +43,19 @@ public class Packet{
     s+=pad;
     s+=mac;
     s+=32;
-
     if(buffer.buffer.length<s+buffer.index-5-9-len){
       byte[] foo=new byte[s+buffer.index-5-9-len];
       System.arraycopy(buffer.buffer, 0, foo, 0, buffer.buffer.length);
       buffer.buffer=foo;
     }
-    System.arraycopy(buffer.buffer, 
-		     len+5+9, 
-		     buffer.buffer, s, buffer.index-5-9-len);
-
+    System.arraycopy(buffer.buffer, len+5+9, buffer.buffer, s, buffer.index-5-9-len);
     buffer.index=10;
     buffer.putInt(len);
     buffer.index=len+5+9;
     return s;
   }
   void unshift(byte command, int recipient, int s, int len){
-    System.arraycopy(buffer.buffer, 
-		     s, 
-		     buffer.buffer, 5+9, len);
+    System.arraycopy(buffer.buffer, s, buffer.buffer, 5+9, len);
     buffer.buffer[5]=command;
     buffer.index=6;
     buffer.putInt(recipient);

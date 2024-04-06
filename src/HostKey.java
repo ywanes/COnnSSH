@@ -22,17 +22,17 @@ public class HostKey{
   protected byte[] key;
   protected String comment;
 
-  public HostKey(String host, byte[] key) throws ExceptionCOnn {
+  public HostKey(String host, byte[] key) throws ExceptionC {
     this(host, GUESS, key);
   }
 
-  public HostKey(String host, int type, byte[] key) throws ExceptionCOnn {
+  public HostKey(String host, int type, byte[] key) throws ExceptionC {
     this(host, type, key, null);
   }
-  public HostKey(String host, int type, byte[] key, String comment) throws ExceptionCOnn {
+  public HostKey(String host, int type, byte[] key, String comment) throws ExceptionC {
     this("", host, type, key, comment);
   }
-  public HostKey(String marker, String host, int type, byte[] key, String comment) throws ExceptionCOnn {
+  public HostKey(String marker, String host, int type, byte[] key, String comment) throws ExceptionC {
     this.marker=marker;
     this.host=host; 
     if(type==GUESS){
@@ -41,9 +41,8 @@ public class HostKey{
       else if(key[8]=='a' && key[20]=='2'){ this.type=ECDSA256; }
       else if(key[8]=='a' && key[20]=='3'){ this.type=ECDSA384; }
       else if(key[8]=='a' && key[20]=='5'){ this.type=ECDSA521; }
-      else { throw new ExceptionCOnn("invalid key type");}
-    }
-    else
+      else { throw new ExceptionC("invalid key type");}
+    }else
       this.type=type; 
     this.key=key;
     this.comment=comment;
@@ -70,10 +69,6 @@ public class HostKey{
   }
   public String getComment(){ return comment; }
   public String getMarker(){ return marker; }
-
-  boolean isMatched(String _host){
-    return isIncluded(_host);
-  }
 
   private boolean isIncluded(String _host){
     int i=0;

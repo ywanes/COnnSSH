@@ -1,12 +1,12 @@
-public class ExceptionCOnn extends Exception{
+public class ExceptionC extends Exception{
   private Throwable cause=null;
-  public ExceptionCOnn () {
+  public ExceptionC () {
     super();
   }
-  public ExceptionCOnn (String s) {
+  public ExceptionC (String s) {
     super(s);
   }
-  public ExceptionCOnn (String s, Throwable e) {
+  public ExceptionC (String s, Throwable e) {
     super(s);
     this.cause=e;
   }

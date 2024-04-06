@@ -11,8 +11,10 @@ public class UserAuthPassword extends UserAuth{
     while(true){
       if(session.auth_failures >= session.max_auth_tries)
         return false;
-      if(password==null)
-	throw new ExceptionAuthCancel("password");
+      if(password==null){
+        System.err.println("Error AuthCancel");
+	throw new Exception("password");      
+      }
       byte[] _username=null;
       _username=str2byte(username);
       packet.reset();
@@ -52,7 +54,7 @@ public class UserAuthPassword extends UserAuth{
 	  byte[] foo=buf.getString();
 	  int partial_success=buf.getByte();
 	  if(partial_success!=0)
-	    throw new ExceptionPartialAuth(byte2str(foo));
+	    throw new Exception("Error " + byte2str(foo));
           session.auth_failures++;
 	  break;
 	}
