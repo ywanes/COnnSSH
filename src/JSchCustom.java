@@ -18,14 +18,6 @@ class Ssh {
             String host = arg0.split("@")[1];
             Session session = jsch.getSession(user, host, port);
             session.setPassword(password);
-            UserInfo ui = new MyUserInfo() {
-                public void showMessage(String message) {
-                }
-                public boolean promptYesNo(String message) {
-                    return true;
-                }
-            };
-            session.setUserInfo(ui);
             session.connect(30000);
             channel = session.openChannel("shell");
             channel.setInputStream(System.in);
@@ -35,27 +27,6 @@ class Ssh {
             System.out.println(e);
         }
         while (channel != null && !channel.isEOF()) {}
-    }
-    public static abstract class MyUserInfo implements UserInfo {
-        public String getPassword() {
-            return null;
-        }
-        public boolean promptYesNo(String str) {
-            return false;
-        }
-        public String getPassphrase() {
-            return null;
-        }
-        public boolean promptPassphrase(String message) {
-            return false;
-        }
-        public boolean promptPassword(String message) {
-            return false;
-        }
-        public void showMessage(String message) {}
-        public String[] promptKeyboardInteractive(String destination, String name, String instruction, String[] prompt, boolean[] echo) {
-            return null;
-        }
     }
 }
 

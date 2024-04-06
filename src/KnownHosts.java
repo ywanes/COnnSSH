@@ -232,29 +232,15 @@ loop:
     return result;
   }
 
-  public void add(HostKey hostkey, UserInfo userinfo){
+  public void add(HostKey hostkey){
     int type=hostkey.type;
     String host=hostkey.getHost();
     byte[] key=hostkey.key;
 
     HostKey hk=null;
     synchronized(pool){
-      for(int i=0; i<pool.size(); i++){
+      for(int i=0; i<pool.size(); i++)
         hk=(HostKey)(pool.elementAt(i));
-        if(hk.isMatched(host) && hk.type==type){
-/*
-	  if(Util.array_equals(hk.key, key)){ return; }
-	  if(hk.host.equals(host)){
-	    hk.key=key;
-	    return;
-	  }
-	  else{
-	    hk.host=deleteSubString(hk.host, host);
-	    break;
-	  }
-*/
-        }
-      }
     }
 
     hk=hostkey;

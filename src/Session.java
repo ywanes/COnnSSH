@@ -76,7 +76,6 @@ public class Session implements Runnable{
 
   private java.util.Hashtable config=null;
   private Proxy proxy=null;
-  private UserInfo userinfo;
   private String hostKeyAlias=null;
   private int serverAliveInterval=0;
   private int serverAliveCountMax=1;
@@ -627,12 +626,14 @@ public class Session implements Runnable{
 
       boolean b=false;
 
+      //////////
+      /*
       if(userinfo!=null){
         if(shkc.equals("ask")){
           b=false;
         }
       }
-
+      */
       if(!b){
         throw new JSchException("HostKey has been changed: "+chost);
       }
@@ -658,7 +659,7 @@ public class Session implements Runnable{
 
     if(insert){
       synchronized(hkr){
-	hkr.add(hostkey, userinfo);
+	hkr.add(hostkey);
       }
     }
   }
@@ -1493,8 +1494,6 @@ public class Session implements Runnable{
   public void setHost(String host){ this.host=host; }
   public void setPort(int port){ this.port=port; }
   void setUserName(String username){ this.username=username; }
-  public void setUserInfo(UserInfo userinfo){ this.userinfo=userinfo; }
-  public UserInfo getUserInfo(){ return userinfo; }
   public void setInputStream(InputStream in){ this.in=in; }
   public void setOutputStream(OutputStream out){ this.out=out; }
   public void setPassword(String password){
