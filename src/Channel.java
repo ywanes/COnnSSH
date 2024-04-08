@@ -116,33 +116,6 @@ public abstract class Channel implements Runnable{
     this.out_ext=out;
     this.out_dontclose=dontclose;
   }
-  public InputStream getInputStream() throws IOException {
-    int max_input_buffer_size = 32*1024;
-    try {
-      max_input_buffer_size =
-        Integer.parseInt(AConfig.getNameByConfig("max_input_buffer_size"));
-    }
-    catch(Exception e){
-        AConfig.DebugPrintException("ex_3");
-    }
-    PipedInputStream in = new MyPipedInputStream(32*1024,max_input_buffer_size);
-    boolean resizable = 32*1024<max_input_buffer_size;
-    setOutputStream(new PassiveOutputStream(in, resizable), false);
-    return in;
-  }
-  public InputStream getExtInputStream() throws IOException {
-    int max_input_buffer_size = 32*1024;
-    try {
-      max_input_buffer_size = Integer.parseInt(AConfig.getNameByConfig("max_input_buffer_size"));
-    }
-    catch(Exception e){
-        AConfig.DebugPrintException("ex_4");
-    }
-    PipedInputStream in = new MyPipedInputStream(32*1024,max_input_buffer_size);
-    boolean resizable = 32*1024<max_input_buffer_size;
-    setExtOutputStream(new PassiveOutputStream(in, resizable), false);
-    return in;
-  }
   public OutputStream getOutputStream() throws IOException {
     return null;
   }
@@ -150,17 +123,6 @@ public abstract class Channel implements Runnable{
   class MyPipedInputStream extends PipedInputStream{
     private int BUFFER_SIZE = 1024;
     private int max_buffer_size = BUFFER_SIZE;
-    MyPipedInputStream() throws IOException{ super(); }
-    MyPipedInputStream(int size) throws IOException{
-      super();
-      buffer=new byte[size];
-      BUFFER_SIZE = size;
-      max_buffer_size = size;
-    }
-    MyPipedInputStream(int size, int max_buffer_size) throws IOException{
-      this(size);
-      this.max_buffer_size = max_buffer_size;
-    }
 
     public synchronized void updateReadSide() throws IOException {
       if(available() != 0)
@@ -323,26 +285,6 @@ public abstract class Channel implements Runnable{
     return false;
   }
   public void sendSignal(String signal) throws Exception {}
-
-  class PassiveOutputStream extends PipedOutputStream{
-    private MyPipedInputStream _sink=null;
-    PassiveOutputStream(PipedInputStream in, boolean resizable_buffer) throws IOException{
-      super(in);
-      if(resizable_buffer && (in instanceof MyPipedInputStream))
-        this._sink=(MyPipedInputStream)in;
-    }
-    public void write(int b) throws IOException {
-      if(_sink != null) {
-        _sink.checkSpace(1);
-      }
-      super.write(b);
-    }
-    public void write(byte[] b, int off, int len) throws IOException {
-      if(_sink != null)
-        _sink.checkSpace(len);
-      super.write(b, off, len); 
-    }
-  }
 
   void setExitStatus(int status){ exitstatus=status; }
   public int getExitStatus(){ return exitstatus; }
