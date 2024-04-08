@@ -161,12 +161,7 @@ public abstract class Channel implements Runnable{
       this(size);
       this.max_buffer_size = max_buffer_size;
     }
-    MyPipedInputStream(PipedOutputStream out) throws IOException{ super(out); }
-    MyPipedInputStream(PipedOutputStream out, int size) throws IOException{
-      super(out);
-      buffer=new byte[size];
-      BUFFER_SIZE=size;
-    }
+
     public synchronized void updateReadSide() throws IOException {
       if(available() != 0)
         return;
