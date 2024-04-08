@@ -59,7 +59,7 @@ public class COnnSSH {
             Session session = new Session(host, user, port);
             session.setPassword(password);
             session.connect(30000);
-            new ChannelSessionShell(session);
+            new Channel(session);
         } catch (Exception e) {
             System.err.println(e);
         }

@@ -531,13 +531,6 @@ public class Session implements Runnable{
       chost=("["+chost+"]:"+port);
   }
 
-  public Channel openChannel(String type) throws ExceptionC{
-    if(!isConnected){
-      throw new ExceptionC("session is down");
-    }
-    return new ChannelSessionShell(this);
-  }
-
   public void encode(Packet packet) throws Exception{
     if(c2scipher!=null){
       packet.padding(c2scipher_size);

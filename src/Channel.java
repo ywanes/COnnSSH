@@ -3,7 +3,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.IOException;
 
-public abstract class Channel implements Runnable{
+public class Channel implements Runnable{
   InputStream in=System.in;
   OutputStream out=System.out;
   OutputStream out_ext=null;
@@ -51,7 +51,6 @@ public abstract class Channel implements Runnable{
   volatile int lmpsize=0x4000;
   volatile long rwsize=0;
   volatile int rmpsize=0;
-  Thread thread=null;
   volatile boolean eof_local=false;
   volatile boolean eof_remote=false;
   volatile boolean close=false;
@@ -79,8 +78,42 @@ public abstract class Channel implements Runnable{
   public void connect(int connectTimeout) throws ExceptionC{
     this.connectTimeout=connectTimeout;
     try{
-      sendChannelOpen();
-      start();
+        sendChannelOpen();
+        Session _session=getSession();
+        try{
+          byte[] terminal_mode=(byte[])str2byte("");
+          String ttype="vt100";
+          int tcol=80;
+          int trow=24;
+          int twp=640;
+          int thp=480;      
+          Buffer buf=new Buffer();
+          Packet packet=new Packet(buf);
+          packet.reset();
+          buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+          buf.putInt(getRecipient());
+          buf.putString(str2byte("pty-req"));
+          buf.putByte((byte)0);
+          buf.putString(str2byte(ttype));
+          buf.putInt(tcol);
+          buf.putInt(trow);
+          buf.putInt(twp);
+          buf.putInt(thp);
+          buf.putString(terminal_mode);
+          _session.write(packet);
+
+          buf=new Buffer();
+          packet=new Packet(buf);
+          packet.reset();
+          buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+          buf.putInt(getRecipient());
+          buf.putString(str2byte("shell"));
+          buf.putByte((byte)0);
+          _session.write(packet);
+        }catch(Exception e){
+          throw new ExceptionC("ChannelShell");
+        }
+        new Thread(this).start();
     }catch(Exception e){
       AConfig.DebugPrintException("ex_2");
       connected=false;
@@ -91,7 +124,6 @@ public abstract class Channel implements Runnable{
     }
   }
   public void setXForwarding(boolean foo){}
-  public void start() throws ExceptionC{}
   public boolean isEOF() {return eof_remote;}
   void getData(Buffer buf){
     setRecipient(buf.getInt());
@@ -269,7 +301,6 @@ public abstract class Channel implements Runnable{
       }
       close();
       eof_remote=eof_local=true;
-      thread=null;
       try{
         close();
       }
@@ -386,6 +417,31 @@ public abstract class Channel implements Runnable{
     connected=true;
   }
 
+  public void run(){
+    // ponto critico!!
+    Buffer buf=new Buffer(rmpsize);
+    Packet packet=new Packet(buf);
+    try{
+      while(isConnected()){
+        int i=in.read(buf.buffer, 14,    buf.buffer.length-14-Session.buffer_margin);
+	if(i==0)
+          continue;
+	if(i==-1)
+	  break;
+	if(close)
+          break;
+        packet.reset();
+        buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
+        buf.putInt(recipient);
+        buf.putInt(i);
+        buf.skip(i);
+	getSession().write(packet, this, i);
+      }
+    }catch(Exception e){
+      AConfig.DebugPrintException("ex_20");
+    }
+  }
+  
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
   static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
   static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
