@@ -139,12 +139,10 @@ public class ECDH521 {
       byte[] n;
       type=RSA;
       key_alg_name=alg;
-      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
-        ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
+      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
       tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); i+=j;
       ee=tmp;
-      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
-        ((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
+      j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
       tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); 
       n=tmp;
       SignatureRSA sig=null;
@@ -194,7 +192,6 @@ public class ECDH521 {
       sha512.update(foo, 0, foo.length);
       H=sha512.digest();
       i=0;
-      j=0;
       j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|
 	((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
       String alg=byte2str(K_S, i, j);
