@@ -2,12 +2,12 @@ public class UserAuthPassword extends UserAuth{
     
   private final int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ=60;
   
-  public boolean start(Session session) throws Exception{
+  public void start(Session session) throws Exception{
     super.start(session);
     if(session.password == null)
       throw new Exception("Error AuthCancel - not found password");      
     if(session.auth_failures >= session.max_auth_tries)
-      return false;
+      return;
     packet.reset();
     buf.putByte((byte)SSH_MSG_USERAUTH_REQUEST);
     buf.putString(str2byte(username));
@@ -19,14 +19,13 @@ public class UserAuthPassword extends UserAuth{
     buf=session.read(buf);
     int command=buf.getCommand()&0xff;
     if(command==SSH_MSG_USERAUTH_SUCCESS)
-      return true;
+      return;
     if(command==SSH_MSG_USERAUTH_BANNER)
       throw new Exception("USERAUTH_BANNER");
     if(command==SSH_MSG_USERAUTH_PASSWD_CHANGEREQ)
       throw new Exception("Stop - USERAUTH_PASSWD_CHANGEREQ");
     if(command==SSH_MSG_USERAUTH_FAILURE)
       throw new Exception("UserAuth Fail!");
-    return false;
   }
   
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}

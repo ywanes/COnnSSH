@@ -303,7 +303,8 @@ public class Session implements Runnable{
         throw new ExceptionC(e.toString(), e);
       }
 
-      auth=ua.start(this);
+      ua.start(this);
+      auth=false;
 
       String cmethods=AConfig.getNameByConfig("PreferredAuthentications");
 
@@ -312,50 +313,13 @@ public class Session implements Runnable{
       String smethods=cmethods;     
       String[] smethoda=split(smethods, ",");
 
-      int methodi=0;
-
-      loop:
-      while(true){
-
-	while(!auth && 
-	      cmethoda!=null && methodi<cmethoda.length){
-
-          String method=cmethoda[methodi++];
-          boolean acceptable=false;
-          for(int k=0; k<smethoda.length; k++){
-            if(smethoda[k].equals(method)){
-              acceptable=true;
-              break;
-            }
-          }
-          if(!acceptable)
-            continue;
-	  ua=null;
-          if ( method.equals("password") ){
-            if ( method.equals("password") )
-              ua = new UserAuthPassword();
-            if ( method.equals("none") )
-              ua = new UserAuthNone();
-            auth_cancel=false;
-	    try{ 
-	      auth=ua.start(this); 
-	    }catch(RuntimeException ee){
-	      throw ee;
-	    }catch(ExceptionC ee){
-              throw ee;
-	    }catch(Exception ee){
-              break loop;
-	    }
-          }
-	}
-        break;
+      ua = new UserAuthPassword();
+      try{ 
+        ua.start(this); 
+      }catch(Exception ee){
+        throw ee;
       }
-
-      if(!auth){
-        if(auth_cancel)
-          throw new ExceptionC("Auth cancel");
-        throw new ExceptionC("Auth fail");
-      }
+      
       if(socket!=null && (connectTimeout>0 || timeout>0))
         socket.setSoTimeout(timeout);
       isAuthed=true;
