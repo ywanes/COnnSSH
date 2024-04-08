@@ -67,10 +67,7 @@ public class Session implements Runnable{
   static java.security.SecureRandom random;
   Buffer buf;
   Packet packet;
-  static final int buffer_margin = 32 + 
-                                   64 + 
-                                   32;  
-
+  static final int buffer_margin = 32 + 64 + 32;  
   private java.util.Hashtable config=null;
   private Proxy proxy=null;
   private String hostKeyAlias=null;
@@ -269,12 +266,8 @@ public class Session implements Runnable{
         in_prompt = false;
         throw ee;
       }
-
       send_newkeys();
-
-      // receive SSH_MSG_NEWKEYS(21)
       buf=read(buf);
-      //System.err.println("read: 21 ? "+buf.getCommand());
       if(buf.getCommand()==SSH_MSG_NEWKEYS){
 	receive_newkeys(buf, kex);
       }else{
@@ -283,42 +276,51 @@ public class Session implements Runnable{
       }
       try{
         String s = AConfig.getNameByConfig("MaxAuthTries");
-        if(s!=null){
+        if(s!=null)
           max_auth_tries = Integer.parseInt(s);
-        }
-      }
-      catch(NumberFormatException e){
+      }catch(NumberFormatException e){
         throw new ExceptionC("MaxAuthTries: "+AConfig.getNameByConfig("MaxAuthTries"), e);
       }
 
-      boolean auth=false;
-      boolean auth_cancel=false;
-
-      UserAuth ua=null;
       try{
-        ua = new UserAuthNone();        
-      }
-      catch(Exception e){ 
-          AConfig.DebugPrintException("ex_145");
+        packet.reset();
+        buf.putByte((byte)Session.SSH_MSG_SERVICE_REQUEST);
+        buf.putString(str2byte("ssh-userauth"));
+        write(packet);    
+        read(buf);        
+      }catch(Exception e){ 
         throw new ExceptionC(e.toString(), e);
       }
 
-      ua.start(this);
-      auth=false;
-
-      String cmethods=AConfig.getNameByConfig("PreferredAuthentications");
-
-      String[] cmethoda=split(cmethods, ",");
-      
-      String smethods=cmethods;     
-      String[] smethoda=split(smethods, ",");
-
-      ua = new UserAuthPassword();
-      try{ 
-        ua.start(this); 
-      }catch(Exception ee){
-        throw ee;
-      }
+      //try{
+        int SSH_MSG_USERAUTH_REQUEST=50;
+        int SSH_MSG_USERAUTH_FAILURE=51;
+        int SSH_MSG_USERAUTH_SUCCESS=52;
+        int SSH_MSG_USERAUTH_BANNER=53;
+        int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ=60;
+        if(password == null)
+          throw new Exception("Error AuthCancel - not found password");      
+        if(auth_failures >= max_auth_tries)
+          return;
+        packet.reset();
+        buf.putByte((byte)SSH_MSG_USERAUTH_REQUEST);
+        buf.putString(str2byte(username));
+        buf.putString(str2byte("ssh-connection"));
+        buf.putString(str2byte("password"));
+        buf.putByte((byte)0);
+        buf.putString(password);
+        write(packet);
+        buf=read(buf);
+        int command=buf.getCommand()&0xff;
+        if(command==SSH_MSG_USERAUTH_BANNER)
+          throw new Exception("USERAUTH_BANNER");
+        if(command==SSH_MSG_USERAUTH_PASSWD_CHANGEREQ)
+          throw new Exception("Stop - USERAUTH_PASSWD_CHANGEREQ");
+        if(command==SSH_MSG_USERAUTH_FAILURE)
+          throw new Exception("UserAuth Fail!");        
+      //}catch(Exception e){ 
+        //throw e;
+      //}
       
       if(socket!=null && (connectTimeout>0 || timeout>0))
         socket.setSoTimeout(timeout);
