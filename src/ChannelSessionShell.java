@@ -1,11 +1,11 @@
-public class ChannelSessionShell extends ChannelSession{
+public class ChannelSessionShell extends Channel{
   ChannelSessionShell(){
     super();
-  }
+  }  
   public void start() throws ExceptionC{
     Session _session=getSession();
     try{
-      terminal_mode=(byte[])str2byte("");
+      byte[] terminal_mode=(byte[])str2byte("");
       String ttype="vt100";
       int tcol=80;
       int trow=24;
@@ -43,9 +43,34 @@ public class ChannelSessionShell extends ChannelSession{
       thread.setDaemon(_session.daemon_thread);
     thread.start();
   }
-
-  void init() throws ExceptionC {
-    setInputStream(getSession().in);
-    setOutputStream(getSession().out);
+  public void run(){
+    // ponto critico!!
+    Buffer buf=new Buffer(rmpsize);
+    Packet packet=new Packet(buf);
+    try{
+      while(isConnected() &&thread!=null && in!=null){
+        int i=in.read(buf.buffer, 14,    buf.buffer.length-14-Session.buffer_margin);
+	if(i==0)
+          continue;
+	if(i==-1)
+	  break;
+	if(close)
+          break;
+        packet.reset();
+        buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
+        buf.putInt(recipient);
+        buf.putInt(i);
+        buf.skip(i);
+	getSession().write(packet, this, i);
+      }
+    }catch(Exception e){
+      AConfig.DebugPrintException("ex_20");
+    }
+    Thread _thread=thread; 
+    if(_thread!=null)
+      synchronized(_thread){ 
+        _thread.notifyAll(); 
+      }
+    thread=null;
   }
 }

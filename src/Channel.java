@@ -7,6 +7,14 @@ public abstract class Channel implements Runnable{
   InputStream in=System.in;
   OutputStream out=System.out;
   OutputStream out_ext=null;
+
+  Channel(){
+    synchronized(pool){
+      id=index++;
+      pool.addElement(this);
+    }
+  }
+    
   
   private boolean out_dontclose=false;
   static final int SSH_MSG_CHANNEL_OPEN_CONFIRMATION=      91;
@@ -50,12 +58,6 @@ public abstract class Channel implements Runnable{
   private Session session;
   int notifyme=0; 
 
-  Channel(){
-    synchronized(pool){
-      id=index++;
-      pool.addElement(this);
-    }
-  }
   synchronized void setRecipient(int foo){
     this.recipient=foo;
     if(notifyme>0)
