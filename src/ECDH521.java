@@ -129,6 +129,7 @@ public class ECDH521 {
     }else
       return secret;
   }
+  // verificação opcional de segurança!
   protected boolean verify(String alg, byte[] K_S, int index, byte[] sig_of_H) throws Exception {
     int i,j;
     i=index;
@@ -145,18 +146,49 @@ public class ECDH521 {
       j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|((K_S[i++]<<8)&0x0000ff00)|((K_S[i++])&0x000000ff);
       tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); 
       n=tmp;
+      
       SignatureRSA sig=null;
-      try{
-        sig=new SignatureRSA();
-        sig.init();
-      }
-      catch(Exception e){
-        AConfig.DebugPrintException("ex_86");
-        System.err.println(e);
-      }
+      sig=new SignatureRSA();
+      sig.init();
       sig.setPubKey(ee, n);   
       sig.update(H);
-      result=sig.verify(sig_of_H);
+      
+      
+      Signature signature=sig.get();      
+      //result=sig.verify(sig_of_H);
+      
+      int i_RSA=0;
+      int j_RSA=0;
+      byte[] tmp_RSA;
+      Buffer buf_RSA=new Buffer(sig_of_H);
+      if(new String(buf_RSA.getString()).equals("ssh-rsa")){
+        j_RSA=buf_RSA.getInt();
+        i_RSA=buf_RSA.getOffSet();
+        tmp_RSA=new byte[j_RSA];
+        System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA); 
+        sig_of_H=tmp_RSA;
+      }
+      result=signature.verify(sig_of_H);      
+      /*
+      Signature signature=Signature.getInstance("SHA1withRSA");
+      KeyFactory keyFactory=KeyFactory.getInstance("RSA");
+      RSAPublicKeySpec rsaPubKeySpec = new RSAPublicKeySpec(new BigInteger(ee),new BigInteger(n));
+      PublicKey pubKey=keyFactory.generatePublic(rsaPubKeySpec);
+      signature.initVerify(pubKey);
+      signature.update(H);
+      int i_RSA=0;
+      int j_RSA=0;
+      byte[] tmp_RSA;
+      Buffer buf_RSA=new Buffer(sig_of_H);
+      if(new String(buf_RSA.getString()).equals("ssh-rsa")){
+        j_RSA=buf_RSA.getInt();
+        i_RSA=buf_RSA.getOffSet();
+        tmp_RSA=new byte[j_RSA];
+        System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA); 
+        sig_of_H=tmp_RSA;
+      }
+      result=signature.verify(sig_of_H);      
+      */
     }else
       System.err.println("unknown alg");
     return result;

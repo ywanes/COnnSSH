@@ -26,6 +26,9 @@ public class SignatureRSA{
   public void update(byte[] foo) throws Exception{
     signature.update(foo);
   }
+  public java.security.Signature get(){
+      return signature;
+  }
   public boolean verify(byte[] sig) throws Exception{
     int i=0;
     int j=0;
