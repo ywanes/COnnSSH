@@ -36,7 +36,8 @@ class RequestPtyReq extends Request{
     buf.putInt(twp);
     buf.putInt(thp);
     buf.putString(terminal_mode);
-    write(packet);
+    //write(packet);
+    session.write(packet);
   }
   
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}

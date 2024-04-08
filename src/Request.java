@@ -10,24 +10,4 @@ abstract class Request{
   }
   boolean waitForReply(){ return reply; }
   void setReply(boolean reply){ this.reply=reply; }
-  void write(Packet packet) throws Exception{
-    if(reply)
-      channel.reply=-1;
-    session.write(packet);
-    if(reply){
-      long start=System.currentTimeMillis();
-      long timeout=channel.connectTimeout;
-      while(channel.isConnected() && channel.reply==-1){
-	try{
-          Thread.sleep(10);
-        }catch(Exception ee){}
-        if(timeout>0L && (System.currentTimeMillis()-start)>timeout){
-          channel.reply=0;
-          throw new ExceptionC("channel request: timeout");
-        }
-      }
-      if(channel.reply==0)
-	throw new ExceptionC("failed to send channel request");
-    }
-  }
 }

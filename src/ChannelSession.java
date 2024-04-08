@@ -13,8 +13,6 @@ class ChannelSession extends Channel{
   protected void sendRequests() throws Exception{
       Session _session=getSession();
       Request request=new RequestPtyReq();
-      if(terminal_mode!=null)
-        ((RequestPtyReq)request).setTerminalMode(terminal_mode);
       request.request(_session, this);
   }
 
