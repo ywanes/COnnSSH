@@ -147,34 +147,11 @@ public class ECDH521 {
       tmp=new byte[j]; System.arraycopy(K_S, i, tmp, 0, j); 
       n=tmp;
       
-      SignatureRSA sig=null;
-      sig=new SignatureRSA();
-      sig.init();
-      sig.setPubKey(ee, n);   
-      sig.update(H);
-      
-      
-      Signature signature=sig.get();      
-      //result=sig.verify(sig_of_H);
-      
-      int i_RSA=0;
-      int j_RSA=0;
-      byte[] tmp_RSA;
-      Buffer buf_RSA=new Buffer(sig_of_H);
-      if(new String(buf_RSA.getString()).equals("ssh-rsa")){
-        j_RSA=buf_RSA.getInt();
-        i_RSA=buf_RSA.getOffSet();
-        tmp_RSA=new byte[j_RSA];
-        System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA); 
-        sig_of_H=tmp_RSA;
-      }
-      result=signature.verify(sig_of_H);      
-      /*
       Signature signature=Signature.getInstance("SHA1withRSA");
       KeyFactory keyFactory=KeyFactory.getInstance("RSA");
-      RSAPublicKeySpec rsaPubKeySpec = new RSAPublicKeySpec(new BigInteger(ee),new BigInteger(n));
-      PublicKey pubKey=keyFactory.generatePublic(rsaPubKeySpec);
-      signature.initVerify(pubKey);
+      RSAPublicKeySpec rsaPubKeySpec = new RSAPublicKeySpec(new BigInteger(n),new BigInteger(ee));
+      PublicKey pubKey2=keyFactory.generatePublic(rsaPubKeySpec);
+      signature.initVerify(pubKey2);
       signature.update(H);
       int i_RSA=0;
       int j_RSA=0;
@@ -188,7 +165,6 @@ public class ECDH521 {
         sig_of_H=tmp_RSA;
       }
       result=signature.verify(sig_of_H);      
-      */
     }else
       System.err.println("unknown alg");
     return result;
