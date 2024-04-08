@@ -2,46 +2,12 @@ class UserAuthNone extends UserAuth{
   private static final int SSH_MSG_SERVICE_ACCEPT=                  6;
   private String methods=null;
   public boolean start(Session session) throws Exception{
-    super.start(session);
+    super.start(session);    
     packet.reset();
     buf.putByte((byte)Session.SSH_MSG_SERVICE_REQUEST);
     buf.putString(str2byte("ssh-userauth"));
-    session.write(packet);
-    buf=session.read(buf);
-    int command=buf.getCommand();
-    boolean result=(command==SSH_MSG_SERVICE_ACCEPT);
-    if(!result)
-      return false;
-    byte[] _username=null;
-    _username=str2byte(username);
-    packet.reset();
-    buf.putByte((byte)SSH_MSG_USERAUTH_REQUEST);
-    buf.putString(_username);
-    buf.putString(str2byte("ssh-connection"));
-    buf.putString(str2byte("none"));
-    session.write(packet);
-    loop:
-    while(true){
-      buf=session.read(buf);
-      command=buf.getCommand()&0xff;
-      if(command==SSH_MSG_USERAUTH_SUCCESS)
-	return true;
-      if(command==SSH_MSG_USERAUTH_BANNER){
-	buf.getInt(); buf.getByte(); buf.getByte();
-	byte[] _message=buf.getString();
-	byte[] lang=buf.getString();
-	String message=byte2str(_message);
-	continue loop;
-      }
-      if(command==SSH_MSG_USERAUTH_FAILURE){
-	buf.getInt(); buf.getByte(); buf.getByte(); 
-	byte[] foo=buf.getString();
-	int partial_success=buf.getByte();
-	methods=byte2str(foo);
-        break;
-      }
-      throw new ExceptionC("USERAUTH fail ("+command+")");
-    }
+    session.write(packet);    
+    session.read(buf);
     return false;
   }
   String getMethods(){
