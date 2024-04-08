@@ -308,20 +308,8 @@ public class Session implements Runnable{
       String cmethods=AConfig.getNameByConfig("PreferredAuthentications");
 
       String[] cmethoda=split(cmethods, ",");
-
-      String smethods=null;
-      if(!auth){
-        smethods=((UserAuthNone)ua).getMethods();
-        if(smethods!=null){
-          smethods=smethods.toLowerCase();
-        }
-        else{
-          // methods: publickey,password,keyboard-interactive
-          //smethods="publickey,password,keyboard-interactive";
-          smethods=cmethods;
-        }
-      }
-
+      
+      String smethods=cmethods;     
       String[] smethoda=split(smethods, ",");
 
       int methodi=0;
