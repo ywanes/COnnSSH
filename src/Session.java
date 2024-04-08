@@ -958,7 +958,7 @@ public class Session implements Runnable{
           if(length[0]==0)
 	    break;
           try{
-            channel.write(foo, start[0], length[0]);
+            channel.put(foo, start[0], length[0]);
           }catch(Exception e){
             AConfig.DebugPrintException("ex_150");
             try{channel.disconnect();}catch(Exception ee){}
@@ -989,7 +989,7 @@ public class Session implements Runnable{
 	    break;
           if(length[0]==0)
 	    break;
-	  channel.write_ext(foo, start[0], length[0]);
+	  channel.put_ext(foo, start[0], length[0]);
 	  len=length[0];
 	  channel.setLocalWindowSize(channel.lwsize-len);
  	  if(channel.lwsize<channel.lwsize_max/2){

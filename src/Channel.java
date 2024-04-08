@@ -221,9 +221,7 @@ public abstract class Channel implements Runnable{
       }
     }
   }
-  void setLocalWindowSizeMax(int foo){ this.lwsize_max=foo; }
   void setLocalWindowSize(int foo){ this.lwsize=foo; }
-  void setLocalPacketSize(int foo){ this.lmpsize=foo; }
   synchronized void setRemoteWindowSize(long foo){ this.rwsize=foo; }
   synchronized void addRemoteWindowSize(long foo){ 
     this.rwsize+=foo; 
@@ -231,23 +229,6 @@ public abstract class Channel implements Runnable{
       notifyAll();
   }
   void setRemotePacketSize(int foo){ this.rmpsize=foo; }
-
-  public void run(){}
-
-  void write(byte[] foo) throws IOException {
-    write(foo, 0, foo.length);
-  }
-  void write(byte[] foo, int s, int l) throws IOException {
-    try{
-      put(foo, s, l);
-    }catch(NullPointerException e){}
-  }
-  void write_ext(byte[] foo, int s, int l) throws IOException {
-    try{
-      put_ext(foo, s, l);
-    }catch(NullPointerException e){}
-  }
-
   public void put(Packet p) throws IOException, java.net.SocketException {
     out.write(p.buffer.buffer, 0, p.buffer.index);
     out.flush();
@@ -348,31 +329,12 @@ public abstract class Channel implements Runnable{
   }
   public void sendSignal(String signal) throws Exception {}
 
-  class PassiveInputStream extends MyPipedInputStream{
-    PipedOutputStream out;
-    PassiveInputStream(PipedOutputStream out, int size) throws IOException{
-      super(out, size);
-      this.out=out;
-    }
-    PassiveInputStream(PipedOutputStream out) throws IOException{
-      super(out);
-      this.out=out;
-    }
-    public void close() throws IOException{
-      if(out!=null){
-        this.out.close();
-      }
-      out=null;
-    }
-  }
   class PassiveOutputStream extends PipedOutputStream{
     private MyPipedInputStream _sink=null;
-    PassiveOutputStream(PipedInputStream in,
-                        boolean resizable_buffer) throws IOException{
+    PassiveOutputStream(PipedInputStream in, boolean resizable_buffer) throws IOException{
       super(in);
-      if(resizable_buffer && (in instanceof MyPipedInputStream)) {
+      if(resizable_buffer && (in instanceof MyPipedInputStream))
         this._sink=(MyPipedInputStream)in;
-      }
     }
     public void write(int b) throws IOException {
       if(_sink != null) {
@@ -381,9 +343,8 @@ public abstract class Channel implements Runnable{
       super.write(b);
     }
     public void write(byte[] b, int off, int len) throws IOException {
-      if(_sink != null) {
+      if(_sink != null)
         _sink.checkSpace(len);
-      }
       super.write(b, off, len); 
     }
   }
