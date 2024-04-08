@@ -744,7 +744,6 @@ public class Session implements Runnable{
       s2ccipher_size=s2ccipher.getIVSize();
       method=guess[ECDH521.PROPOSAL_MAC_ALGS_STOC];
       s2cmac = new HmacSHA1();
-      MACs2c = expandKey(buf, K, H, MACs2c, hash, s2cmac.getBlockSize());
       s2cmac.init(MACs2c);
       s2cmac_result1=new byte[s2cmac.getBlockSize()];
       s2cmac_result2=new byte[s2cmac.getBlockSize()];
@@ -766,7 +765,6 @@ public class Session implements Runnable{
       c2scipher_size=c2scipher.getIVSize();
       method=guess[ECDH521.PROPOSAL_MAC_ALGS_CTOS];
       c2smac = new HmacSHA1();
-      MACc2s = expandKey(buf, K, H, MACc2s, hash, c2smac.getBlockSize());
       c2smac.init(MACc2s);
       method=guess[ECDH521.PROPOSAL_COMP_ALGS_CTOS];
       initDeflater(method);
@@ -778,11 +776,6 @@ public class Session implements Runnable{
         throw e;
       throw new ExceptionC(e.toString(), e);       
     }
-  }
-  private byte[] expandKey(Buffer buf, byte[] K, byte[] H, byte[] key, SHA512 hash, int required_length) throws Exception {
-    byte[] result = key;
-    int size = hash.getBlockSize();
-    return result;
   }
   void write(Packet packet, Channel c, int length) throws Exception{
     long t = getTimeout();
