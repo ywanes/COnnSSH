@@ -535,17 +535,9 @@ public class Session implements Runnable{
     if(!isConnected){
       throw new ExceptionC("session is down");
     }
-    try{
-      Channel channel=new ChannelSessionShell();
-      addChannel(channel);
-      return channel;
-    }catch(Exception e){
-        AConfig.DebugPrintException("ex_148");      
-    }
-    return null;
+    return new ChannelSessionShell(this);
   }
 
-  
   public void encode(Packet packet) throws Exception{
     if(c2scipher!=null){
       packet.padding(c2scipher_size);
@@ -1165,9 +1157,6 @@ public class Session implements Runnable{
   private void initInflater(String method) throws ExceptionC{
     if(method.equals("none"))
       return;
-  }
-  void addChannel(Channel channel){
-    channel.setSession(this);
   }
 
   public void setProxy(Proxy proxy){ this.proxy=proxy; }

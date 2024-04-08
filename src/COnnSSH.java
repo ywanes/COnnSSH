@@ -49,7 +49,6 @@ public class COnnSSH {
     }    
     
     void ssh(String arg0, String password, int port) {
-        Channel channel = null;
         try {
             if ( !arg0.contains("@") ) {
                 System.err.println("usage: y ssh user,pass@remotehost");
@@ -60,14 +59,10 @@ public class COnnSSH {
             Session session = new Session(host, user, port);
             session.setPassword(password);
             session.connect(30000);
-            channel = session.openChannel("shell");
-            channel.setInputStream(System.in);
-            channel.setOutputStream(System.out);
-            channel.connect(3000);
+            new ChannelSessionShell(session);
         } catch (Exception e) {
-            System.out.println(e);
+            System.err.println(e);
         }
-        while (channel != null && !channel.isEOF()) {}
     }
     
     public void comando_invalido(String[] args) {

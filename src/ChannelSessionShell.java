@@ -1,6 +1,6 @@
 public class ChannelSessionShell extends Channel{
-  ChannelSessionShell(){
-    super();
+  ChannelSessionShell(Session _session) throws ExceptionC{
+    super(_session);
   }  
   public void start() throws ExceptionC{
     Session _session=getSession();

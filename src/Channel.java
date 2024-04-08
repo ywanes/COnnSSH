@@ -8,11 +8,16 @@ public abstract class Channel implements Runnable{
   OutputStream out=System.out;
   OutputStream out_ext=null;
 
-  Channel(){
+  Channel(Session _session) throws ExceptionC{
+    this.session=_session;
     synchronized(pool){
       id=index++;
       pool.addElement(this);
     }
+    setInputStream(System.in);
+    setOutputStream(System.out);
+    connect(3000);
+    while (!isEOF()) {}
   }
     
   
@@ -286,10 +291,6 @@ public abstract class Channel implements Runnable{
 
   void setExitStatus(int status){ exitstatus=status; }
   public int getExitStatus(){ return exitstatus; }
-
-  void setSession(Session session){
-    this.session=session;
-  }
 
   public Session getSession() throws ExceptionC{ 
     Session _session=session;
