@@ -7,7 +7,14 @@ public class ChannelSessionShell extends ChannelSession{
     try{
       sendRequests();      
       Request request=new RequestShell();
-      request.request(_session, this);
+      Buffer buf=new Buffer();
+      Packet packet=new Packet(buf);
+      packet.reset();
+      buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+      buf.putInt(getRecipient());
+      buf.putString(str2byte("shell"));
+      buf.putByte((byte)0);
+      _session.write(packet);
     }catch(Exception e){
       throw new ExceptionC("ChannelShell");
     }

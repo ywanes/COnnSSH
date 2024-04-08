@@ -7,8 +7,7 @@ class RequestShell extends Request{
     buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
     buf.putInt(channel.getRecipient());
     buf.putString(str2byte("shell"));
-    buf.putByte((byte)(waitForReply() ? 1 : 0));
-    //write(packet);
+    buf.putByte((byte)0);
     session.write(packet);
     
   }

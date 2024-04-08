@@ -12,8 +12,31 @@ class ChannelSession extends Channel{
 
   protected void sendRequests() throws Exception{
       Session _session=getSession();
-      Request request=new RequestPtyReq();
-      request.request(_session, this);
+      //Request request=new RequestPtyReq();
+      //request.request(_session, this);
+      terminal_mode=(byte[])str2byte("");
+      String ttype="vt100";
+      int tcol=80;
+      int trow=24;
+      int twp=640;
+      int thp=480;      
+      Buffer buf=new Buffer();
+      Packet packet=new Packet(buf);
+      packet.reset();
+      buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+      buf.putInt(getRecipient());
+      buf.putString(str2byte("pty-req"));
+      buf.putByte((byte)0);
+      buf.putString(str2byte(ttype));
+      buf.putInt(tcol);
+      buf.putInt(trow);
+      buf.putInt(twp);
+      buf.putInt(thp);
+      buf.putString(terminal_mode);
+      _session.write(packet);
+     
+      
+      
   }
 
   public void run(){

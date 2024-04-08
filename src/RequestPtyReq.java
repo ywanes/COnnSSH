@@ -29,14 +29,13 @@ class RequestPtyReq extends Request{
     buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
     buf.putInt(channel.getRecipient());
     buf.putString(str2byte("pty-req"));
-    buf.putByte((byte)(waitForReply() ? 1 : 0));
+    buf.putByte((byte)0);
     buf.putString(str2byte(ttype));
     buf.putInt(tcol);
     buf.putInt(trow);
     buf.putInt(twp);
     buf.putInt(thp);
     buf.putString(terminal_mode);
-    //write(packet);
     session.write(packet);
   }
   
