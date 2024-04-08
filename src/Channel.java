@@ -67,9 +67,6 @@ public abstract class Channel implements Runnable{
     return recipient;
   }
 
-  void init() throws ExceptionC {
-  }
-
   public void connect() throws ExceptionC{
     connect(0);
   }

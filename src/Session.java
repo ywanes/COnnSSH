@@ -538,10 +538,8 @@ public class Session implements Runnable{
     try{
       Channel channel=new ChannelSessionShell();
       addChannel(channel);
-      channel.init();
       return channel;
-    }
-    catch(Exception e){
+    }catch(Exception e){
         AConfig.DebugPrintException("ex_148");      
     }
     return null;
