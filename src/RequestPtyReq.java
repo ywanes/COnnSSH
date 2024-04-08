@@ -4,7 +4,6 @@ class RequestPtyReq extends Request{
   private int trow=24;
   private int twp=640;
   private int thp=480;
-
   private byte[] terminal_mode=(byte[])str2byte("");
 
   void setTType(String ttype){

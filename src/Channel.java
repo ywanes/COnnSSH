@@ -1,5 +1,4 @@
 import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.IOException;
@@ -33,7 +32,7 @@ public abstract class Channel implements Runnable{
 
   int id;
   volatile int recipient=-1;
-  protected byte[] type=str2byte("foo");
+  protected byte[] type=str2byte("session");
   volatile int lwsize_max=0x100000;
   volatile int lwsize=lwsize_max;
   volatile int lmpsize=0x4000;
@@ -331,7 +330,12 @@ public abstract class Channel implements Runnable{
     }
   }
 
-  protected Packet genChannelOpenPacket(){
+  protected void sendChannelOpen() throws Exception {
+    Session _session=getSession();
+    if(!_session.isConnected()){
+      throw new ExceptionC("session is down");
+    }
+
     Buffer buf=new Buffer(100);
     Packet packet=new Packet(buf);
     packet.reset();
@@ -340,16 +344,7 @@ public abstract class Channel implements Runnable{
     buf.putInt(this.id);
     buf.putInt(this.lwsize);
     buf.putInt(this.lmpsize);
-    return packet;
-  }
 
-  protected void sendChannelOpen() throws Exception {
-    Session _session=getSession();
-    if(!_session.isConnected()){
-      throw new ExceptionC("session is down");
-    }
-
-    Packet packet = genChannelOpenPacket();
     _session.write(packet);
 
     int retry=2000;
@@ -392,8 +387,6 @@ public abstract class Channel implements Runnable{
   }
 
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
-  static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
-  static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
   static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
   static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
   
