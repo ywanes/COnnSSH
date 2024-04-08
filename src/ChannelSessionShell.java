@@ -6,7 +6,7 @@ public class ChannelSessionShell extends ChannelSession{
   public void start() throws ExceptionC{
     Session _session=getSession();
     try{
-      sendRequests();
+      sendRequests();      
       Request request=new RequestShell();
       request.request(_session, this);
     }catch(Exception e){

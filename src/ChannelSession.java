@@ -79,6 +79,7 @@ class ChannelSession extends Channel{
   }
 
   public void run(){
+    // ponto critico!!
     Buffer buf=new Buffer(rmpsize);
     Packet packet=new Packet(buf);
     int i=-1;
