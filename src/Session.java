@@ -292,35 +292,30 @@ public class Session implements Runnable{
         throw new ExceptionC(e.toString(), e);
       }
 
-      //try{
-        int SSH_MSG_USERAUTH_REQUEST=50;
-        int SSH_MSG_USERAUTH_FAILURE=51;
-        int SSH_MSG_USERAUTH_SUCCESS=52;
-        int SSH_MSG_USERAUTH_BANNER=53;
-        int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ=60;
-        if(password == null)
-          throw new Exception("Error AuthCancel - not found password");      
-        if(auth_failures >= max_auth_tries)
-          return;
-        packet.reset();
-        buf.putByte((byte)SSH_MSG_USERAUTH_REQUEST);
-        buf.putString(str2byte(username));
-        buf.putString(str2byte("ssh-connection"));
-        buf.putString(str2byte("password"));
-        buf.putByte((byte)0);
-        buf.putString(password);
-        write(packet);
-        buf=read(buf);
-        int command=buf.getCommand()&0xff;
-        if(command==SSH_MSG_USERAUTH_BANNER)
-          throw new Exception("USERAUTH_BANNER");
-        if(command==SSH_MSG_USERAUTH_PASSWD_CHANGEREQ)
-          throw new Exception("Stop - USERAUTH_PASSWD_CHANGEREQ");
-        if(command==SSH_MSG_USERAUTH_FAILURE)
-          throw new Exception("UserAuth Fail!");        
-      //}catch(Exception e){ 
-        //throw e;
-      //}
+      int SSH_MSG_USERAUTH_REQUEST=50;
+      int SSH_MSG_USERAUTH_FAILURE=51;
+      int SSH_MSG_USERAUTH_BANNER=53;
+      int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ=60;
+      if(password == null)
+        throw new Exception("Error AuthCancel - not found password");      
+      if(auth_failures >= max_auth_tries)
+        return;
+      packet.reset();
+      buf.putByte((byte)SSH_MSG_USERAUTH_REQUEST);
+      buf.putString(str2byte(username));
+      buf.putString(str2byte("ssh-connection"));
+      buf.putString(str2byte("password"));
+      buf.putByte((byte)0);
+      buf.putString(password);
+      write(packet);
+      buf=read(buf);
+      int command=buf.getCommand()&0xff;
+      if(command==SSH_MSG_USERAUTH_BANNER)
+        throw new Exception("USERAUTH_BANNER");
+      if(command==SSH_MSG_USERAUTH_PASSWD_CHANGEREQ)
+        throw new Exception("Stop - USERAUTH_PASSWD_CHANGEREQ");
+      if(command==SSH_MSG_USERAUTH_FAILURE)
+        throw new Exception("UserAuth Fail!");        
       
       if(socket!=null && (connectTimeout>0 || timeout>0))
         socket.setSoTimeout(timeout);
@@ -586,9 +581,6 @@ public class Session implements Runnable{
     }
   }
 
-  int[] uncompress_len=new int[1];
-  int[] compress_len=new int[1];
-
   private int s2ccipher_size=8;
   private int c2scipher_size=8;
   public Buffer read(Buffer buf) throws Exception{
@@ -597,46 +589,35 @@ public class Session implements Runnable{
       buf.reset();
       getByte(buf.buffer, buf.index, s2ccipher_size); 
       buf.index+=s2ccipher_size;
-      if(s2ccipher!=null){
+      if(s2ccipher!=null)
         s2ccipher.update(buf.buffer, 0, s2ccipher_size, buf.buffer, 0);
-      }
-      j=((buf.buffer[0]<<24)&0xff000000)|
-        ((buf.buffer[1]<<16)&0x00ff0000)|
-        ((buf.buffer[2]<< 8)&0x0000ff00)|
-        ((buf.buffer[3]    )&0x000000ff);
-      // RFC 4253 6.1. Maximum Packet Length
-      if(j<5 || j>PACKET_MAX_SIZE){
+      j=((buf.buffer[0]<<24)&0xff000000)|((buf.buffer[1]<<16)&0x00ff0000)|((buf.buffer[2]<< 8)&0x0000ff00)|((buf.buffer[3]    )&0x000000ff);
+      if(j<5 || j>PACKET_MAX_SIZE)
         start_discard(buf, s2ccipher, s2cmac, j, PACKET_MAX_SIZE);
-      }
       int need = j+4-s2ccipher_size;
       if((buf.index+need)>buf.buffer.length){
         byte[] foo=new byte[buf.index+need];
         System.arraycopy(buf.buffer, 0, foo, 0, buf.index);
         buf.buffer=foo;
       }
-
       if((need%s2ccipher_size)!=0){
         String message="Bad packet length "+need;
         start_discard(buf, s2ccipher, s2cmac, j, PACKET_MAX_SIZE-s2ccipher_size);
       }
-
       if(need>0){
 	getByte(buf.buffer, buf.index, need); buf.index+=(need);
 	if(s2ccipher!=null){
 	  s2ccipher.update(buf.buffer, s2ccipher_size, need, buf.buffer, s2ccipher_size);
 	}
       }
-
       if(s2cmac!=null){
 	s2cmac.update(seqi);
 	s2cmac.update(buf.buffer, 0, buf.index);
         s2cmac.doFinal(s2cmac_result1, 0);
-        // text terminal
 	getByte(s2cmac_result2, 0, s2cmac_result2.length);
         if(!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)){
-          if(need > PACKET_MAX_SIZE){
+          if(need > PACKET_MAX_SIZE)
             throw new IOException("MAC Error");
-          }
           start_discard(buf, s2ccipher, s2cmac, j, PACKET_MAX_SIZE-need);
           continue;
 	}
@@ -649,23 +630,16 @@ public class Session implements Runnable{
 	int reason_code=buf.getInt();
 	byte[] description=buf.getString();
 	byte[] language_tag=buf.getString();
-	throw new ExceptionC("SSH_MSG_DISCONNECT: "+
-				    reason_code+
-				" "+byte2str(description)+
-				" "+byte2str(language_tag));
-      }
-      else if(type==SSH_MSG_IGNORE){
-      }
-      else if(type==SSH_MSG_UNIMPLEMENTED){
+	throw new ExceptionC("SSH_MSG_DISCONNECT: "+reason_code+" "+byte2str(description)+" "+byte2str(language_tag));
+      }else if(type==SSH_MSG_IGNORE){
+      }else if(type==SSH_MSG_UNIMPLEMENTED){
         buf.rewind();
         buf.getInt();buf.getShort();
 	int reason_id=buf.getInt();
-      }
-      else if(type==SSH_MSG_DEBUG){
+      }else if(type==SSH_MSG_DEBUG){
         buf.rewind();
         buf.getInt();buf.getShort();
-      }
-      else if(type==SSH_MSG_CHANNEL_WINDOW_ADJUST){
+      }else if(type==SSH_MSG_CHANNEL_WINDOW_ADJUST){
           buf.rewind();
           buf.getInt();buf.getShort();
 	  Channel c=Channel.getChannel(buf.getInt(), this);
@@ -674,12 +648,8 @@ public class Session implements Runnable{
 	  else{
 	    c.addRemoteWindowSize(buf.getUInt()); 
 	  }
-      }
-      else if(type==UserAuth.SSH_MSG_USERAUTH_SUCCESS){
+      }else{
         isAuthed=true;
-        break;
-      }
-      else{
         break;
       }
     }
