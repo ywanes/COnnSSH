@@ -13,7 +13,7 @@ public class ECDH521 {
   static final int PROPOSAL_MAX=10;
   public static final int STATE_END=0;
   protected Session session=null;
-  protected SHA512 sha=null;
+  protected java.security.MessageDigest sha512=null;
   protected byte[] K=null;
   protected byte[] H=null;
   protected byte[] K_S=null;
@@ -43,10 +43,8 @@ public class ECDH521 {
     this.I_S=I_S;      
     this.I_C=I_C;      
     try{
-      sha=new SHA512();
-      sha.init();
-    }
-    catch(Exception e){
+      sha512=java.security.MessageDigest.getInstance("SHA-512");
+    }catch(Exception e){
       AConfig.DebugPrintException("ex_89");  
       System.err.println(e);
     }
@@ -121,7 +119,7 @@ public class ECDH521 {
   
   byte[] getK(){ return K; }
   byte[] getH(){ return H; }
-  SHA512 getHash(){ return sha; }
+  java.security.MessageDigest getHash(){ return sha512; }
   byte[] getHostKey(){ return K_S; }
   protected byte[] normalize(byte[] secret) {
     if(secret.length > 1 && secret[0] == 0 && (secret[1]&0x80) == 0) {
@@ -193,8 +191,8 @@ public class ECDH521 {
       buf.putMPInt(K);
       byte[] foo=new byte[buf.getLength()];
       buf.getByte(foo);
-      sha.update(foo, 0, foo.length);
-      H=sha.digest();
+      sha512.update(foo, 0, foo.length);
+      H=sha512.digest();
       i=0;
       j=0;
       j=((K_S[i++]<<24)&0xff000000)|((K_S[i++]<<16)&0x00ff0000)|

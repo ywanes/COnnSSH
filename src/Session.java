@@ -696,7 +696,7 @@ public class Session implements Runnable{
     in_kex=false;
     byte[] K=kex.getK();
     byte[] H=kex.getH();
-    SHA512 hash=kex.getHash();
+    java.security.MessageDigest sha512=kex.getHash();
     if(session_id==null){
       session_id=new byte[H.length];
       System.arraycopy(H, 0, session_id, 0, H.length);
@@ -706,24 +706,24 @@ public class Session implements Runnable{
     buf.putByte(H);
     buf.putByte((byte)0x41);
     buf.putByte(session_id);
-    hash.update(buf.buffer, 0, buf.index);
-    IVc2s=hash.digest();
+    sha512.update(buf.buffer, 0, buf.index);
+    IVc2s=sha512.digest();
     int j=buf.index-session_id.length-1;
     buf.buffer[j]++;
-    hash.update(buf.buffer, 0, buf.index);
-    IVs2c=hash.digest();
+    sha512.update(buf.buffer, 0, buf.index);
+    IVs2c=sha512.digest();
     buf.buffer[j]++;
-    hash.update(buf.buffer, 0, buf.index);
-    Ec2s=hash.digest();
+    sha512.update(buf.buffer, 0, buf.index);
+    Ec2s=sha512.digest();
     buf.buffer[j]++;
-    hash.update(buf.buffer, 0, buf.index);
-    Es2c=hash.digest();
+    sha512.update(buf.buffer, 0, buf.index);
+    Es2c=sha512.digest();
     buf.buffer[j]++;
-    hash.update(buf.buffer, 0, buf.index);
-    MACc2s=hash.digest();
+    sha512.update(buf.buffer, 0, buf.index);
+    MACc2s=sha512.digest();
     buf.buffer[j]++;
-    hash.update(buf.buffer, 0, buf.index);
-    MACs2c=hash.digest();
+    sha512.update(buf.buffer, 0, buf.index);
+    MACs2c=sha512.digest();
     try{
       String method;
       method=guess[ECDH521.PROPOSAL_ENC_ALGS_STOC];
@@ -733,8 +733,8 @@ public class Session implements Runnable{
         buf.putMPInt(K);
         buf.putByte(H);
         buf.putByte(Es2c);
-        hash.update(buf.buffer, 0, buf.index);
-        byte[] foo=hash.digest();
+        sha512.update(buf.buffer, 0, buf.index);
+        byte[] foo=sha512.digest();
         byte[] bar=new byte[Es2c.length+foo.length];
 	System.arraycopy(Es2c, 0, bar, 0, Es2c.length);
 	System.arraycopy(foo, 0, bar, Es2c.length, foo.length);
@@ -754,8 +754,8 @@ public class Session implements Runnable{
         buf.putMPInt(K);
         buf.putByte(H);
         buf.putByte(Ec2s);
-        hash.update(buf.buffer, 0, buf.index);
-        byte[] foo=hash.digest();
+        sha512.update(buf.buffer, 0, buf.index);
+        byte[] foo=sha512.digest();
         byte[] bar=new byte[Ec2s.length+foo.length];
 	System.arraycopy(Ec2s, 0, bar, 0, Ec2s.length);
 	System.arraycopy(foo, 0, bar, Ec2s.length, foo.length);
