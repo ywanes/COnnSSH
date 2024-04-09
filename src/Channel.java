@@ -10,10 +10,15 @@ public class Channel implements Runnable{
 
   Channel(Session _session) throws ExceptionC{
     this.session=_session;
+    
+    this.channel=this;
+    /*
     synchronized(pool){
       id=index++;
       pool.addElement(this);
     }
+    */
+    
     setInputStream(System.in);
     setOutputStream(System.out);
     connect(3000);
@@ -26,8 +31,13 @@ public class Channel implements Runnable{
   static final int SSH_MSG_CHANNEL_OPEN_FAILURE=           92;
   static final int SSH_OPEN_ADMINISTRATIVELY_PROHIBITED=    1;
   static int index=0; 
-  private static java.util.Vector pool=new java.util.Vector();
+  //private static java.util.Vector pool=new java.util.Vector();
+  public static Channel channel=null;
+  int id;
+  
+  
   static Channel getChannel(int id, Session session){
+    /*
     synchronized(pool){
       for(int i=0; i<pool.size(); i++){
         Channel c=(Channel)(pool.elementAt(i));
@@ -36,14 +46,15 @@ public class Channel implements Runnable{
       }
     }
     return null;
+    */
+    return channel;
   }
   static void del(Channel c){
-    synchronized(pool){
-      pool.removeElement(c);
-    }
+    //synchronized(pool){
+//      pool.removeElement(c);
+//    }
   }
 
-  int id;
   volatile int recipient=-1;
   protected byte[] type=str2byte("session");
   volatile int lwsize_max=0x100000;
@@ -272,6 +283,7 @@ public class Channel implements Runnable{
     return close;
   }
   static void disconnect(Session session){
+    /*
     Channel[] channels=null;
     int count=0;
     synchronized(pool){
@@ -289,6 +301,8 @@ public class Channel implements Runnable{
     }
     for(int i=0; i<count; i++)
       channels[i].disconnect();
+    */
+    channel.disconnect();
   }
 
   public void disconnect(){
