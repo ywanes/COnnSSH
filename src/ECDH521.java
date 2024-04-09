@@ -6,10 +6,7 @@ import java.security.spec.*;
 public class ECDH521 {
   static final int PROPOSAL_ENC_ALGS_CTOS=2;
   static final int PROPOSAL_ENC_ALGS_STOC=3;
-  static final int PROPOSAL_MAC_ALGS_CTOS=4;
   static final int PROPOSAL_MAC_ALGS_STOC=5;
-  static final int PROPOSAL_COMP_ALGS_CTOS=6;
-  static final int PROPOSAL_COMP_ALGS_STOC=7;
   static final int PROPOSAL_MAX=10;
   public static final int STATE_END=0;
   protected Session session=null;
@@ -42,12 +39,7 @@ public class ECDH521 {
     this.V_C=V_C;      
     this.I_S=I_S;      
     this.I_C=I_C;      
-    try{
-      sha512=java.security.MessageDigest.getInstance("SHA-512");
-    }catch(Exception e){
-      AConfig.DebugPrintException("ex_89");  
-      System.err.println(e);
-    }
+    sha512=java.security.MessageDigest.getInstance("SHA-512");
     buf=new Buffer();
     packet=new Packet(buf);
     packet.reset();

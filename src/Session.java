@@ -68,7 +68,6 @@ public class Session implements Runnable{
   Buffer buf;
   Packet packet;
   static final int buffer_margin = 32 + 64 + 32;  
-  private java.util.Hashtable config=null;
   private Proxy proxy=null;
   private String hostKeyAlias=null;
   private int serverAliveInterval=0;
@@ -77,8 +76,7 @@ public class Session implements Runnable{
   private long kex_start_time=0L;
   int max_auth_tries = 6;
   int auth_failures = 0;
-  String host="127.0.0.1";
-  String org_host="127.0.0.1";
+  String host=null;
   int port=22;
   String username=null;
   byte[] password=null;
@@ -88,7 +86,6 @@ public class Session implements Runnable{
     buf=new Buffer();
     packet=new Packet(buf);
     this.username = username;
-    this.org_host = this.host = host;
     this.port = port;
     if(this.username==null)
       this.username=(String)(System.getProperties().get("user.name"));
@@ -305,69 +302,25 @@ public class Session implements Runnable{
     }
   }
 
-  static String[] split(String foo, String split){
-    if(foo==null)
-      return null;
-    byte[] buf=str2byte(foo);
-    java.util.Vector bar=new java.util.Vector();
-    int start=0;
-    int index;
-    while(true){
-      index=foo.indexOf(split, start);
-      if(index>=0){
-	bar.addElement(byte2str(buf, start, index-start));
-	start=index+1;
-	continue;
-      }
-      bar.addElement(byte2str(buf, start, buf.length-start));
-      break;
-    }
-    String[] result=new String[bar.size()];
-    for(int i=0; i<result.length; i++){
-      result[i]=(String)(bar.elementAt(i));
-    }
-    return result;
-  }
-  
   private ECDH521 receive_kexinit(Buffer buf) throws Exception {
     int j=buf.getInt();
-    if(j!=buf.getLength()){    // packet was compressed and
-      buf.getByte();           // j is the size of deflated packet.
+    if(j!=buf.getLength()){
+      buf.getByte();
       I_S=new byte[buf.index-5];
-    }
-    else{
+    }else
       I_S=new byte[j-1-buf.getByte()];
-    }
-   System.arraycopy(buf.buffer, buf.s, I_S, 0, I_S.length);
-
-   if(!in_kex){     // We are in rekeying activated by the remote!
-     send_kexinit();
-   }
-
+    System.arraycopy(buf.buffer, buf.s, I_S, 0, I_S.length);
+    if(!in_kex)
+      send_kexinit();
     guess=ECDH521.guess(I_S, I_C);
-    if(guess==null){
+    if(guess==null)
       throw new ExceptionC("Algorithm negotiation fail");
-    }
-
-    if(!isAuthed &&
-       (guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS].equals("none") ||
-        (guess[ECDH521.PROPOSAL_ENC_ALGS_STOC].equals("none")))){
+    if(!isAuthed && (guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS].equals("none") || (guess[ECDH521.PROPOSAL_ENC_ALGS_STOC].equals("none"))))
       throw new ExceptionC("NONE Cipher should not be chosen before authentification is successed.");
-    }
-
-    ECDH521 kex=null;
-    try{
-      kex=new ECDH521();
-    }
-    catch(Exception e){ 
-        AConfig.DebugPrintException("ex_147");
-      throw new ExceptionC(e.toString(), e);
-    }
-
+    ECDH521 kex=new ECDH521();
     kex.init(this, V_S, V_C, I_S, I_C);
     return kex;
   }
-
   private volatile boolean in_kex=false;
   private volatile boolean in_prompt=false;
   public void rekey() throws Exception {
@@ -375,7 +328,7 @@ public class Session implements Runnable{
   }
 
   static String diffString(String str, String[] not_available){
-    String[] stra=split(str, ",");
+    String[] stra=str.split(",");
     String result=null;
     loop:
     for(int i=0; i<stra.length; i++){
@@ -1139,7 +1092,7 @@ public class Session implements Runnable{
     String cipherc2s=AConfig.getNameByConfig("cipher.c2s");
     String ciphers2c=AConfig.getNameByConfig("cipher.s2c");
     Vector result=new Vector();
-    String[] _ciphers=split(ciphers, ",");
+    String[] _ciphers=ciphers.split(",");
     for(int i=0; i<_ciphers.length; i++){
       String cipher=_ciphers[i];
       if(ciphers2c.indexOf(cipher) == -1 && cipherc2s.indexOf(cipher) == -1)
@@ -1173,7 +1126,7 @@ public class Session implements Runnable{
     if(kexes==null || kexes.length()==0)
       return null;
     java.util.Vector result=new java.util.Vector();
-    String[] _kexes=split(kexes, ",");
+    String[] _kexes=kexes.split(",");
     for(int i=0; i<_kexes.length; i++){
       if ( _kexes[i].equals("ecdh-sha2-nistp521") )        
         continue;
@@ -1189,15 +1142,7 @@ public class Session implements Runnable{
   private String[] checkSignatures(String sigs){
     if(sigs==null || sigs.length()==0)
       return null;
-    java.util.Vector result=new java.util.Vector();
-    String[] _sigs=split(sigs, ",");
-    for(int i=0; i<_sigs.length; i++)
-      result.addElement(_sigs[i]);
-   if(result.size()==0)
-      return null;
-    String[] foo=new String[result.size()];
-    System.arraycopy(result.toArray(), 0, foo, 0, result.size());
-    return foo;
+    return sigs.split(",");
   }
   
   public void put(Packet p) throws IOException, java.net.SocketException {
