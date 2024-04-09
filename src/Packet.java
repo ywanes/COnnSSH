@@ -1,7 +1,8 @@
 public class Packet{
-
   private static java.security.SecureRandom random=null;
-  static void setRandom(java.security.SecureRandom foo){ random=foo;}
+  static void setRandom(java.security.SecureRandom foo){ 
+    random=foo;
+  }
   Buffer buffer;
   byte[] ba4=new byte[4]; 
   
@@ -61,8 +62,5 @@ public class Packet{
     buffer.putInt(recipient);
     buffer.putInt(len);
     buffer.index=len+5+9;
-  }
-  Buffer getBuffer(){
-    return buffer;
   }
 }

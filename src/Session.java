@@ -90,14 +90,8 @@ public class Session implements Runnable{
     this.username = username;
     this.org_host = this.host = host;
     this.port = port;
-
-    if(this.username==null) {
-      try {
-        this.username=(String)(System.getProperties().get("user.name"));
-      }catch(SecurityException e){}
-    }
-    if(this.username==null) 
-      throw new ExceptionC("username is not given.");
+    if(this.username==null)
+      this.username=(String)(System.getProperties().get("user.name"));
   }
 
   public void connect() throws ExceptionC{
@@ -167,39 +161,25 @@ public class Session implements Runnable{
   } 
   
   public void connect(int connectTimeout) throws ExceptionC{
-    if(isConnected){
+    if(isConnected)
       throw new ExceptionC("session is already connected");
-    }
-
-    if(random==null){
-      try{
-        random=new java.security.SecureRandom();
-      }
-      catch(Exception e){ 
-          AConfig.DebugPrintException("ex_144");
-        throw new ExceptionC(e.toString(), e);
-      }
-    }
+    random=new java.security.SecureRandom();
     Packet.setRandom(random);
     try	{
       int i, j;
-
       if(proxy==null){
         socket=createSocket(host, port, connectTimeout);
         in=socket.getInputStream();
         out=socket.getOutputStream();
         socket.setTcpNoDelay(true);
       }
-
-      if(connectTimeout>0 && socket!=null){
+      if(connectTimeout>0 && socket!=null)
         socket.setSoTimeout(connectTimeout);
-      }
       isConnected=true;
       byte[] foo=new byte[V_C.length+1];
       System.arraycopy(V_C, 0, foo, 0, V_C.length);
       foo[foo.length-1]=(byte)'\n';
       put(foo, 0, foo.length);
-
       while(true){
         i=0;
         j=0;
@@ -511,7 +491,7 @@ public class Session implements Runnable{
     buf.putInt(0);
     buf.setOffSet(5);
     I_C=new byte[buf.getLength()];
-    buf.getByte(I_C);
+    buf.getByte(I_C, 0, I_C.length);
     write(packet);
   }
 
@@ -524,9 +504,6 @@ public class Session implements Runnable{
   private void checkHost(String chost, int port, ECDH521 kex) throws ExceptionC {
     if(hostKeyAlias!=null)
       chost=hostKeyAlias;
-    byte[] K_S=kex.getHostKey();
-    String key_type=kex.getKeyType();
-    String key_fprint=null;
     if(hostKeyAlias==null && port!=22)
       chost=("["+chost+"]:"+port);
   }
@@ -544,12 +521,10 @@ public class Session implements Runnable{
         if(len_fill>tmp_fill.length){ tmp_fill=new byte[len_fill]; }
         random.nextBytes(tmp_fill);
         System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
-        
       }
     }else{
       packet.padding(8);
     }
-
     if(c2smac!=null){
       c2smac.update(seqo);
       c2smac.update(packet.buffer.buffer, 0, packet.buffer.index);
@@ -746,13 +721,8 @@ public class Session implements Runnable{
       }
       c2scipher.init(AES256CTR.ENCRYPT_MODE, Ec2s, IVc2s);
       c2scipher_size=c2scipher.getIVSize();
-      method=guess[ECDH521.PROPOSAL_MAC_ALGS_CTOS];
       c2smac = new HmacSHA1();
       c2smac.init(MACc2s);
-      method=guess[ECDH521.PROPOSAL_COMP_ALGS_CTOS];
-      initDeflater(method);
-      method=guess[ECDH521.PROPOSAL_COMP_ALGS_STOC];
-      initInflater(method);
     }catch(Exception e){ 
       AConfig.DebugPrintException("ex_149");
       if(e instanceof ExceptionC)
@@ -1143,19 +1113,9 @@ public class Session implements Runnable{
     socket=null;
   }
 
-  private void initDeflater(String method) throws ExceptionC{
-    if(method.equals("none"))
-      return;
-  }
-  private void initInflater(String method) throws ExceptionC{
-    if(method.equals("none"))
-      return;
-  }
-
   public void setProxy(Proxy proxy){ this.proxy=proxy; }
   public void setHost(String host){ this.host=host; }
   public void setPort(int port){ this.port=port; }
-  void setUserName(String username){ this.username=username; }
   public void setInputStream(InputStream in){ this.in=in; }
   public void setOutputStream(OutputStream out){ this.out=out; }
   public void setPassword(String password){

@@ -55,20 +55,13 @@ public class Buffer{
   void skip(int n) {
     index+=n;
   }
-  void putPad(int n) {
-    while(n>0){
-      buffer[index++]=(byte)0;
-      n--;
-    }
-  }
   public void putMPInt(byte[] foo){
     int i=foo.length;
     if((foo[0]&0x80)!=0){
       i++;
-      putInt(i);
+      putInt(i+1);
       putByte((byte)0);
-    }
-    else{
+    }else{
       putInt(i);
     }
     putByte(foo);
@@ -93,25 +86,19 @@ public class Buffer{
     return foo;
   }
   public long getUInt(){
-    long foo = 0L;
-    long bar = 0L;
-    foo = getByte();
+    long foo = getByte();
     foo = ((foo<<8)&0xff00)|(getByte()&0xff);
-    bar = getByte();
+    long bar = getByte();
     bar = ((bar<<8)&0xff00)|(getByte()&0xff);
     foo = ((foo<<16)&0xffff0000) | (bar&0xffff);
     return foo;
   }
   int getShort() {
-    int foo = getByte();
-    foo = ((foo<<8)&0xff00)|(getByte()&0xff);
+    int foo = ((getByte()<<8)&0xff00)|(getByte()&0xff);
     return foo;
   }
   public int getByte() {
     return (buffer[s++]&0xff);
-  }
-  public void getByte(byte[] foo) {
-    getByte(foo, 0, foo.length);
   }
   void getByte(byte[] foo, int start, int len) {
     System.arraycopy(buffer, s, foo, start, len); 
@@ -200,7 +187,7 @@ public class Buffer{
         throw new ExceptionC(msg);
       }
       tmp[i] = new byte[j];
-      getByte(tmp[i]);
+      getByte(tmp[i],0,tmp[i].length);
     }
     return tmp;
   }

@@ -196,7 +196,7 @@ public class ECDH521 {
       buf.putString(Q_C); buf.putString(Q_S);
       buf.putMPInt(K);
       byte[] foo=new byte[buf.getLength()];
-      buf.getByte(foo);
+      buf.getByte(foo, 0, foo.length);
       sha512.update(foo, 0, foo.length);
       H=sha512.digest();
       i=0;
