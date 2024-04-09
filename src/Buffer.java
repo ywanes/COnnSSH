@@ -171,37 +171,12 @@ public class Buffer{
   void checkFreeSize(int n){
     int size = index+n+Session.buffer_margin;
     if(buffer.length<size){
-      int i = buffer.length*2;
-      if(i<size) i = size;
+      int i=buffer.length*2;
+      if(i<size)
+        i=size;
       byte[] tmp = new byte[i];
       System.arraycopy(buffer, 0, tmp, 0, index);
       buffer = tmp;
     }
   }
-
-  byte[][] getBytes(int n, String msg) throws ExceptionC {
-    byte[][] tmp = new byte[n][];
-    for(int i = 0; i < n; i++){
-      int j = getInt();
-      if(getLength() < j){
-        throw new ExceptionC(msg);
-      }
-      tmp[i] = new byte[j];
-      getByte(tmp[i],0,tmp[i].length);
-    }
-    return tmp;
-  }
-
-  static Buffer fromBytes(byte[][] args){
-    int length = args.length*4;
-    for(int i = 0; i < args.length; i++){
-      length += args[i].length;
-    }
-    Buffer buf = new Buffer(length);
-    for(int i = 0; i < args.length; i++){
-      buf.putString(args[i]);
-    }
-    return buf;
-  }
-
 }

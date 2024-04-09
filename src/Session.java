@@ -98,40 +98,24 @@ public class Session implements Runnable{
     connect(timeout);
   }
 
-  static Socket createSocket(String host, int port, int timeout) throws ExceptionC{
+  static Socket createSocket(String host, int port) throws ExceptionC{
     Socket socket=null;
-    if(timeout==0){
-      try{
-        socket=new Socket(host, port);
-        return socket;
-      }
-      catch(Exception e){
-          AConfig.DebugPrintException("ex_162");
-        String message=e.toString();
-        if(e instanceof Throwable)
-          throw new ExceptionC(message, (Throwable)e);
-        throw new ExceptionC(message);
-      }
-    }
     final String _host=host;
     final int _port=port;
     final Socket[] sockp=new Socket[1];
     final Exception[] ee=new Exception[1];
-    String message="";
     Thread tmp=new Thread(new Runnable(){
         public void run(){
           sockp[0]=null;
           try{
             sockp[0]=new Socket(_host, _port);
-          }
-          catch(Exception e){
-              AConfig.DebugPrintException("ex_163");
+          }catch(Exception e){
+            AConfig.DebugPrintException("ex_163");
             ee[0]=e;
             if(sockp[0]!=null && sockp[0].isConnected()){
               try{
                 sockp[0].close();
-              }
-              catch(Exception eee){}
+              }catch(Exception eee){}
             }
             sockp[0]=null;
           }
@@ -140,23 +124,12 @@ public class Session implements Runnable{
     tmp.setName("Opening Socket "+host);
     tmp.start();
     try{ 
-      tmp.join(timeout);
-      message="timeout: ";
-    }
-    catch(java.lang.InterruptedException eee){
-    }
-    if(sockp[0]!=null && sockp[0].isConnected()){
-      socket=sockp[0];
-    }
-    else{
-      message+="socket is not established";
-      if(ee[0]!=null){
-        message=ee[0].toString();
-      }
-      tmp.interrupt();
-      tmp=null;
-      throw new ExceptionC(message, ee[0]);
-    }
+      tmp.join(30000);
+    }catch(java.lang.InterruptedException eee){}
+    if(sockp[0]!=null && sockp[0].isConnected())
+      socket=sockp[0];    
+    else
+      throw new ExceptionC("timeout: ", ee[0]);
     return socket;
   } 
   
@@ -168,13 +141,11 @@ public class Session implements Runnable{
     try	{
       int i, j;
       if(proxy==null){
-        socket=createSocket(host, port, connectTimeout);
+        socket=createSocket(host, port);
         in=socket.getInputStream();
         out=socket.getOutputStream();
         socket.setTcpNoDelay(true);
       }
-      if(connectTimeout>0 && socket!=null)
-        socket.setSoTimeout(connectTimeout);
       isConnected=true;
       byte[] foo=new byte[V_C.length+1];
       System.arraycopy(V_C, 0, foo, 0, V_C.length);
@@ -233,7 +204,6 @@ public class Session implements Runnable{
 	if(kex.getState()==ECDH521.STATE_END)
 	  break;
       }
-
       try{
         long tmp=System.currentTimeMillis();
         in_prompt = true;
@@ -261,7 +231,6 @@ public class Session implements Runnable{
       }catch(NumberFormatException e){
         throw new ExceptionC("MaxAuthTries: "+AConfig.getNameByConfig("MaxAuthTries"), e);
       }
-
       try{
         packet.reset();
         buf.putByte((byte)Session.SSH_MSG_SERVICE_REQUEST);
@@ -304,14 +273,9 @@ public class Session implements Runnable{
         if(isConnected){
           connectThread=new Thread(this);
           connectThread.setName("Connect thread "+host+" session");
-          if(daemon_thread){
+          if(daemon_thread)
             connectThread.setDaemon(daemon_thread);
-          }
           connectThread.start();
-        }
-        else{
-          // The session has been already down and
-          // we don't have to start new thread.
         }
       }
     }
@@ -550,17 +514,11 @@ public class Session implements Runnable{
       if(s2ccipher!=null)
         s2ccipher.update(buf.buffer, 0, s2ccipher_size, buf.buffer, 0);
       j=((buf.buffer[0]<<24)&0xff000000)|((buf.buffer[1]<<16)&0x00ff0000)|((buf.buffer[2]<< 8)&0x0000ff00)|((buf.buffer[3]    )&0x000000ff);
-      if(j<5 || j>PACKET_MAX_SIZE)
-        start_discard(buf, s2ccipher, s2cmac, j, PACKET_MAX_SIZE);
       int need = j+4-s2ccipher_size;
       if((buf.index+need)>buf.buffer.length){
         byte[] foo=new byte[buf.index+need];
         System.arraycopy(buf.buffer, 0, foo, 0, buf.index);
         buf.buffer=foo;
-      }
-      if((need%s2ccipher_size)!=0){
-        String message="Bad packet length "+need;
-        start_discard(buf, s2ccipher, s2cmac, j, PACKET_MAX_SIZE-s2ccipher_size);
       }
       if(need>0){
 	getByte(buf.buffer, buf.index, need); buf.index+=(need);
@@ -576,7 +534,6 @@ public class Session implements Runnable{
         if(!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)){
           if(need > PACKET_MAX_SIZE)
             throw new IOException("MAC Error");
-          start_discard(buf, s2ccipher, s2cmac, j, PACKET_MAX_SIZE-need);
           continue;
 	}
       }
@@ -592,20 +549,20 @@ public class Session implements Runnable{
       }else if(type==SSH_MSG_IGNORE){
       }else if(type==SSH_MSG_UNIMPLEMENTED){
         buf.rewind();
-        buf.getInt();buf.getShort();
-	int reason_id=buf.getInt();
+        buf.getInt();
+        buf.getShort();
+	buf.getInt();
       }else if(type==SSH_MSG_DEBUG){
         buf.rewind();
-        buf.getInt();buf.getShort();
+        buf.getInt();
+        buf.getShort();
       }else if(type==SSH_MSG_CHANNEL_WINDOW_ADJUST){
           buf.rewind();
-          buf.getInt();buf.getShort();
+          buf.getInt();
+          buf.getShort();          
 	  Channel c=Channel.getChannel(buf.getInt(), this);
-	  if(c==null){
-	  }
-	  else{
+	  if(c!=null)
 	    c.addRemoteWindowSize(buf.getUInt()); 
-	  }
       }else{
         isAuthed=true;
         break;
@@ -613,41 +570,6 @@ public class Session implements Runnable{
     }
     buf.rewind();
     return buf;
-  }
-
-  private void start_discard(Buffer buf, AES256CTR cipher, HmacSHA1 mac, 
-                             int packet_length, int discard) throws ExceptionC, IOException{
-    HmacSHA1 discard_mac = null;
-
-    if(!cipher.isCBC()){
-      throw new ExceptionC("Packet corrupt");
-    }
-
-    if(packet_length!=PACKET_MAX_SIZE && mac != null){
-      discard_mac = mac;
-    }
-
-    discard -= buf.index;
-
-    while(discard>0){
-      buf.reset();
-      int len = discard>buf.buffer.length ? buf.buffer.length : discard;
-      getByte(buf.buffer, 0, len);
-      if(discard_mac!=null){
-        discard_mac.update(buf.buffer, 0, len);
-      }
-      discard -= len;
-    }
-
-    if(discard_mac!=null){
-      discard_mac.doFinal(buf.buffer, 0);
-    }
-
-    throw new ExceptionC("Packet corrupt");
-  }
-
-  byte[] getSessionId(){
-    return session_id;
   }
 
   private void receive_newkeys(Buffer buf, ECDH521 kex) throws Exception {

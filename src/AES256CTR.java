@@ -8,7 +8,6 @@ public class AES256CTR{
   public int getIVSize(){return ivsize;} 
   public int getBlockSize(){return bsize;}
   public void init(int mode, byte[] key, byte[] iv) throws Exception{
-    String pad="NoPadding";      
     byte[] tmp;
     if(iv.length>ivsize){
       tmp=new byte[ivsize];
@@ -22,16 +21,12 @@ public class AES256CTR{
     }
     try{
       SecretKeySpec keyspec=new SecretKeySpec(key, "AES");
-      cipher=javax.crypto.Cipher.getInstance("AES/CTR/"+pad);
+      cipher=javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
       synchronized(javax.crypto.Cipher.class){
-        cipher.init((mode==ENCRYPT_MODE?
-                     javax.crypto.Cipher.ENCRYPT_MODE:
-                     javax.crypto.Cipher.DECRYPT_MODE),
-                    keyspec, new IvParameterSpec(iv));
+        cipher.init((mode==ENCRYPT_MODE?javax.crypto.Cipher.ENCRYPT_MODE:javax.crypto.Cipher.DECRYPT_MODE),keyspec, new IvParameterSpec(iv));
       }
-    }
-    catch(Exception e){
-        AConfig.DebugPrintException("ex_70");
+    }catch(Exception e){
+      AConfig.DebugPrintException("ex_70");
       cipher=null;
       throw e;
     }
@@ -39,5 +34,4 @@ public class AES256CTR{
   public void update(byte[] foo, int s1, int len, byte[] bar, int s2) throws Exception{
     cipher.update(foo, s1, len, bar, s2);
   }
-  public boolean isCBC(){return false; }
 }
