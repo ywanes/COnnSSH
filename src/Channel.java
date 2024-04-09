@@ -1,4 +1,3 @@
-import java.io.PipedInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.IOException;
@@ -10,49 +9,23 @@ public class Channel implements Runnable{
 
   Channel(Session _session) throws ExceptionC{
     this.session=_session;
-    
     this.channel=this;
-    /*
-    synchronized(pool){
-      id=index++;
-      pool.addElement(this);
-    }
-    */
-    
     setInputStream(System.in);
     setOutputStream(System.out);
     connect(3000);
     while (!isEOF()) {}
   }
-    
   
   private boolean out_dontclose=false;
   static final int SSH_MSG_CHANNEL_OPEN_CONFIRMATION=      91;
   static final int SSH_MSG_CHANNEL_OPEN_FAILURE=           92;
   static final int SSH_OPEN_ADMINISTRATIVELY_PROHIBITED=    1;
   static int index=0; 
-  //private static java.util.Vector pool=new java.util.Vector();
   public static Channel channel=null;
   int id;
   
-  
   static Channel getChannel(int id, Session session){
-    /*
-    synchronized(pool){
-      for(int i=0; i<pool.size(); i++){
-        Channel c=(Channel)(pool.elementAt(i));
-        if(c.id==id && c.session==session)
-          return c;
-      }
-    }
-    return null;
-    */
     return channel;
-  }
-  static void del(Channel c){
-    //synchronized(pool){
-//      pool.removeElement(c);
-//    }
   }
 
   volatile int recipient=-1;
@@ -134,13 +107,7 @@ public class Channel implements Runnable{
       throw new ExceptionC(e.toString(), e);
     }
   }
-  public void setXForwarding(boolean foo){}
   public boolean isEOF() {return eof_remote;}
-  void getData(Buffer buf){
-    setRecipient(buf.getInt());
-    setRemoteWindowSize(buf.getUInt());
-    setRemotePacketSize(buf.getInt());
-  }
   
   public void setInputStream(InputStream in){
     this.in=in;
@@ -166,64 +133,6 @@ public class Channel implements Runnable{
     return null;
   }
 
-  class MyPipedInputStream extends PipedInputStream{
-    private int BUFFER_SIZE = 1024;
-    private int max_buffer_size = BUFFER_SIZE;
-
-    public synchronized void updateReadSide() throws IOException {
-      if(available() != 0)
-        return;
-      in = 0;
-      out = 0;
-      buffer[in++] = 0;
-      read();
-    }
-    private int freeSpace(){
-      int size = 0;
-      if(out < in){
-        size = buffer.length-in;
-      }else if(in < out){
-        if(in == -1)
-          size = buffer.length;
-        else
-          size = out - in;
-      }
-      return size;
-    } 
-    synchronized void checkSpace(int len) throws IOException {
-      int size = freeSpace();
-      if(size<len){
-        int datasize=buffer.length-size;
-        int foo = buffer.length;
-        while((foo - datasize) < len)
-          foo*=2;
-        if(foo > max_buffer_size)
-          foo = max_buffer_size;
-        if((foo - datasize) < len) 
-          return;
-        byte[] tmp = new byte[foo];
-        if(out < in){
-          System.arraycopy(buffer, 0, tmp, 0, buffer.length);
-        }else if(in < out){
-          if(in != -1) {
-            System.arraycopy(buffer, 0, tmp, 0, in);
-            System.arraycopy(buffer, out, tmp, tmp.length-(buffer.length-out),(buffer.length-out));
-            out = tmp.length-(buffer.length-out);
-          }
-        }else if(in == out){
-          System.arraycopy(buffer, 0, tmp, 0, buffer.length);
-          in=buffer.length;
-        }
-        buffer=tmp;
-      }else if(buffer.length == size && size > BUFFER_SIZE) { 
-        int  i = size/2;
-        if(i<BUFFER_SIZE) 
-          i = BUFFER_SIZE;
-        byte[] tmp = new byte[i];
-        buffer=tmp;
-      }
-    }
-  }
   void setLocalWindowSize(int foo){ this.lwsize=foo; }
   synchronized void setRemoteWindowSize(long foo){ this.rwsize=foo; }
   synchronized void addRemoteWindowSize(long foo){ 
@@ -274,8 +183,7 @@ public class Channel implements Runnable{
       synchronized(this){
         getSession().write(packet);
       }
-    }
-    catch(Exception e){
+    }catch(Exception e){
       AConfig.DebugPrintException("ex_7");
     }
   }
@@ -283,49 +191,25 @@ public class Channel implements Runnable{
     return close;
   }
   static void disconnect(Session session){
-    /*
-    Channel[] channels=null;
-    int count=0;
-    synchronized(pool){
-      channels=new Channel[pool.size()];
-      for(int i=0; i<pool.size(); i++){
-	try{
-	  Channel c=((Channel)(pool.elementAt(i)));
-	  if(c.session==session){
-	    channels[count++]=c;
-	  }
-	}catch(Exception e){
-          AConfig.DebugPrintException("ex_8");
-	}
-      } 
-    }
-    for(int i=0; i<count; i++)
-      channels[i].disconnect();
-    */
     channel.disconnect();
   }
 
   public void disconnect(){
     try{
       synchronized(this){
-        if(!connected){
+        if(!connected)
           return;
-        }
         connected=false;
       }
       close();
       eof_remote=eof_local=true;
       try{
         close();
-      }
-      catch(Exception e){
+      }catch(Exception e){
         AConfig.DebugPrintException("ex_9");
       }
-    }finally{
-      Channel.del(this);
-    }
+    }finally{}
   }
-
   public boolean isConnected(){
     Session _session=this.session;
     if(_session!=null)
@@ -333,15 +217,12 @@ public class Channel implements Runnable{
     return false;
   }
   public void sendSignal(String signal) throws Exception {}
-
   void setExitStatus(int status){ exitstatus=status; }
   public int getExitStatus(){ return exitstatus; }
-
   public Session getSession() throws ExceptionC{ 
     Session _session=session;
-    if(_session==null){
+    if(_session==null)
       throw new ExceptionC("session is not available");
-    }
     return _session;
   }
   public int getId(){ return id; }
@@ -369,18 +250,15 @@ public class Channel implements Runnable{
       buf.putString(str2byte("open failed"));
       buf.putString((byte[])str2byte(""));      
       getSession().write(packet);
-    }
-    catch(Exception e){
-        AConfig.DebugPrintException("ex_10");
+    }catch(Exception e){
+      AConfig.DebugPrintException("ex_10");
     }
   }
 
   protected void sendChannelOpen() throws Exception {
     Session _session=getSession();
-    if(!_session.isConnected()){
+    if(!_session.isConnected())
       throw new ExceptionC("session is down");
-    }
-
     Buffer buf=new Buffer(100);
     Packet packet=new Packet(buf);
     packet.reset();
@@ -389,45 +267,29 @@ public class Channel implements Runnable{
     buf.putInt(this.id);
     buf.putInt(this.lwsize);
     buf.putInt(this.lmpsize);
-
     _session.write(packet);
-
     int retry=2000;
-    long start=System.currentTimeMillis();
     long timeout=connectTimeout;
     if(timeout!=0L) retry = 1;
     synchronized(this){
-      while(this.getRecipient()==-1 &&
-            _session.isConnected() &&
-             retry>0){
-        if(timeout>0L){
-          if((System.currentTimeMillis()-start)>timeout){
-            retry=0;
-            continue;
-          }
-        }
+      if(this.getRecipient()==-1 && _session.isConnected() && retry>0){
         try{
           long t = timeout==0L ? 10L : timeout;
           this.notifyme=1;
           wait(t);
-        }
-        catch(java.lang.InterruptedException e){
-        }
-        finally{
+        }catch(java.lang.InterruptedException e){
+        }finally{
           this.notifyme=0;
         }
         retry--;
       }
     }
-    if(!_session.isConnected()){
+    if(!_session.isConnected())
       throw new ExceptionC("session is down");
-    }
-    if(this.getRecipient()==-1){  // timeout
+    if(this.getRecipient()==-1)
       throw new ExceptionC("channel is not opened.");
-    }
-    if(this.open_confirmation==false){
+    if(this.open_confirmation==false)
       throw new ExceptionC("channel is not opened.");
-    }
     connected=true;
   }
 
@@ -457,7 +319,6 @@ public class Channel implements Runnable{
   }
   
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
-  static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
   static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
   
 }
