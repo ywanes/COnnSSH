@@ -406,7 +406,12 @@ public class Session implements Runnable{
       packet.padding(8);
     }
     if(c2smac!=null){
-      c2smac.update(seqo);
+      byte [] tmp=new byte[4];
+      tmp[0] = (byte)(seqo>>>24);
+      tmp[1] = (byte)(seqo>>>16);
+      tmp[2] = (byte)(seqo>>>8);
+      tmp[3] = (byte)seqo;
+      c2smac.update(tmp, 0, 4);
       c2smac.update(packet.buffer.buffer, 0, packet.buffer.index);
       c2smac.doFinal(packet.buffer.buffer, packet.buffer.index);
     }
@@ -443,7 +448,12 @@ public class Session implements Runnable{
 	}
       }
       if(s2cmac!=null){
-	s2cmac.update(seqi);
+        byte [] tmp=new byte[4];
+        tmp[0] = (byte)(seqi>>>24);
+        tmp[1] = (byte)(seqi>>>16);
+        tmp[2] = (byte)(seqi>>>8);
+        tmp[3] = (byte)seqi;
+        s2cmac.update(tmp, 0, 4);
 	s2cmac.update(buf.buffer, 0, buf.index);
         s2cmac.doFinal(s2cmac_result1, 0);
 	getByte(s2cmac_result2, 0, s2cmac_result2.length);

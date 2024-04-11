@@ -18,13 +18,6 @@ class HmacSHA1{
     mac = Mac.getInstance("HmacSHA1");
     mac.init(skey);
   }   
-  public void update(int i){
-    tmp[0] = (byte)(i>>>24);
-    tmp[1] = (byte)(i>>>16);
-    tmp[2] = (byte)(i>>>8);
-    tmp[3] = (byte)i;
-    update(tmp, 0, 4);
-  }
   public void update(byte foo[], int s, int l){
     mac.update(foo, s, l);      
   }
@@ -34,8 +27,5 @@ class HmacSHA1{
     }catch(ShortBufferException e){
       System.err.println(e);
     }
-  }
-  public String getName(){
-    return "hmac-sha1";
   }
 }
