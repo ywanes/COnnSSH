@@ -359,15 +359,6 @@ public class Session implements Runnable{
       }
     }
 
-    String kex=AConfig.getNameByConfig("kex");
-    String[] not_available_kexes=checkKexes(AConfig.getNameByConfig("CheckKexes"));
-    if(not_available_kexes!=null && not_available_kexes.length>0){
-      kex=diffString(kex, not_available_kexes);
-      if(kex==null){
-        throw new ExceptionC("There are not any available kexes.");
-      }
-    }
-
     String server_host_key = AConfig.getNameByConfig("server_host_key");
     String[] not_available_shks =
       checkSignatures(AConfig.getNameByConfig("CheckSignatures"));
@@ -379,31 +370,31 @@ public class Session implements Runnable{
     }
     in_kex=true;
     kex_start_time=System.currentTimeMillis();
-    Buffer buf = new Buffer();                // send_kexinit may be invoked
-    Packet packet = new Packet(buf);          // by user thread.
+    Buffer buf = new Buffer();
+    Packet packet = new Packet(buf);
     packet.reset();
     buf.putByte((byte) SSH_MSG_KEXINIT);
     synchronized(random){
       //random fill
-      byte[] foo_fill=buf.buffer;
       int start_fill=buf.index;
       int len_fill=16;
       byte[] tmp_fill=new byte[16];
       if(len_fill>tmp_fill.length){ tmp_fill=new byte[len_fill]; }
       random.nextBytes(tmp_fill);
-      System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
+      System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
       buf.skip(16);
     }
-    buf.putString(str2byte(kex));
+    
+    buf.putString(str2byte("ecdh-sha2-nistp521"));
     buf.putString(str2byte(server_host_key));
-    buf.putString(str2byte(cipherc2s));
-    buf.putString(str2byte(ciphers2c));
-    buf.putString(str2byte(AConfig.getNameByConfig("mac.c2s")));
-    buf.putString(str2byte(AConfig.getNameByConfig("mac.s2c")));
-    buf.putString(str2byte(AConfig.getNameByConfig("compression.c2s")));
-    buf.putString(str2byte(AConfig.getNameByConfig("compression.s2c")));
-    buf.putString(str2byte(AConfig.getNameByConfig("lang.c2s")));
-    buf.putString(str2byte(AConfig.getNameByConfig("lang.s2c")));
+    buf.putString(str2byte("aes256-ctr"));
+    buf.putString(str2byte("aes256-ctr"));
+    buf.putString(str2byte("hmac-sha1"));
+    buf.putString(str2byte("hmac-sha1"));
+    buf.putString(str2byte("none"));
+    buf.putString(str2byte("none"));
+    buf.putString(str2byte(""));
+    buf.putString(str2byte(""));
     buf.putByte((byte)0);
     buf.putInt(0);
     buf.setOffSet(5);
@@ -1198,7 +1189,6 @@ public class Session implements Runnable{
 
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
   static String byte2str(byte[] str){return byte2str(str, 0, str.length, "UTF-8");}
-  static String byte2str(byte[] str, int s, int l){return byte2str(str, s, l, "UTF-8");}  
   static String byte2str(byte[] str, int s, int l, String encoding){try{ return new String(str, s, l, encoding); }catch(java.io.UnsupportedEncodingException e){return new String(str, s, l);}}
   static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
   
