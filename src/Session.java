@@ -347,27 +347,6 @@ public class Session implements Runnable{
     if(in_kex)
       return;
 
-    String cipherc2s=AConfig.getNameByConfig("cipher.c2s");
-    String ciphers2c=AConfig.getNameByConfig("cipher.s2c");
-
-    String[] not_available_ciphers=checkCiphers(AConfig.getNameByConfig("CheckCiphers"));
-    if(not_available_ciphers!=null && not_available_ciphers.length>0){
-      cipherc2s=diffString(cipherc2s, not_available_ciphers);
-      ciphers2c=diffString(ciphers2c, not_available_ciphers);
-      if(cipherc2s==null || ciphers2c==null){
-        throw new ExceptionC("There are not any available ciphers.");
-      }
-    }
-
-    String server_host_key = AConfig.getNameByConfig("server_host_key");
-    String[] not_available_shks =
-      checkSignatures(AConfig.getNameByConfig("CheckSignatures"));
-    if(not_available_shks!=null && not_available_shks.length>0){
-      server_host_key=diffString(server_host_key, not_available_shks);
-      if(server_host_key==null){
-        throw new ExceptionC("There are not any available sig algorithm.");
-      }
-    }
     in_kex=true;
     kex_start_time=System.currentTimeMillis();
     Buffer buf = new Buffer();
@@ -386,7 +365,7 @@ public class Session implements Runnable{
     }
     
     buf.putString(str2byte("ecdh-sha2-nistp521"));
-    buf.putString(str2byte(server_host_key));
+    buf.putString(str2byte("ssh-rsa,ecdsa-sha2-nistp521"));
     buf.putString(str2byte("aes256-ctr"));
     buf.putString(str2byte("aes256-ctr"));
     buf.putString(str2byte("hmac-sha1"));
