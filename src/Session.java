@@ -107,7 +107,7 @@ public class Session implements Runnable{
           try{
             sockp[0]=new Socket(_host, _port);
           }catch(Exception e){
-            AConfig.DebugPrintException("ex_163");
+            System.out.println("ex_163");
             ee[0]=e;
             if(sockp[0]!=null && sockp[0].isConnected()){
               try{
@@ -220,13 +220,6 @@ public class Session implements Runnable{
       }else{
         in_kex=false;
 	throw new ExceptionC("invalid protocol(newkyes): "+buf.getCommand());
-      }
-      try{
-        String s = AConfig.getNameByConfig("MaxAuthTries");
-        if(s!=null)
-          max_auth_tries = Integer.parseInt(s);
-      }catch(NumberFormatException e){
-        throw new ExceptionC("MaxAuthTries: "+AConfig.getNameByConfig("MaxAuthTries"), e);
       }
       try{
         packet.reset();
@@ -569,7 +562,7 @@ public class Session implements Runnable{
       c2smac = new HmacSHA1();
       c2smac.init(MACc2s);
     }catch(Exception e){ 
-      AConfig.DebugPrintException("ex_149");
+      System.out.println("ex_149");
       if(e instanceof ExceptionC)
         throw e;
       throw new ExceptionC(e.toString(), e);       
@@ -751,7 +744,7 @@ public class Session implements Runnable{
           try{
             channel.put(foo, start[0], length[0]);
           }catch(Exception e){
-            AConfig.DebugPrintException("ex_150");
+            System.out.println("ex_150");
             try{channel.disconnect();}catch(Exception ee){}
             break;
           }
@@ -774,7 +767,7 @@ public class Session implements Runnable{
 	  buf.getShort();
 	  i=buf.getInt();
 	  channel=Channel.getChannel(i, this);
-	  buf.getInt();                   // data_type_code == 1
+	  buf.getInt();
 	  foo=buf.getString(start, length);
 	  if(channel==null)
 	    break;
@@ -923,14 +916,14 @@ public class Session implements Runnable{
       }
     }
     catch(Exception e){
-      AConfig.DebugPrintException("ex_151 " + e.toString());
+      System.out.println("ex_151 " + e.toString());
       in_kex=false;
     }
     try{
       disconnect();
-    }catch(NullPointerException e){
+    //}catch(NullPointerException e){
     }catch(Exception e){
-      AConfig.DebugPrintException("ex_152");      
+      System.out.println("ex_152");      
     }
     isConnected=false;
   }
@@ -953,7 +946,7 @@ public class Session implements Runnable{
       if(socket!=null)
         socket.close();
     }catch(Exception e){
-        AConfig.DebugPrintException("ex_153");
+        System.out.println("ex_153");
     }
     socket=null;
   }
@@ -982,7 +975,7 @@ public class Session implements Runnable{
       this.timeout=timeout;
     }
     catch(Exception e){
-        AConfig.DebugPrintException("ex_156");
+        System.out.println("ex_156");
       if(e instanceof Throwable)
         throw new ExceptionC(e.toString(), (Throwable)e);
       throw new ExceptionC(e.toString());
@@ -1024,7 +1017,6 @@ public class Session implements Runnable{
     buf.putByte((byte)0);
     write(packet);
   }
-  
   public String getHost(){return host;}
   public String getUserName(){return username;}
   public int getPort(){return port;}
@@ -1034,107 +1026,33 @@ public class Session implements Runnable{
   public String getHostKeyAlias(){
     return hostKeyAlias;
   }
-
   public void setServerAliveInterval(int interval) throws ExceptionC {
     setTimeout(interval);
     this.serverAliveInterval=interval;
   }
-
   public int getServerAliveInterval(){
     return this.serverAliveInterval;
   }
-
   public void setServerAliveCountMax(int count){
     this.serverAliveCountMax=count;
   }
-
   public int getServerAliveCountMax(){
     return this.serverAliveCountMax;
   }
-
   public void setDaemonThread(boolean enable){
     this.daemon_thread=enable;
   }
-
-  private String[] checkCiphers(String ciphers){
-    if(ciphers==null || ciphers.length()==0)
-      return null;
-    String cipherc2s=AConfig.getNameByConfig("cipher.c2s");
-    String ciphers2c=AConfig.getNameByConfig("cipher.s2c");
-    Vector result=new Vector();
-    String[] _ciphers=ciphers.split(",");
-    for(int i=0; i<_ciphers.length; i++){
-      String cipher=_ciphers[i];
-      if(ciphers2c.indexOf(cipher) == -1 && cipherc2s.indexOf(cipher) == -1)
-        continue; 
-      if ( cipher.equals("aes256-ctr") )
-        continue;
-      result.addElement(cipher);
-    }
-    if(result.size()==0)
-      return null;
-    String[] foo=new String[result.size()];
-    System.arraycopy(result.toArray(), 0, foo, 0, result.size());
-    return foo;
-  }
-
-  static boolean checkCipher(String cipher){
-    try{
-      AES256CTR _c=new AES256CTR();
-      _c.init(AES256CTR.ENCRYPT_MODE,
-              new byte[_c.getBlockSize()],
-              new byte[_c.getIVSize()]);
-      return true;
-    }
-    catch(Exception e){
-        AConfig.DebugPrintException("ex_157 " + cipher);
-      return false;
-    }
-  }
-  
-  private String[] checkKexes(String kexes){
-    if(kexes==null || kexes.length()==0)
-      return null;
-    java.util.Vector result=new java.util.Vector();
-    String[] _kexes=kexes.split(",");
-    for(int i=0; i<_kexes.length; i++){
-      if ( _kexes[i].equals("ecdh-sha2-nistp521") )        
-        continue;
-      result.addElement(_kexes[i]);
-    }
-    if(result.size()==0)
-      return null;
-    String[] foo=new String[result.size()];
-    System.arraycopy(result.toArray(), 0, foo, 0, result.size());
-    return foo;
-  }
-
-  private String[] checkSignatures(String sigs){
-    if(sigs==null || sigs.length()==0)
-      return null;
-    return sigs.split(",");
-  }
-  
   public void put(Packet p) throws IOException, java.net.SocketException {
     out.write(p.buffer.buffer, 0, p.buffer.index);
     out.flush();
   }
   void put(byte[] array, int begin, int length) throws IOException {
-
     out.write(array, begin, length);
     out.flush();
-  }
-  void put_ext(byte[] array, int begin, int length) throws IOException {
-    out_ext.write(array, begin, length);
-    out_ext.flush();
   }
   int getByte() throws IOException {
     return in.read();
   }
-  void getByte(byte[] array) throws IOException {
-    getByte(array, 0, array.length);
-  }
-
   void getByte(byte[] array, int begin, int length) throws IOException {
     do{
       int completed = in.read(array, begin, length);

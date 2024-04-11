@@ -51,7 +51,7 @@ public class ECDH521 {
       buf.putString(Q_C);
     }
     catch(Exception e){
-      AConfig.DebugPrintException("ex_90");
+      System.out.println("ex_90");
       if(e instanceof Throwable)
         throw new ExceptionC(e.toString(), (Throwable)e);
       throw new ExceptionC(e.toString());

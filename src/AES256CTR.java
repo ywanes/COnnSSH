@@ -26,7 +26,7 @@ public class AES256CTR{
         cipher.init((mode==ENCRYPT_MODE?javax.crypto.Cipher.ENCRYPT_MODE:javax.crypto.Cipher.DECRYPT_MODE),keyspec, new IvParameterSpec(iv));
       }
     }catch(Exception e){
-      AConfig.DebugPrintException("ex_70");
+      System.out.println("ex_70");
       cipher=null;
       throw e;
     }

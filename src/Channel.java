@@ -99,7 +99,7 @@ public class Channel implements Runnable{
         }
         new Thread(this).start();
     }catch(Exception e){
-      AConfig.DebugPrintException("ex_2");
+      System.out.println("ex_2");
       connected=false;
       disconnect();
       if(e instanceof ExceptionC) 
@@ -184,7 +184,7 @@ public class Channel implements Runnable{
         getSession().write(packet);
       }
     }catch(Exception e){
-      AConfig.DebugPrintException("ex_7");
+      System.out.println("ex_7");
     }
   }
   public boolean isClosed(){
@@ -206,7 +206,7 @@ public class Channel implements Runnable{
       try{
         close();
       }catch(Exception e){
-        AConfig.DebugPrintException("ex_9");
+        System.out.println("ex_9");
       }
     }finally{}
   }
@@ -251,7 +251,7 @@ public class Channel implements Runnable{
       buf.putString((byte[])str2byte(""));      
       getSession().write(packet);
     }catch(Exception e){
-      AConfig.DebugPrintException("ex_10");
+      System.out.println("ex_10");
     }
   }
 
@@ -314,7 +314,7 @@ public class Channel implements Runnable{
 	getSession().write(packet, this, i);
       }
     }catch(Exception e){
-      AConfig.DebugPrintException("ex_20");
+      System.out.println("ex_20");
     }
   }
   
