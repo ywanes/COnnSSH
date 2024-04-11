@@ -44,8 +44,8 @@ public class Session implements Runnable{
   private int seqi=0;
   private int seqo=0;
   String[] guess=null;
-  private AES256CTR s2ccipher;
-  private AES256CTR c2scipher;
+  private javax.crypto.Cipher s2ccipher;
+  private javax.crypto.Cipher c2scipher;
   private javax.crypto.Mac s2cmac;
   private javax.crypto.Mac c2smac;
   private byte[] s2cmac_result1;
@@ -533,8 +533,7 @@ public class Session implements Runnable{
     try{
       String method;
       method=guess[ECDH521.PROPOSAL_ENC_ALGS_STOC];
-      s2ccipher=new AES256CTR();
-      while(s2ccipher.getBlockSize()>Es2c.length){
+      while(32>Es2c.length){
         buf.reset();
         buf.putMPInt(K);
         buf.putByte(H);
@@ -546,21 +545,34 @@ public class Session implements Runnable{
 	System.arraycopy(foo, 0, bar, Es2c.length, foo.length);
 	Es2c=bar;
       }
-      s2ccipher.init(AES256CTR.DECRYPT_MODE, Es2c, IVs2c);
-      s2ccipher_size=s2ccipher.getIVSize();
+      byte[] tmp;
+      if(IVs2c.length>16){
+        tmp=new byte[16];
+        System.arraycopy(IVs2c, 0, tmp, 0, tmp.length);
+        IVs2c=tmp;
+      }
+      if(Es2c.length>32){
+        tmp=new byte[32];
+        System.arraycopy(Es2c, 0, tmp, 0, tmp.length);
+        Es2c=tmp;
+      }      
+      s2ccipher=javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+      synchronized(javax.crypto.Cipher.class){
+        s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE,new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
+      }
+      s2ccipher_size=16;
       method=guess[ECDH521.PROPOSAL_MAC_ALGS_STOC];
       if(MACs2c.length>20){
-        byte[] tmp = new byte[20];
-        System.arraycopy(MACs2c, 0, tmp, 0, 20);	  
-        MACs2c = tmp;
+        byte[] tmp2 = new byte[20];
+        System.arraycopy(MACs2c, 0, tmp2, 0, 20);	  
+        MACs2c = tmp2;
       }
       s2cmac = javax.crypto.Mac.getInstance("HmacSHA1");
       s2cmac.init(new javax.crypto.spec.SecretKeySpec(MACs2c, "HmacSHA1"));
       s2cmac_result1=new byte[20];
       s2cmac_result2=new byte[20];
       method=guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS];
-      c2scipher = new AES256CTR();
-      while(c2scipher.getBlockSize()>Ec2s.length){
+      while(32>Ec2s.length){
         buf.reset();
         buf.putMPInt(K);
         buf.putByte(H);
@@ -572,12 +584,26 @@ public class Session implements Runnable{
 	System.arraycopy(foo, 0, bar, Ec2s.length, foo.length);
 	Ec2s=bar;
       }
-      c2scipher.init(AES256CTR.ENCRYPT_MODE, Ec2s, IVc2s);
-      c2scipher_size=c2scipher.getIVSize();
+      byte[] tmp3;
+      if(IVc2s.length>16){
+        tmp3=new byte[16];
+        System.arraycopy(IVc2s, 0, tmp3, 0, tmp3.length);
+        IVc2s=tmp3;
+      }
+      if(Ec2s.length>32){
+        tmp3=new byte[32];
+        System.arraycopy(Ec2s, 0, tmp3, 0, tmp3.length);
+        Ec2s=tmp3;
+      }      
+      c2scipher=javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+      synchronized(javax.crypto.Cipher.class){
+        c2scipher.init(javax.crypto.Cipher.ENCRYPT_MODE,new javax.crypto.spec.SecretKeySpec(Ec2s, "AES"), new javax.crypto.spec.IvParameterSpec(IVc2s));
+      }
+      c2scipher_size=16;
       if(MACc2s.length>20){
-        byte[] tmp = new byte[20];
-        System.arraycopy(MACc2s, 0, tmp, 0, 20);	  
-        MACc2s = tmp;
+        byte[] tmp4 = new byte[20];
+        System.arraycopy(MACc2s, 0, tmp4, 0, 20);	  
+        MACc2s = tmp4;
       }
       c2smac = javax.crypto.Mac.getInstance("HmacSHA1");
       c2smac.init(new javax.crypto.spec.SecretKeySpec(MACc2s, "HmacSHA1"));
