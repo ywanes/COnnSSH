@@ -46,8 +46,8 @@ public class Session implements Runnable{
   String[] guess=null;
   private AES256CTR s2ccipher;
   private AES256CTR c2scipher;
-  private HmacSHA1 s2cmac;
-  private HmacSHA1 c2smac;
+  private javax.crypto.Mac s2cmac;
+  private javax.crypto.Mac c2smac;
   private byte[] s2cmac_result1;
   private byte[] s2cmac_result2;
   private Socket socket;
@@ -420,7 +420,7 @@ public class Session implements Runnable{
       c2scipher.update(buf, 0, packet.buffer.index, buf, 0);
     }
     if(c2smac!=null){
-      packet.buffer.skip(c2smac.getBlockSize());
+      packet.buffer.skip(20);
     }
   }
 
@@ -549,10 +549,19 @@ public class Session implements Runnable{
       s2ccipher.init(AES256CTR.DECRYPT_MODE, Es2c, IVs2c);
       s2ccipher_size=s2ccipher.getIVSize();
       method=guess[ECDH521.PROPOSAL_MAC_ALGS_STOC];
-      s2cmac = new HmacSHA1();
-      s2cmac.init(MACs2c);
-      s2cmac_result1=new byte[s2cmac.getBlockSize()];
-      s2cmac_result2=new byte[s2cmac.getBlockSize()];
+      //s2cmac = new HmacSHA1();
+      //s2cmac.init(MACs2c);
+      if(MACs2c.length>20){
+        byte[] tmp = new byte[20];
+        System.arraycopy(MACs2c, 0, tmp, 0, 20);	  
+        MACs2c = tmp;
+      }
+      javax.crypto.spec.SecretKeySpec skey = new javax.crypto.spec.SecretKeySpec(MACs2c, "HmacSHA1");
+      s2cmac = javax.crypto.Mac.getInstance("HmacSHA1");
+      s2cmac.init(skey);
+      
+      s2cmac_result1=new byte[20];
+      s2cmac_result2=new byte[20];
       method=guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS];
       c2scipher = new AES256CTR();
       while(c2scipher.getBlockSize()>Ec2s.length){
@@ -569,8 +578,17 @@ public class Session implements Runnable{
       }
       c2scipher.init(AES256CTR.ENCRYPT_MODE, Ec2s, IVc2s);
       c2scipher_size=c2scipher.getIVSize();
-      c2smac = new HmacSHA1();
-      c2smac.init(MACc2s);
+      //c2smac = new HmacSHA1();
+      //c2smac.init(MACc2s);
+      if(MACc2s.length>20){
+        byte[] tmp = new byte[20];
+        System.arraycopy(MACc2s, 0, tmp, 0, 20);	  
+        MACc2s = tmp;
+      }
+      javax.crypto.spec.SecretKeySpec skey2 = new javax.crypto.spec.SecretKeySpec(MACc2s, "HmacSHA1");
+      c2smac = javax.crypto.Mac.getInstance("HmacSHA1");
+      c2smac.init(skey2);
+      
     }catch(Exception e){ 
       System.out.println("ex_149");
       if(e instanceof ExceptionC)
@@ -630,7 +648,7 @@ public class Session implements Runnable{
           if(len!=length){
             s=packet.shift((int)len, 
                            (c2scipher!=null ? c2scipher_size : 8),
-                           (c2smac!=null ? c2smac.getBlockSize() : 0));
+                           (c2smac!=null ? 20 : 0));
           }
 	  command=packet.buffer.getCommand();
 	  recipient=c.getRecipient();

@@ -8,8 +8,8 @@ class HmacSHA1{
   public int getBlockSize() {
     return bsize;
   };
-  public void init(byte[] key) throws Exception {
-    if(key.length>bsize){
+  public void init2(byte[] key) throws Exception {
+    if(key.length>20){
       byte[] tmp = new byte[bsize];
       System.arraycopy(key, 0, tmp, 0, bsize);	  
       key = tmp;
