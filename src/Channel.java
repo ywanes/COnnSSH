@@ -31,7 +31,7 @@ public class Channel implements Runnable{
   volatile boolean eof_remote=false;
   volatile boolean close=false;
   volatile boolean connected=false;
-  volatile int exitstatus=-1;
+  volatile int exitstatus2=-1;
   volatile int reply=0; 
   volatile int connectTimeout=0;
   private Session session;
@@ -130,7 +130,6 @@ public class Channel implements Runnable{
       return _session.isConnected() && connected;
     return false;
   }
-  void setExitStatus(int status){ exitstatus=status; }
   public Session getSession() throws ExceptionC{ 
     Session _session=session;
     if(_session==null)

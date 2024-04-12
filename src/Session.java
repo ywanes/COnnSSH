@@ -836,7 +836,6 @@ public class Session implements Runnable{
 	  channel=Channel.getChannel(i, this);
           if(channel!=null){
             int reason_code=buf.getInt(); 
-            channel.setExitStatus(reason_code);
             channel.close=true;
             channel.eof_remote=true;
             channel.setRecipient(0);
@@ -853,7 +852,6 @@ public class Session implements Runnable{
 	    byte reply_type=(byte)SSH_MSG_CHANNEL_FAILURE;
 	    if((byte2str(foo)).equals("exit-status")){
 	      i=buf.getInt();             // exit-status
-	      channel.setExitStatus(i);
 	      reply_type=(byte)SSH_MSG_CHANNEL_SUCCESS;
 	    }
 	    if(reply){
