@@ -44,49 +44,38 @@ public class Channel implements Runnable{
     return recipient;
   }
 
-  public void connect() throws ExceptionC{
-    try{
-        sendChannelOpen();
-        Session _session=getSession();
-        try{
-          byte[] terminal_mode=(byte[])str2byte("");
-          String ttype="vt100";
-          int tcol=80;
-          int trow=24;
-          int twp=640;
-          int thp=480;      
-          Buffer buf=new Buffer();
-          Packet packet=new Packet(buf);
-          packet.reset();
-          buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-          buf.putInt(getRecipient());
-          buf.putString(str2byte("pty-req"));
-          buf.putByte((byte)0);
-          buf.putString(str2byte(ttype));
-          buf.putInt(tcol);
-          buf.putInt(trow);
-          buf.putInt(twp);
-          buf.putInt(thp);
-          buf.putString(terminal_mode);
-          _session.write(packet);
+  public void connect() throws ExceptionC, Exception{
+    sendChannelOpen();
+    byte[] terminal_mode=(byte[])str2byte("");
+    String ttype="vt100";
+    int tcol=80;
+    int trow=24;
+    int twp=640;
+    int thp=480;      
+    Buffer buf=new Buffer();
+    Packet packet=new Packet(buf);
+    packet.reset();
+    buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+    buf.putInt(getRecipient());
+    buf.putString(str2byte("pty-req"));
+    buf.putByte((byte)0);
+    buf.putString(str2byte(ttype));
+    buf.putInt(tcol);
+    buf.putInt(trow);
+    buf.putInt(twp);
+    buf.putInt(thp);
+    buf.putString(terminal_mode);
+    session.write(packet);
 
-          buf=new Buffer();
-          packet=new Packet(buf);
-          packet.reset();
-          buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-          buf.putInt(getRecipient());
-          buf.putString(str2byte("shell"));
-          buf.putByte((byte)0);
-          _session.write(packet);
-        }catch(Exception e){
-          throw new ExceptionC("ChannelShell");
-        }
-        new Thread(this).start();
-    }catch(Exception e){
-      System.out.println("ex_2");
-      connected=false;
-      System.exit(0);
-    }
+    buf=new Buffer();
+    packet=new Packet(buf);
+    packet.reset();
+    buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+    buf.putInt(getRecipient());
+    buf.putString(str2byte("shell"));
+    buf.putByte((byte)0);
+    session.write(packet);
+    new Thread(this).start();
   }
   public boolean isEOF() {return eof_remote;}
   
@@ -117,15 +106,8 @@ public class Channel implements Runnable{
       return _session.isConnected() && connected;
     return false;
   }
-  public Session getSession() throws ExceptionC{ 
-    Session _session=session;
-    if(_session==null)
-      throw new ExceptionC("session is not available");
-    return _session;
-  }
   protected void sendChannelOpen() throws Exception {
-    Session _session=getSession();
-    if(!_session.isConnected())
+    if(!session.isConnected())
       throw new ExceptionC("session is down");
     Buffer buf=new Buffer(100);
     Packet packet=new Packet(buf);
@@ -135,12 +117,12 @@ public class Channel implements Runnable{
     buf.putInt(0);
     buf.putInt(0x100000);
     buf.putInt(0x4000);
-    _session.write(packet);
+    session.write(packet);
     int retry=2000;
     long timeout=connectTimeout;
     if(timeout!=0L) retry = 1;
     synchronized(this){
-      if(this.getRecipient()==-1 && _session.isConnected() && retry>0){
+      if(this.getRecipient()==-1 && session.isConnected() && retry>0){
         try{
           long t = timeout==0L ? 10L : timeout;
           this.notifyme=1;
@@ -152,7 +134,7 @@ public class Channel implements Runnable{
         retry--;
       }
     }
-    if(!_session.isConnected())
+    if(!session.isConnected())
       throw new ExceptionC("session is down");
     if(this.getRecipient()==-1)
       throw new ExceptionC("channel is not opened.");
@@ -177,7 +159,7 @@ public class Channel implements Runnable{
         buf.putInt(recipient);
         buf.putInt(i);
         buf.skip(i);
-	getSession().write(packet, this, i);
+	session.write(packet, this, i);
       }
     }catch(Exception e){
       System.out.println("ex_20");
