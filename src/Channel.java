@@ -8,9 +8,9 @@ public class Channel implements Runnable{
   OutputStream out=System.out;
   OutputStream out_ext=null;
 
-  Channel(Session _session){
+  Channel(Session session){
     try{
-      this.session=_session;
+      this.session=session;
       this.channel=this;
       connect();
       while (!isEOF()) {}      
@@ -40,10 +40,6 @@ public class Channel implements Runnable{
     if(notifyme>0)
       notifyAll();
   }
-  int getRecipient(){
-    return recipient;
-  }
-
   public void connect() throws ExceptionC, Exception{
     sendChannelOpen();
     byte[] terminal_mode=(byte[])str2byte("");
@@ -56,7 +52,7 @@ public class Channel implements Runnable{
     Packet packet=new Packet(buf);
     packet.reset();
     buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-    buf.putInt(getRecipient());
+    buf.putInt(recipient);
     buf.putString(str2byte("pty-req"));
     buf.putByte((byte)0);
     buf.putString(str2byte(ttype));
@@ -66,19 +62,17 @@ public class Channel implements Runnable{
     buf.putInt(thp);
     buf.putString(terminal_mode);
     session.write(packet);
-
     buf=new Buffer();
     packet=new Packet(buf);
     packet.reset();
     buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-    buf.putInt(getRecipient());
+    buf.putInt(recipient);
     buf.putString(str2byte("shell"));
     buf.putByte((byte)0);
     session.write(packet);
     new Thread(this).start();
   }
   public boolean isEOF() {return eof_remote;}
-  
   synchronized void setRemoteWindowSize(long foo){ this.rwsize=foo; }
   synchronized void addRemoteWindowSize(long foo){ 
     this.rwsize+=foo; 
@@ -87,10 +81,6 @@ public class Channel implements Runnable{
   }
   void setRemotePacketSize(int foo){ 
     this.rmpsize=foo; 
-  }
-  public void put(Packet p) throws IOException, java.net.SocketException {
-    out.write(p.buffer.buffer, 0, p.buffer.index);
-    out.flush();
   }
   void put(byte[] array, int begin, int length) throws IOException {
     out.write(array, begin, length);
@@ -122,7 +112,7 @@ public class Channel implements Runnable{
     long timeout=connectTimeout;
     if(timeout!=0L) retry = 1;
     synchronized(this){
-      if(this.getRecipient()==-1 && session.isConnected() && retry>0){
+      if(recipient==-1 && session.isConnected() && retry>0){
         try{
           long t = timeout==0L ? 10L : timeout;
           this.notifyme=1;
@@ -136,7 +126,7 @@ public class Channel implements Runnable{
     }
     if(!session.isConnected())
       throw new ExceptionC("session is down");
-    if(this.getRecipient()==-1)
+    if(recipient==-1)
       throw new ExceptionC("channel is not opened.");
     connected=true;
   }

@@ -654,7 +654,7 @@ public class Session implements Runnable{
                            (c2smac!=null ? 20 : 0));
           }
 	  command=packet.buffer.getCommand();
-	  recipient=c.getRecipient();
+	  recipient=-1;//c.getRecipient();
 	  length-=len;
 	  c.rwsize-=len;
 	  sendit=true;
@@ -856,7 +856,8 @@ public class Session implements Runnable{
 	    if(reply){
 	      packet.reset();
 	      buf.putByte(reply_type);
-	      buf.putInt(channel.getRecipient());
+	      //buf.putInt(channel.getRecipient());
+              buf.putInt(-1);
 	      write(packet);
 	    }
 	  }
