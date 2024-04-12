@@ -101,31 +101,20 @@ public class Session implements Runnable{
     final Exception[] ee=new Exception[1];
     Thread tmp=new Thread(new Runnable(){
         public void run(){
-          sockp[0]=null;
-          try{
-            sockp[0]=new Socket(_host, _port);
-          }catch(Exception e){
-            System.out.println("ex_163");
-            ee[0]=e;
-            if(sockp[0]!=null && sockp[0].isConnected()){
-              try{
-                sockp[0].close();
-              }catch(Exception eee){}
-            }
-            sockp[0]=null;
-          }
+            try{
+                sockp[0]=new Socket(_host, _port);
+            }catch(Exception eee){}
         }
-      });
-    tmp.setName("Opening Socket "+host);
-    tmp.start();
+    });
+    tmp.start();    
     try{
-      tmp.join(30000);
-    }catch(java.lang.InterruptedException eee){}
-    if(sockp[0]!=null && sockp[0].isConnected())
+      tmp.join();
+    }catch(java.lang.InterruptedException e){}
+    if(sockp[0]!=null && sockp[0].isConnected()){
       socket=sockp[0];    
-    else
-      throw new ExceptionC("timeout: ", ee[0]);
-    return socket;
+      return socket;
+    }
+    throw new ExceptionC("timeout: ", ee[0]);    
   }
   
   public void connect(int connectTimeout) throws ExceptionC{
