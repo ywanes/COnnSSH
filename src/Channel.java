@@ -7,13 +7,18 @@ public class Channel implements Runnable{
   OutputStream out=System.out;
   OutputStream out_ext=null;
 
-  Channel(Session _session) throws ExceptionC{
-    this.session=_session;
-    this.channel=this;
-    setInputStream(System.in);
-    setOutputStream(System.out);
-    connect(3000);
-    while (!isEOF()) {}
+  Channel(Session _session){
+    try{
+      this.session=_session;
+      this.channel=this;
+      setInputStream(System.in);
+      setOutputStream(System.out);
+      connect(3000);
+      while (!isEOF()) {}      
+    }catch(Exception e){
+      System.err.println(e.toString());
+      System.exit(1);
+    }
   }
   
   private boolean out_dontclose=false;

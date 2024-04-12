@@ -81,16 +81,21 @@ public class Session implements Runnable{
   String username=null;
   byte[] password=null;
   
-  Session(String host, String username, int port, String password, int timeout) throws ExceptionC{
+  Session(String host, String username, int port, String password, int timeout){
     super();
-    buf=new Buffer();
-    packet=new Packet(buf);
-    this.username = username;
-    this.port = port;
-    if(this.username==null)
-      this.username=(String)(System.getProperties().get("user.name"));
-    setPassword(password);
-    connect(timeout);
+    try{
+      buf=new Buffer();
+      packet=new Packet(buf);
+      this.username = username;
+      this.port = port;
+      if(this.username==null)
+        this.username=(String)(System.getProperties().get("user.name"));
+      setPassword(password);
+      connect(timeout);
+    }catch(ExceptionC e){
+      System.err.println(e.toString());
+      System.exit(1);        
+    }
   }
 
   static Socket createSocket(String host, int port) throws ExceptionC{
