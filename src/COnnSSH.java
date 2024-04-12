@@ -56,9 +56,7 @@ public class COnnSSH {
             }
             String user = arg0.split("@")[0];
             String host = arg0.split("@")[1];
-            Session session = new Session(host, user, port);
-            session.setPassword(password);
-            session.connect(30000);
+            Session session = new Session(host, user, port, password, 30000);
             new Channel(session);
         } catch (Exception e) {
             System.err.println(e);

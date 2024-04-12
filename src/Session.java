@@ -81,7 +81,7 @@ public class Session implements Runnable{
   String username=null;
   byte[] password=null;
   
-  Session(String host, String username, int port) throws ExceptionC{
+  Session(String host, String username, int port, String password, int timeout) throws ExceptionC{
     super();
     buf=new Buffer();
     packet=new Packet(buf);
@@ -89,9 +89,7 @@ public class Session implements Runnable{
     this.port = port;
     if(this.username==null)
       this.username=(String)(System.getProperties().get("user.name"));
-  }
-
-  public void connect() throws ExceptionC{
+    setPassword(password);
     connect(timeout);
   }
 
@@ -120,7 +118,7 @@ public class Session implements Runnable{
       });
     tmp.setName("Opening Socket "+host);
     tmp.start();
-    try{ 
+    try{
       tmp.join(30000);
     }catch(java.lang.InterruptedException eee){}
     if(sockp[0]!=null && sockp[0].isConnected())
@@ -128,7 +126,7 @@ public class Session implements Runnable{
     else
       throw new ExceptionC("timeout: ", ee[0]);
     return socket;
-  } 
+  }
   
   public void connect(int connectTimeout) throws ExceptionC{
     if(isConnected)
@@ -148,28 +146,25 @@ public class Session implements Runnable{
       System.arraycopy(V_C, 0, foo, 0, V_C.length);
       foo[foo.length-1]=(byte)'\n';
       put(foo, 0, foo.length);
-      while(true){
+      while( true ){
         i=0;
         j=0;
-        while(i<buf.buffer.length){
+        while( i<buf.buffer.length ){
           j=getByte();
           if(j<0)break;
           buf.buffer[i]=(byte)j; i++; 
-          if(j==10)break;
+          if(j==10)
+            break;
         }
-        if(j<0)
+        if( j<0 )
           throw new ExceptionC("connection is closed by foreign host");
-        if(buf.buffer[i-1]==10){
+        if( buf.buffer[i-1]==10 ){
           i--;
-          if(i>0 && buf.buffer[i-1]==13)
+          if( i>0 && buf.buffer[i-1]==13 )
             i--;
         }
-        if(i<=3 
-            || ((i!=buf.buffer.length) &&
-            (buf.buffer[0]!='S'||buf.buffer[1]!='S'||
-             buf.buffer[2]!='H'||buf.buffer[3]!='-'))){
+        if(i<=3 || ((i!=buf.buffer.length) && (buf.buffer[0]!='S' || buf.buffer[1]!='S' || buf.buffer[2]!='H' || buf.buffer[3]!='-')))
           continue;
-        }
         if(i==buf.buffer.length ||
            i<7 ||                                      
            (buf.buffer[4]=='1' && buf.buffer[6]!='9')  
@@ -203,14 +198,14 @@ public class Session implements Runnable{
       }
       try{
         long tmp=System.currentTimeMillis();
-        in_prompt = true;
+        in_prompt=true;
         checkHost(host, port, kex);
-        in_prompt = false;
+        in_prompt=false;
         kex_start_time+=(System.currentTimeMillis()-tmp);
       }
       catch(ExceptionC ee){
         in_kex=false;
-        in_prompt = false;
+        in_prompt=false;
         throw ee;
       }
       send_newkeys();
@@ -268,8 +263,7 @@ public class Session implements Runnable{
           connectThread.start();
         }
       }
-    }
-    catch(Exception e) {
+    }catch(Exception e){
       in_kex=false;
       try{
         if(isConnected){
@@ -286,12 +280,9 @@ public class Session implements Runnable{
       catch(Exception ee){}
       try{ disconnect(); } catch(Exception ee){ }
       isConnected=false;
-      //e.printStackTrace();
       if(e instanceof RuntimeException) throw (RuntimeException)e;
       if(e instanceof ExceptionC) throw (ExceptionC)e;
       throw new ExceptionC("Session.connect: "+e);
-    }
-    finally{
     }
   }
 
