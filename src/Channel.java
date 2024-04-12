@@ -12,9 +12,7 @@ public class Channel implements Runnable{
     try{
       this.session=_session;
       this.channel=this;
-      setInputStream(System.in);
-      setOutputStream(System.out);
-      connect(3000);
+      connect();
       while (!isEOF()) {}      
     }catch(Exception e){
       System.err.println(e.toString());
@@ -33,7 +31,7 @@ public class Channel implements Runnable{
   volatile boolean connected=false;
   volatile int exitstatus2=-1;
   volatile int reply=0; 
-  volatile int connectTimeout=0;
+  volatile int connectTimeout=30000;
   private Session session;
   int notifyme=0; 
 
@@ -47,11 +45,6 @@ public class Channel implements Runnable{
   }
 
   public void connect() throws ExceptionC{
-    connect(0);
-  }
-
-  public void connect(int connectTimeout) throws ExceptionC{
-    this.connectTimeout=connectTimeout;
     try{
         sendChannelOpen();
         Session _session=getSession();
@@ -97,12 +90,6 @@ public class Channel implements Runnable{
   }
   public boolean isEOF() {return eof_remote;}
   
-  public void setInputStream(InputStream in){
-    this.in=in;
-  }
-  public void setOutputStream(OutputStream out){
-    this.out=out;
-  }
   synchronized void setRemoteWindowSize(long foo){ this.rwsize=foo; }
   synchronized void addRemoteWindowSize(long foo){ 
     this.rwsize+=foo; 

@@ -58,9 +58,9 @@ public class Session implements Runnable{
   private Object lock=new Object();
   boolean x11_forwarding=false;
   boolean agent_forwarding=false;
-  InputStream in=null;
-  OutputStream out=null;
-  OutputStream out_ext=null;
+  InputStream in=System.in;
+  OutputStream out=System.out;
+  //OutputStream out_ext=null;
   private boolean in_dontclose=false;
   private boolean out_dontclose=false;
   private boolean out_ext_dontclose=false;
@@ -835,7 +835,6 @@ public class Session implements Runnable{
 	  i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
           if(channel!=null){
-            int reason_code=buf.getInt(); 
             channel.close=true;
             channel.eof_remote=true;
             channel.setRecipient(0);
@@ -1047,11 +1046,6 @@ public class Session implements Runnable{
       in=null;
     }catch(Exception ee){}
     out_close();
-    try{
-      if(out_ext!=null && !out_ext_dontclose) out_ext.close();
-      out_ext=null;
-    }
-    catch(Exception ee){}
   }
 
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
