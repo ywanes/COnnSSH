@@ -3,6 +3,7 @@ import java.io.OutputStream;
 import java.io.IOException;
 
 public class Channel implements Runnable{
+  public static Channel channel=null;
   InputStream in=System.in;
   OutputStream out=System.out;
   OutputStream out_ext=null;
@@ -20,32 +21,16 @@ public class Channel implements Runnable{
       System.exit(1);
     }
   }
-  
-  private boolean out_dontclose=false;
-  static final int SSH_MSG_CHANNEL_OPEN_CONFIRMATION=      91;
-  static final int SSH_MSG_CHANNEL_OPEN_FAILURE=           92;
-  static final int SSH_OPEN_ADMINISTRATIVELY_PROHIBITED=    1;
-  static int index=0; 
-  public static Channel channel=null;
-  //int id;
-  
   static Channel getChannel(int id, Session session){
     return channel;
   }
-
   volatile int recipient=-1;
-  
-  volatile int lwsize_max=0x100000;
-  volatile int lwsize=lwsize_max;
-  
-  volatile int lmpsize=0x4000;
   volatile long rwsize=0;
   volatile int rmpsize=0;
   volatile boolean eof_local=false;
   volatile boolean eof_remote=false;
   volatile boolean close=false;
   volatile boolean connected=false;
-  volatile boolean open_confirmation=false;
   volatile int exitstatus=-1;
   volatile int reply=0; 
   volatile int connectTimeout=0;
@@ -107,10 +92,11 @@ public class Channel implements Runnable{
     }catch(Exception e){
       System.out.println("ex_2");
       connected=false;
-      disconnect();
-      if(e instanceof ExceptionC) 
-        throw (ExceptionC)e;
-      throw new ExceptionC(e.toString(), e);
+      System.exit(0);
+      //disconnect();
+      //if(e instanceof ExceptionC) 
+//        throw (ExceptionC)e;
+//      throw new ExceptionC(e.toString(), e);
     }
   }
   public boolean isEOF() {return eof_remote;}
@@ -151,7 +137,8 @@ public class Channel implements Runnable{
 
   void out_close(){
     try{
-      if(out!=null && !out_dontclose) out.close();
+      if(out!=null) 
+        out.close();
       out=null;
     }
     catch(Exception ee){}
@@ -174,26 +161,6 @@ public class Channel implements Runnable{
     }catch(Exception e){
       System.out.println("ex_7");
     }
-  }
-  static void disconnect(Session session){
-    channel.disconnect();
-  }
-
-  public void disconnect(){
-    try{
-      synchronized(this){
-        if(!connected)
-          return;
-        connected=false;
-      }
-      close();
-      eof_remote=eof_local=true;
-      try{
-        close();
-      }catch(Exception e){
-        System.out.println("ex_9");
-      }
-    }finally{}
   }
   public boolean isConnected(){
     Session _session=this.session;
@@ -218,8 +185,8 @@ public class Channel implements Runnable{
     buf.putByte((byte)90);
     buf.putString(str2byte("session"));
     buf.putInt(0);
-    buf.putInt(this.lwsize);
-    buf.putInt(this.lmpsize);
+    buf.putInt(0x100000);
+    buf.putInt(0x4000);
     _session.write(packet);
     int retry=2000;
     long timeout=connectTimeout;
@@ -240,8 +207,6 @@ public class Channel implements Runnable{
     if(!_session.isConnected())
       throw new ExceptionC("session is down");
     if(this.getRecipient()==-1)
-      throw new ExceptionC("channel is not opened.");
-    if(this.open_confirmation==false)
       throw new ExceptionC("channel is not opened.");
     connected=true;
   }
@@ -273,5 +238,4 @@ public class Channel implements Runnable{
   
   static byte[] str2byte(String str){return str2byte(str, "UTF-8");}
   static byte[] str2byte(String str, String encoding){if(str==null) return null;try{ return str.getBytes(encoding); }catch(java.io.UnsupportedEncodingException e){return str.getBytes();}}
-  
 }

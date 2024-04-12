@@ -272,7 +272,6 @@ public class Session implements Runnable{
         }
       }
       catch(Exception ee){}
-      try{ disconnect(); } catch(Exception ee){ }
       isConnected=false;
       if(e instanceof RuntimeException) throw (RuntimeException)e;
       if(e instanceof ExceptionC) throw (ExceptionC)e;
@@ -776,12 +775,9 @@ public class Session implements Runnable{
           try{
             channel.put(foo, start[0], length[0]);
           }catch(Exception e){
-            System.out.println("ex_150");
-            try{channel.disconnect();}catch(Exception ee){}
+            System.exit(0);
             break;
           }
-	  //int len=length[0];
-	  //channel.setLocalWindowSize(channel.lwsize-len);
 	  break;
         case SSH_MSG_CHANNEL_EXTENDED_DATA:
           buf.getInt();
@@ -795,8 +791,6 @@ public class Session implements Runnable{
           if(length[0]==0)
 	    break;
 	  channel.put_ext(foo, start[0], length[0]);
-	  //len=length[0];
-	  //channel.setLocalWindowSize(channel.lwsize-len);
 	  break;
 	case SSH_MSG_CHANNEL_WINDOW_ADJUST:
           buf.getInt(); 
@@ -820,8 +814,7 @@ public class Session implements Runnable{
 	  buf.getShort(); 
 	  i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
-	  if(channel!=null)
-	    channel.disconnect();
+          System.exit(0);
 	  break;
 	case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
           buf.getInt(); 
@@ -834,7 +827,6 @@ public class Session implements Runnable{
           if(channel!=null){
             channel.setRemoteWindowSize(rws);
             channel.setRemotePacketSize(rps);
-            channel.open_confirmation=true;
             channel.setRecipient(r);
           }
           break;
@@ -882,7 +874,7 @@ public class Session implements Runnable{
 	    packet.reset();
 	    buf.putByte((byte)SSH_MSG_CHANNEL_OPEN_FAILURE);
 	    buf.putInt(buf.getInt());
- 	    buf.putInt(Channel.SSH_OPEN_ADMINISTRATIVELY_PROHIBITED);
+ 	    buf.putInt(1);
 	    buf.putString((byte[])str2byte(""));
 	    buf.putString((byte[])str2byte(""));
 	    write(packet);
@@ -929,38 +921,9 @@ public class Session implements Runnable{
       System.out.println("ex_151 " + e.toString());
       in_kex=false;
     }
-    try{
-      disconnect();
-    //}catch(NullPointerException e){
-    }catch(Exception e){
-      System.out.println("ex_152");      
-    }
+    System.exit(0);
     isConnected=false;
   }
-  public void disconnect(){
-    if(!isConnected) return;
-    Channel.disconnect(this);
-    isConnected=false;
-    synchronized(lock){
-      if(connectThread!=null){
-        Thread.yield();
-        connectThread.interrupt();
-        connectThread=null;
-      }
-    }
-    thread=null;
-    try{
-      if(in!=null) in.close();
-      if(out!=null) out.close();
-      if(out_ext!=null) out_ext.close();
-      if(socket!=null)
-        socket.close();
-    }catch(Exception e){
-        System.out.println("ex_153");
-    }
-    socket=null;
-  }
-
   public void setProxy(Proxy proxy){ this.proxy=proxy; }
   public void setHost(String host){ this.host=host; }
   public void setPort(int port){ this.port=port; }
