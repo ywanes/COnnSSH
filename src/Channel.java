@@ -93,10 +93,6 @@ public class Channel implements Runnable{
       System.out.println("ex_2");
       connected=false;
       System.exit(0);
-      //disconnect();
-      //if(e instanceof ExceptionC) 
-//        throw (ExceptionC)e;
-//      throw new ExceptionC(e.toString(), e);
     }
   }
   public boolean isEOF() {return eof_remote;}
@@ -127,40 +123,6 @@ public class Channel implements Runnable{
   void put_ext(byte[] array, int begin, int length) throws IOException {
     out_ext.write(array, begin, length);
     out_ext.flush();
-  }
-  void eof_remote(){
-    eof_remote=true;
-    try{
-      out_close();
-    }catch(NullPointerException e){}
-  }
-
-  void out_close(){
-    try{
-      if(out!=null) 
-        out.close();
-      out=null;
-    }
-    catch(Exception ee){}
-  }
-  void close(){
-    if(close)return;
-    close=true;
-    eof_local=eof_remote=true;
-    int i = getRecipient();
-    if(i == -1) return;
-    try{
-      Buffer buf=new Buffer(100);
-      Packet packet=new Packet(buf);
-      packet.reset();
-      buf.putByte((byte)Session.SSH_MSG_CHANNEL_CLOSE);
-      buf.putInt(i);
-      synchronized(this){
-        getSession().write(packet);
-      }
-    }catch(Exception e){
-      System.out.println("ex_7");
-    }
   }
   public boolean isConnected(){
     Session _session=this.session;

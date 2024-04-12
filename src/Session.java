@@ -806,8 +806,7 @@ public class Session implements Runnable{
           buf.getShort(); 
           i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
-	  if(channel!=null)
-	    channel.eof_remote();
+          System.exit(1);
 	  break;
 	case SSH_MSG_CHANNEL_CLOSE:
           buf.getInt(); 
