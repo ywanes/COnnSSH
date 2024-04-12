@@ -780,19 +780,8 @@ public class Session implements Runnable{
             try{channel.disconnect();}catch(Exception ee){}
             break;
           }
-	  int len=length[0];
-	  channel.setLocalWindowSize(channel.lwsize-len);
- 	  if(channel.lwsize<channel.lwsize_max/2){
-            packet.reset();
-	    buf.putByte((byte)SSH_MSG_CHANNEL_WINDOW_ADJUST);
-	    buf.putInt(channel.getRecipient());
-	    buf.putInt(channel.lwsize_max-channel.lwsize);
-            synchronized(channel){
-              if(!channel.close)
-                write(packet);
-            }
-	    channel.setLocalWindowSize(channel.lwsize_max);
-	  }
+	  //int len=length[0];
+	  //channel.setLocalWindowSize(channel.lwsize-len);
 	  break;
         case SSH_MSG_CHANNEL_EXTENDED_DATA:
           buf.getInt();
@@ -806,19 +795,8 @@ public class Session implements Runnable{
           if(length[0]==0)
 	    break;
 	  channel.put_ext(foo, start[0], length[0]);
-	  len=length[0];
-	  channel.setLocalWindowSize(channel.lwsize-len);
- 	  if(channel.lwsize<channel.lwsize_max/2){
-            packet.reset();
-	    buf.putByte((byte)SSH_MSG_CHANNEL_WINDOW_ADJUST);
-	    buf.putInt(channel.getRecipient());
-	    buf.putInt(channel.lwsize_max-channel.lwsize);
-            synchronized(channel){
-              if(!channel.close)
-                write(packet);
-            }
-	    channel.setLocalWindowSize(channel.lwsize_max);
-	  }
+	  //len=length[0];
+	  //channel.setLocalWindowSize(channel.lwsize-len);
 	  break;
 	case SSH_MSG_CHANNEL_WINDOW_ADJUST:
           buf.getInt(); 

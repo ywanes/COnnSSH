@@ -27,16 +27,17 @@ public class Channel implements Runnable{
   static final int SSH_OPEN_ADMINISTRATIVELY_PROHIBITED=    1;
   static int index=0; 
   public static Channel channel=null;
-  int id;
+  //int id;
   
   static Channel getChannel(int id, Session session){
     return channel;
   }
 
   volatile int recipient=-1;
-  protected byte[] type=str2byte("session");
+  
   volatile int lwsize_max=0x100000;
   volatile int lwsize=lwsize_max;
+  
   volatile int lmpsize=0x4000;
   volatile long rwsize=0;
   volatile int rmpsize=0;
@@ -117,35 +118,18 @@ public class Channel implements Runnable{
   public void setInputStream(InputStream in){
     this.in=in;
   }
-  public void setInputStream(InputStream in, boolean dontclose){
-    this.in=in;
-  }
   public void setOutputStream(OutputStream out){
     this.out=out;
   }
-  public void setOutputStream(OutputStream out, boolean dontclose){
-    this.out=out;
-    this.out_dontclose=dontclose;
-  }
-  public void setExtOutputStream(OutputStream out){
-    this.out_ext=out;
-  }
-  public void setExtOutputStream(OutputStream out, boolean dontclose){
-    this.out_ext=out;
-    this.out_dontclose=dontclose;
-  }
-  public OutputStream getOutputStream() throws IOException {
-    return null;
-  }
-
-  void setLocalWindowSize(int foo){ this.lwsize=foo; }
   synchronized void setRemoteWindowSize(long foo){ this.rwsize=foo; }
   synchronized void addRemoteWindowSize(long foo){ 
     this.rwsize+=foo; 
     if(notifyme>0)
       notifyAll();
   }
-  void setRemotePacketSize(int foo){ this.rmpsize=foo; }
+  void setRemotePacketSize(int foo){ 
+    this.rmpsize=foo; 
+  }
   public void put(Packet p) throws IOException, java.net.SocketException {
     out.write(p.buffer.buffer, 0, p.buffer.index);
     out.flush();
@@ -158,7 +142,6 @@ public class Channel implements Runnable{
     out_ext.write(array, begin, length);
     out_ext.flush();
   }
-  
   void eof_remote(){
     eof_remote=true;
     try{
@@ -192,9 +175,6 @@ public class Channel implements Runnable{
       System.out.println("ex_7");
     }
   }
-  public boolean isClosed(){
-    return close;
-  }
   static void disconnect(Session session){
     channel.disconnect();
   }
@@ -221,45 +201,13 @@ public class Channel implements Runnable{
       return _session.isConnected() && connected;
     return false;
   }
-  public void sendSignal(String signal) throws Exception {}
   void setExitStatus(int status){ exitstatus=status; }
-  public int getExitStatus(){ return exitstatus; }
   public Session getSession() throws ExceptionC{ 
     Session _session=session;
     if(_session==null)
       throw new ExceptionC("session is not available");
     return _session;
   }
-  public int getId(){ return id; }
-
-  protected void sendOpenConfirmation() throws Exception{
-    Buffer buf=new Buffer(100);
-    Packet packet=new Packet(buf);
-    packet.reset();
-    buf.putByte((byte)SSH_MSG_CHANNEL_OPEN_CONFIRMATION);
-    buf.putInt(getRecipient());
-    buf.putInt(id);
-    buf.putInt(lwsize);
-    buf.putInt(lmpsize);
-    getSession().write(packet);
-  }
-
-  protected void sendOpenFailure(int reasoncode){
-    try{
-      Buffer buf=new Buffer(100);
-      Packet packet=new Packet(buf);
-      packet.reset();
-      buf.putByte((byte)SSH_MSG_CHANNEL_OPEN_FAILURE);
-      buf.putInt(getRecipient());
-      buf.putInt(reasoncode);
-      buf.putString(str2byte("open failed"));
-      buf.putString((byte[])str2byte(""));      
-      getSession().write(packet);
-    }catch(Exception e){
-      System.out.println("ex_10");
-    }
-  }
-
   protected void sendChannelOpen() throws Exception {
     Session _session=getSession();
     if(!_session.isConnected())
@@ -268,8 +216,8 @@ public class Channel implements Runnable{
     Packet packet=new Packet(buf);
     packet.reset();
     buf.putByte((byte)90);
-    buf.putString(this.type);
-    buf.putInt(this.id);
+    buf.putString(str2byte("session"));
+    buf.putInt(0);
     buf.putInt(this.lwsize);
     buf.putInt(this.lmpsize);
     _session.write(packet);
