@@ -3,17 +3,26 @@ import java.io.OutputStream;
 import java.io.IOException;
 
 public class Channel implements Runnable{
-  public static Channel channel=null;
-  InputStream in=System.in;
-  OutputStream out=System.out;
-  OutputStream out_ext=null;
+  private static Channel channel=null;
+  private InputStream in=System.in;
+  private OutputStream out=System.out;
+  private OutputStream out_ext=null;
+  private int notifyme=0;   
+  private long rwsize=0;  
+  private boolean close=false;  
+  private boolean eof_remote=false;
+  private int recipient=-1;
+  private int rmpsize=0;
+  private boolean connected=false;
+  private int connectTimeout=30000;
+  private Session session;
 
   Channel(Session session){
     try{
       this.session=session;
       this.channel=this;
       connect();
-      while (!isEOF()) {}      
+      while (!eof_remote) {}      
     }catch(Exception e){
       System.err.println(e.toString());
       System.exit(1);
@@ -22,24 +31,7 @@ public class Channel implements Runnable{
   static Channel getChannel(int id, Session session){
     return channel;
   }
-  volatile int recipient=-1;
-  volatile long rwsize=0;
-  volatile int rmpsize=0;
-  volatile boolean eof_local=false;
-  volatile boolean eof_remote=false;
-  volatile boolean close=false;
-  volatile boolean connected=false;
-  volatile int exitstatus2=-1;
-  volatile int reply=0; 
-  volatile int connectTimeout=30000;
-  private Session session;
-  int notifyme=0; 
 
-  synchronized void setRecipient(int foo){
-    this.recipient=foo;
-    if(notifyme>0)
-      notifyAll();
-  }
   public void connect() throws ExceptionC, Exception{
     sendChannelOpen();
     byte[] terminal_mode=(byte[])str2byte("");
@@ -72,15 +64,42 @@ public class Channel implements Runnable{
     session.write(packet);
     new Thread(this).start();
   }
-  public boolean isEOF() {return eof_remote;}
-  synchronized void setRemoteWindowSize(long foo){ this.rwsize=foo; }
-  synchronized void addRemoteWindowSize(long foo){ 
-    this.rwsize+=foo; 
+  synchronized void setRecipient(int foo){
+    this.recipient=foo;
     if(notifyme>0)
       notifyAll();
   }
-  void setRemotePacketSize(int foo){ 
-    this.rmpsize=foo; 
+  public void add_notifyme(int a){
+    notifyme+=a;
+  }
+  public void notifyme_substract(int a){
+    notifyme-=a;
+  }
+  public void set_eof_remote(boolean a){
+    eof_remote=a;
+  }
+  public void set_close(boolean a){
+    close=a;
+  }
+  public boolean get_close(){
+    return close;
+  }
+  public void set_rwsize(long a){ 
+    rwsize=a; 
+  }
+  public void add_rwsize(long a){ 
+    rwsize+=a; 
+    if(notifyme>0)
+      notifyAll();
+  }
+  public long get_rwsize(){ 
+    return rwsize;
+  }
+  public void rwsize_substract(long a){ 
+    rwsize-=a;
+  }
+  public void set_rmpsize(int a){ 
+    this.rmpsize=a; 
   }
   void put(byte[] array, int begin, int length) throws IOException {
     out.write(array, begin, length);

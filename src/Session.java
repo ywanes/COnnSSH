@@ -472,7 +472,7 @@ public class Session implements Runnable{
           buf.getShort();          
 	  Channel c=Channel.getChannel(buf.getInt(), this);
 	  if(c!=null)
-	    c.addRemoteWindowSize(buf.getUInt()); 
+	    c.add_rwsize(buf.getUInt()); 
       }else{
         isAuthed=true;
         break;
@@ -612,29 +612,28 @@ public class Session implements Runnable{
       }
       synchronized(c){
 
-        if(c.rwsize<length){
+        if(c.get_rwsize()<length){
           try{ 
-            c.notifyme++;
+            c.add_notifyme(1);
             c.wait(100); 
           }
           catch(java.lang.InterruptedException e){
           }
           finally{
-            c.notifyme--;
+            c.notifyme_substract(1);
           }
         }
-
         if(in_kex){
           continue;
         }
 
-        if(c.rwsize>=length){
-          c.rwsize-=length;
+        if(c.get_rwsize()>=length){
+          c.rwsize_substract(length);
           break;
         }
 
       }
-      if(c.close || !c.isConnected()){
+      if(c.get_close() || !c.isConnected()){
 	throw new IOException("channel is broken");
       }
 
@@ -643,20 +642,19 @@ public class Session implements Runnable{
       byte command=0;
       int recipient=-1;
       synchronized(c){
-	if(c.rwsize>0){
-	  long len=c.rwsize;
-          if(len>length){
+	if(c.get_rwsize()>0){
+	  long len=c.get_rwsize();
+          if(len>length)
             len=length;
-          }
           if(len!=length){
             s=packet.shift((int)len, 
                            (c2scipher!=null ? c2scipher_size : 8),
                            (c2smac!=null ? 20 : 0));
           }
 	  command=packet.buffer.getCommand();
-	  recipient=-1;//c.getRecipient();
+	  recipient=-1;
 	  length-=len;
-	  c.rwsize-=len;
+	  c.rwsize_substract(len);
 	  sendit=true;
 	}
       }
@@ -672,8 +670,8 @@ public class Session implements Runnable{
         if(in_kex){
           continue;
         }
-        if(c.rwsize>=length){
-          c.rwsize-=length;
+        if(c.get_rwsize()>=length){
+          c.rwsize_substract(length);
           break;
         }
       }
@@ -799,19 +797,19 @@ public class Session implements Runnable{
 	  channel=Channel.getChannel(i, this);
 	  if(channel==null)
 	    break;
-	  channel.addRemoteWindowSize(buf.getUInt()); 
+	  channel.add_rwsize(buf.getUInt()); 
 	  break;
 	case SSH_MSG_CHANNEL_EOF:
-          buf.getInt(); 
-          buf.getShort(); 
-          i=buf.getInt(); 
+          buf.getInt();
+          buf.getShort();
+          i=buf.getInt();
 	  channel=Channel.getChannel(i, this);
           System.exit(1);
 	  break;
 	case SSH_MSG_CHANNEL_CLOSE:
-          buf.getInt(); 
-	  buf.getShort(); 
-	  i=buf.getInt(); 
+          buf.getInt();
+	  buf.getShort();
+	  i=buf.getInt();
 	  channel=Channel.getChannel(i, this);
           System.exit(0);
 	  break;
@@ -824,8 +822,8 @@ public class Session implements Runnable{
           long rws=buf.getUInt();
           int rps=buf.getInt();
           if(channel!=null){
-            channel.setRemoteWindowSize(rws);
-            channel.setRemotePacketSize(rps);
+            channel.set_rwsize(rws);
+            channel.set_rmpsize(rps);
             channel.setRecipient(r);
           }
           break;
@@ -835,8 +833,8 @@ public class Session implements Runnable{
 	  i=buf.getInt(); 
 	  channel=Channel.getChannel(i, this);
           if(channel!=null){
-            channel.close=true;
-            channel.eof_remote=true;
+            channel.set_close(true);
+            channel.set_eof_remote(true);
             channel.setRecipient(0);
           }
 	  break;
@@ -884,7 +882,6 @@ public class Session implements Runnable{
 	  channel=Channel.getChannel(i, this);
 	  if(channel==null)
 	    break;
-	  channel.reply=1;
 	  break;
 	case SSH_MSG_CHANNEL_FAILURE:
 	  buf.getInt(); 
@@ -893,7 +890,6 @@ public class Session implements Runnable{
 	  channel=Channel.getChannel(i, this);
 	  if(channel==null)
 	    break;
-	  channel.reply=0;
 	  break;
 	case SSH_MSG_GLOBAL_REQUEST:
 	  buf.getInt(); 
