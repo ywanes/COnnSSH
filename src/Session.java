@@ -469,7 +469,8 @@ public class Session implements Runnable{
           buf.rewind();
           buf.getInt();
           buf.getShort();          
-	  Channel c=Channel.getChannel(buf.getInt(), this);
+          buf.getInt();
+	  Channel c=Channel.getChannel(this);
 	  if(c!=null)
 	    c.add_rwsize(buf.getUInt()); 
       }else{
@@ -621,7 +622,7 @@ public class Session implements Runnable{
     pos_write(packet);
   }
   void write(Packet packet, int length) throws Exception{      
-    Channel c=Channel.getChannel(0, this);
+    Channel c=Channel.getChannel(this);
     long t = getTimeout();
     while(true){
       if(in_kex){
@@ -744,8 +745,8 @@ public class Session implements Runnable{
           buf.getInt(); 
           buf.getByte(); 
           buf.getByte(); 
-          i=buf.getInt(); 
-	  channel=Channel.getChannel(i, this);
+          buf.getInt(); 
+	  channel=Channel.getChannel(this);
 	  foo=buf.getString(start, length);
 	  if(channel==null)
 	    break;
@@ -761,8 +762,8 @@ public class Session implements Runnable{
         case SSH_MSG_CHANNEL_EXTENDED_DATA:
           buf.getInt();
 	  buf.getShort();
-	  i=buf.getInt();
-	  channel=Channel.getChannel(i, this);
+	  buf.getInt();
+	  channel=Channel.getChannel(this);
 	  buf.getInt();
 	  foo=buf.getString(start, length);
 	  if(channel==null)
@@ -774,8 +775,8 @@ public class Session implements Runnable{
 	case SSH_MSG_CHANNEL_WINDOW_ADJUST:
           buf.getInt(); 
 	  buf.getShort(); 
-	  i=buf.getInt(); 
-	  channel=Channel.getChannel(i, this);
+	  buf.getInt(); 
+	  channel=Channel.getChannel(this);
 	  if(channel==null)
 	    break;
 	  channel.add_rwsize(buf.getUInt()); 
@@ -783,22 +784,22 @@ public class Session implements Runnable{
 	case SSH_MSG_CHANNEL_EOF:
           buf.getInt();
           buf.getShort();
-          i=buf.getInt();
-	  channel=Channel.getChannel(i, this);
+          buf.getInt();
+	  channel=Channel.getChannel(this);
           System.exit(1);
 	  break;
 	case SSH_MSG_CHANNEL_CLOSE:
           buf.getInt();
 	  buf.getShort();
-	  i=buf.getInt();
-	  channel=Channel.getChannel(i, this);
+	  buf.getInt();
+	  channel=Channel.getChannel(this);
           System.exit(0);
 	  break;
 	case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
           buf.getInt(); 
 	  buf.getShort(); 
-	  i=buf.getInt(); 
-	  channel=Channel.getChannel(i, this);
+	  buf.getInt(); 
+	  channel=Channel.getChannel(this);
           int r=buf.getInt();
           long rws=buf.getUInt();
           int rps=buf.getInt();
@@ -811,8 +812,8 @@ public class Session implements Runnable{
 	case SSH_MSG_CHANNEL_OPEN_FAILURE:
           buf.getInt(); 
 	  buf.getShort(); 
-	  i=buf.getInt(); 
-	  channel=Channel.getChannel(i, this);
+	  buf.getInt(); 
+	  channel=Channel.getChannel(this);
           if(channel!=null){
             channel.set_close(true);
             channel.set_eof_remote(true);
@@ -822,10 +823,10 @@ public class Session implements Runnable{
 	case SSH_MSG_CHANNEL_REQUEST:
           buf.getInt(); 
 	  buf.getShort(); 
-	  i=buf.getInt(); 
+	  buf.getInt(); 
 	  foo=buf.getString(); 
           boolean reply=(buf.getByte()!=0);
-	  channel=Channel.getChannel(i, this);
+	  channel=Channel.getChannel(this);
 	  if(channel!=null){
 	    byte reply_type=(byte)SSH_MSG_CHANNEL_FAILURE;
 	    if((byte2str(foo)).equals("exit-status")){
@@ -859,16 +860,16 @@ public class Session implements Runnable{
 	case SSH_MSG_CHANNEL_SUCCESS:
           buf.getInt(); 
 	  buf.getShort(); 
-	  i=buf.getInt(); 
-	  channel=Channel.getChannel(i, this);
+	  buf.getInt(); 
+	  channel=Channel.getChannel(this);
 	  if(channel==null)
 	    break;
 	  break;
 	case SSH_MSG_CHANNEL_FAILURE:
 	  buf.getInt(); 
 	  buf.getShort(); 
-	  i=buf.getInt(); 
-	  channel=Channel.getChannel(i, this);
+	  buf.getInt(); 
+	  channel=Channel.getChannel(this);
 	  if(channel==null)
 	    break;
 	  break;

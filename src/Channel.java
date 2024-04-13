@@ -28,41 +28,68 @@ public class Channel implements Runnable{
       System.exit(1);
     }
   }
-  static Channel getChannel(int id, Session session){
+  static Channel getChannel(Session session){
     return channel;
   }
-
   public void connect() throws ExceptionC, Exception{
-    sendChannelOpen();
+    if(!session.isConnected())
+      throw new ExceptionC("session is down");
+    Buffer buf=new Buffer(100);
+    Packet packet=new Packet(buf);
+    packet.reset();
+    buf.putByte((byte)90);
+    buf.putString(str2byte("session"));
+    buf.putInt(0);
+    buf.putInt(0x100000);
+    buf.putInt(0x4000);
+    session.pre_write(packet);
+    int retry=2000;
+    synchronized(this){
+      if(recipient==-1 && session.isConnected() && retry>0){
+        try{
+          this.notifyme=1;
+          wait(30000);
+        }catch(java.lang.InterruptedException e){
+        }finally{
+          this.notifyme=0;
+        }
+        retry--;
+      }
+    }
+    if(!session.isConnected())
+      throw new ExceptionC("session is down");
+    if(recipient==-1)
+      throw new ExceptionC("channel is not opened.");
     byte[] terminal_mode=(byte[])str2byte("");
     String ttype="vt100";
     int tcol=80;
     int trow=24;
     int twp=640;
     int thp=480;      
-    Buffer buf=new Buffer();
-    Packet packet=new Packet(buf);
-    packet.reset();
-    buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-    buf.putInt(recipient);
-    buf.putString(str2byte("pty-req"));
-    buf.putByte((byte)0);
-    buf.putString(str2byte(ttype));
-    buf.putInt(tcol);
-    buf.putInt(trow);
-    buf.putInt(twp);
-    buf.putInt(thp);
-    buf.putString(terminal_mode);
-    session.pre_write(packet);
-    buf=new Buffer();
-    packet=new Packet(buf);
-    packet.reset();
-    buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-    buf.putInt(recipient);
-    buf.putString(str2byte("shell"));
-    buf.putByte((byte)0);
-    session.pre_write(packet);
+    Buffer buf2=new Buffer();
+    Packet packet2=new Packet(buf2);
+    packet2.reset();
+    buf2.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+    buf2.putInt(recipient);
+    buf2.putString(str2byte("pty-req"));
+    buf2.putByte((byte)0);
+    buf2.putString(str2byte(ttype));
+    buf2.putInt(tcol);
+    buf2.putInt(trow);
+    buf2.putInt(twp);
+    buf2.putInt(thp);
+    buf2.putString(terminal_mode);
+    session.pre_write(packet2);
+    buf2=new Buffer();
+    packet2=new Packet(buf2);
+    packet2.reset();
+    buf2.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+    buf2.putInt(recipient);
+    buf2.putString(str2byte("shell"));
+    buf2.putByte((byte)0);
+    session.pre_write(packet2);
     new Thread(this).start();
+    connected=true;
   }
   synchronized public void set_recipient(int foo){
     this.recipient=foo;
@@ -115,41 +142,6 @@ public class Channel implements Runnable{
       return _session.isConnected() && connected;
     return false;
   }
-  private void sendChannelOpen() throws Exception {
-    if(!session.isConnected())
-      throw new ExceptionC("session is down");
-    Buffer buf=new Buffer(100);
-    Packet packet=new Packet(buf);
-    packet.reset();
-    buf.putByte((byte)90);
-    buf.putString(str2byte("session"));
-    buf.putInt(0);
-    buf.putInt(0x100000);
-    buf.putInt(0x4000);
-    session.pre_write(packet);
-    int retry=2000;
-    long timeout=connectTimeout;
-    if(timeout!=0L) retry = 1;
-    synchronized(this){
-      if(recipient==-1 && session.isConnected() && retry>0){
-        try{
-          long t = timeout==0L ? 10L : timeout;
-          this.notifyme=1;
-          wait(t);
-        }catch(java.lang.InterruptedException e){
-        }finally{
-          this.notifyme=0;
-        }
-        retry--;
-      }
-    }
-    if(!session.isConnected())
-      throw new ExceptionC("session is down");
-    if(recipient==-1)
-      throw new ExceptionC("channel is not opened.");
-    connected=true;
-  }
-
   public void run(){
     // ponto critico!!
     Buffer buf=new Buffer(rmpsize);
