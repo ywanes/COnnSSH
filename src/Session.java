@@ -60,7 +60,6 @@ public class Session implements Runnable{
   boolean agent_forwarding=false;
   InputStream in=System.in;
   OutputStream out=System.out;
-  //OutputStream out_ext=null;
   private boolean in_dontclose=false;
   private boolean out_dontclose=false;
   private boolean out_ext_dontclose=false;
@@ -214,7 +213,7 @@ public class Session implements Runnable{
         packet.reset();
         buf.putByte((byte)Session.SSH_MSG_SERVICE_REQUEST);
         buf.putString(str2byte("ssh-userauth"));
-        write(packet);    
+        pre_write(packet);    
         read(buf);        
       }catch(Exception e){ 
         throw new ExceptionC(e.toString(), e);
@@ -235,7 +234,7 @@ public class Session implements Runnable{
       buf.putString(str2byte("password"));
       buf.putByte((byte)0);
       buf.putString(password);
-      write(packet);
+      pre_write(packet);
       buf=read(buf);
       int command=buf.getCommand()&0xff;
       if(command==SSH_MSG_USERAUTH_BANNER)
@@ -268,7 +267,7 @@ public class Session implements Runnable{
           buf.putInt(3);
           buf.putString(str2byte(message));
           buf.putString(str2byte("en"));
-          write(packet);
+          pre_write(packet);
         }
       }
       catch(Exception ee){}
@@ -356,13 +355,13 @@ public class Session implements Runnable{
     buf.setOffSet(5);
     I_C=new byte[buf.getLength()];
     buf.getByte(I_C, 0, I_C.length);
-    write(packet);
+    pre_write(packet);
   }
 
   private void send_newkeys() throws Exception {
     packet.reset();
     buf.putByte((byte)SSH_MSG_NEWKEYS);
-    write(packet);
+    pre_write(packet);
   }
 
   private void checkHost(String chost, int port, ECDH521 kex) throws ExceptionC {
@@ -599,94 +598,11 @@ public class Session implements Runnable{
       throw new ExceptionC(e.toString(), e);       
     }
   }
-  void write(Packet packet, Channel c, int length) throws Exception{
-    long t = getTimeout();
-    while(true){
-      if(in_kex){
-        if(t>0L && (System.currentTimeMillis()-kex_start_time)>t){
-          throw new ExceptionC("timeout in waiting for rekeying process.");
-        }
-        try{Thread.sleep(10);}
-        catch(java.lang.InterruptedException e){};
-        continue;
-      }
-      synchronized(c){
-
-        if(c.get_rwsize()<length){
-          try{ 
-            c.add_notifyme(1);
-            c.wait(100); 
-          }
-          catch(java.lang.InterruptedException e){
-          }
-          finally{
-            c.notifyme_substract(1);
-          }
-        }
-        if(in_kex){
-          continue;
-        }
-
-        if(c.get_rwsize()>=length){
-          c.rwsize_substract(length);
-          break;
-        }
-
-      }
-      if(c.get_close() || !c.isConnected()){
-	throw new IOException("channel is broken");
-      }
-
-      boolean sendit=false;
-      int s=0;
-      byte command=0;
-      int recipient=-1;
-      synchronized(c){
-	if(c.get_rwsize()>0){
-	  long len=c.get_rwsize();
-          if(len>length)
-            len=length;
-          if(len!=length){
-            s=packet.shift((int)len, 
-                           (c2scipher!=null ? c2scipher_size : 8),
-                           (c2smac!=null ? 20 : 0));
-          }
-	  command=packet.buffer.getCommand();
-	  recipient=-1;
-	  length-=len;
-	  c.rwsize_substract(len);
-	  sendit=true;
-	}
-      }
-      if(sendit){
-	_write(packet);
-        if(length==0){
-          return;
-        }
-	packet.unshift(command, recipient, s, length);
-      }
-
-      synchronized(c){
-        if(in_kex){
-          continue;
-        }
-        if(c.get_rwsize()>=length){
-          c.rwsize_substract(length);
-          break;
-        }
-      }
-    }
-    _write(packet);
-  }  
-  public void write(Packet packet) throws Exception{
+  public void pre_write(Packet packet) throws Exception{
     long t = getTimeout();
     while(in_kex){
-      if(t>0L &&
-         (System.currentTimeMillis()-kex_start_time)>t &&
-         !in_prompt
-         ){
+      if(t>0L && (System.currentTimeMillis()-kex_start_time)>t && !in_prompt )
         throw new ExceptionC("timeout in waiting for rekeying process.");
-      }
       byte command=packet.buffer.getCommand();
       if(command==SSH_MSG_KEXINIT ||
          command==SSH_MSG_NEWKEYS ||
@@ -702,9 +618,74 @@ public class Session implements Runnable{
       try{Thread.sleep(10);}
       catch(java.lang.InterruptedException e){};
     }
-    _write(packet);
+    pos_write(packet);
   }
-  private void _write(Packet packet) throws Exception{
+  void write(Packet packet, int length) throws Exception{      
+    Channel c=Channel.getChannel(0, this);
+    long t = getTimeout();
+    while(true){
+      if(in_kex){
+        if(t>0L && (System.currentTimeMillis()-kex_start_time)>t)
+          throw new ExceptionC("timeout in waiting for rekeying process.");
+        try{Thread.sleep(10);}
+        catch(java.lang.InterruptedException e){};
+        continue;
+      }
+      synchronized(c){
+        if(c.get_rwsize()<length){
+          try{ 
+            c.add_notifyme(1);
+            c.wait(100); 
+          }catch(java.lang.InterruptedException e){
+          }finally{
+            c.notifyme_substract(1);
+          }
+        }
+        if(in_kex)
+          continue;
+        if(c.get_rwsize()>=length){
+          c.rwsize_substract(length);
+          break;
+        }
+      }
+      if(c.get_close() || !c.isConnected())
+	throw new IOException("channel is broken");
+      boolean sendit=false;
+      int s=0;
+      byte command=0;
+      int recipient=-1;
+      synchronized(c){
+	if(c.get_rwsize()>0){
+	  long len=c.get_rwsize();
+          if(len>length)
+            len=length;
+          if(len!=length)
+            s=packet.shift((int)len, (c2scipher!=null ? c2scipher_size : 8), (c2smac!=null ? 20 : 0));
+	  command=packet.buffer.getCommand();
+	  recipient=-1;
+	  length-=len;
+	  c.rwsize_substract(len);
+	  sendit=true;
+	}
+      }
+      if(sendit){
+	pos_write(packet);
+        if(length==0)
+          return;
+	packet.unshift(command, recipient, s, length);
+      }
+      synchronized(c){
+        if(in_kex)
+          continue;
+        if(c.get_rwsize()>=length){
+          c.rwsize_substract(length);
+          break;
+        }
+      }
+    }
+    pos_write(packet);
+  }    
+  private void pos_write(Packet packet) throws Exception{
     synchronized(lock){
       encode(packet);
       put(packet);
@@ -824,7 +805,7 @@ public class Session implements Runnable{
           if(channel!=null){
             channel.set_rwsize(rws);
             channel.set_rmpsize(rps);
-            channel.setRecipient(r);
+            channel.set_recipient(r);
           }
           break;
 	case SSH_MSG_CHANNEL_OPEN_FAILURE:
@@ -835,7 +816,7 @@ public class Session implements Runnable{
           if(channel!=null){
             channel.set_close(true);
             channel.set_eof_remote(true);
-            channel.setRecipient(0);
+            channel.set_recipient(0);
           }
 	  break;
 	case SSH_MSG_CHANNEL_REQUEST:
@@ -856,7 +837,7 @@ public class Session implements Runnable{
 	      buf.putByte(reply_type);
 	      //buf.putInt(channel.getRecipient());
               buf.putInt(-1);
-	      write(packet);
+	      pre_write(packet);
 	    }
 	  }
 	  break;
@@ -872,7 +853,7 @@ public class Session implements Runnable{
  	    buf.putInt(1);
 	    buf.putString((byte[])str2byte(""));
 	    buf.putString((byte[])str2byte(""));
-	    write(packet);
+	    pre_write(packet);
 	  }
           break;
 	case SSH_MSG_CHANNEL_SUCCESS:
@@ -899,7 +880,7 @@ public class Session implements Runnable{
 	  if(reply){
 	    packet.reset();
 	    buf.putByte((byte)SSH_MSG_REQUEST_FAILURE);
-	    write(packet);
+	    pre_write(packet);
 	  }
 	  break;
 	case SSH_MSG_REQUEST_FAILURE:
@@ -961,7 +942,7 @@ public class Session implements Runnable{
     Packet packet=new Packet(buf);
     packet.reset();
     buf.putByte((byte)SSH_MSG_IGNORE);
-    write(packet);
+    pre_write(packet);
   }
   private static final byte[] keepalivemsg=str2byte("keepalive@jcraft.com");
   public void sendKeepAliveMsg() throws Exception{
@@ -971,7 +952,7 @@ public class Session implements Runnable{
     buf.putByte((byte)SSH_MSG_GLOBAL_REQUEST);
     buf.putString(keepalivemsg);
     buf.putByte((byte)1);
-    write(packet);
+    pre_write(packet);
   }
   private static final byte[] nomoresessions=str2byte("no-more-sessions@openssh.com");
   public void noMoreSessionChannels() throws Exception{
@@ -981,7 +962,7 @@ public class Session implements Runnable{
     buf.putByte((byte)SSH_MSG_GLOBAL_REQUEST);
     buf.putString(nomoresessions);
     buf.putByte((byte)0);
-    write(packet);
+    pre_write(packet);
   }
   public String getHost(){return host;}
   public String getUserName(){return username;}

@@ -53,7 +53,7 @@ public class Channel implements Runnable{
     buf.putInt(twp);
     buf.putInt(thp);
     buf.putString(terminal_mode);
-    session.write(packet);
+    session.pre_write(packet);
     buf=new Buffer();
     packet=new Packet(buf);
     packet.reset();
@@ -61,10 +61,10 @@ public class Channel implements Runnable{
     buf.putInt(recipient);
     buf.putString(str2byte("shell"));
     buf.putByte((byte)0);
-    session.write(packet);
+    session.pre_write(packet);
     new Thread(this).start();
   }
-  synchronized void setRecipient(int foo){
+  synchronized public void set_recipient(int foo){
     this.recipient=foo;
     if(notifyme>0)
       notifyAll();
@@ -115,7 +115,7 @@ public class Channel implements Runnable{
       return _session.isConnected() && connected;
     return false;
   }
-  protected void sendChannelOpen() throws Exception {
+  private void sendChannelOpen() throws Exception {
     if(!session.isConnected())
       throw new ExceptionC("session is down");
     Buffer buf=new Buffer(100);
@@ -126,7 +126,7 @@ public class Channel implements Runnable{
     buf.putInt(0);
     buf.putInt(0x100000);
     buf.putInt(0x4000);
-    session.write(packet);
+    session.pre_write(packet);
     int retry=2000;
     long timeout=connectTimeout;
     if(timeout!=0L) retry = 1;
@@ -168,7 +168,7 @@ public class Channel implements Runnable{
         buf.putInt(recipient);
         buf.putInt(i);
         buf.skip(i);
-	session.write(packet, this, i);
+	session.write(packet, i);
       }
     }catch(Exception e){
       System.out.println("ex_20");

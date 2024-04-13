@@ -58,7 +58,7 @@ public class ECDH521 {
     }
     if(V_S==null)
       return;
-    session.write(packet);
+    session.pre_write(packet);
     state=SSH_MSG_KEX_ECDH_REPLY;
   }
   public String getKeyType() {
