@@ -31,6 +31,11 @@ public class Channel implements Runnable{
   static Channel getChannel(Session session){
     return channel;
   }
+  synchronized public void set_recipient(int foo){
+    this.recipient=foo;
+    if(notifyme>0)
+      notifyAll();
+  }  
   public void connect() throws ExceptionC, Exception{
     if(!session.isConnected())
       throw new ExceptionC("session is down");
@@ -47,11 +52,10 @@ public class Channel implements Runnable{
     synchronized(this){
       if(recipient==-1 && session.isConnected() && retry>0){
         try{
-          this.notifyme=1;
+          notifyme=1;
           wait(30000);
-        }catch(java.lang.InterruptedException e){
         }finally{
-          this.notifyme=0;
+          notifyme=0;
         }
         retry--;
       }
@@ -91,11 +95,6 @@ public class Channel implements Runnable{
     new Thread(this).start();
     connected=true;
   }
-  synchronized public void set_recipient(int foo){
-    this.recipient=foo;
-    if(notifyme>0)
-      notifyAll();
-  }
   public void add_notifyme(int a){
     notifyme+=a;
   }
@@ -116,8 +115,6 @@ public class Channel implements Runnable{
   }
   public void add_rwsize(long a){ 
     rwsize+=a; 
-    if(notifyme>0)
-      notifyAll();
   }
   public long get_rwsize(){ 
     return rwsize;
@@ -137,10 +134,7 @@ public class Channel implements Runnable{
     out_ext.flush();
   }
   public boolean isConnected(){
-    Session _session=this.session;
-    if(_session!=null)
-      return _session.isConnected() && connected;
-    return false;
+    return session != null && session.isConnected() && connected;
   }
   public void run(){
     // ponto critico!!

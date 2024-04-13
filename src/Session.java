@@ -632,23 +632,6 @@ public class Session implements Runnable{
         catch(java.lang.InterruptedException e){};
         continue;
       }
-      synchronized(c){
-        if(c.get_rwsize()<length){
-          try{ 
-            c.add_notifyme(1);
-            c.wait(100); 
-          }catch(java.lang.InterruptedException e){
-          }finally{
-            c.notifyme_substract(1);
-          }
-        }
-        if(in_kex)
-          continue;
-        if(c.get_rwsize()>=length){
-          c.rwsize_substract(length);
-          break;
-        }
-      }
       if(c.get_close() || !c.isConnected())
 	throw new IOException("channel is broken");
       boolean sendit=false;
