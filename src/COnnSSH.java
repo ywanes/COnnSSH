@@ -55,7 +55,7 @@ public class COnnSSH {
             System.err.println("Error parameter.. example:user,pass@remotehost");
         String user = arg0.split("@")[0];
         String host = arg0.split("@")[1];
-        new Channel(new Session(host, user, port, password, 30000));
+        new Channel(new Session(host, user, port, password));
     }
 
     public void comando_invalido(String[] args) {

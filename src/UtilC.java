@@ -16,5 +16,10 @@ class UtilC{
         } catch (java.io.UnsupportedEncodingException e) {
             return str.getBytes();
         }
-    }            
+    }       
+    static void sleep(long a){
+        try {
+            Thread.sleep(a);
+        } catch (Exception e) {};        
+    }
 }

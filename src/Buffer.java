@@ -172,5 +172,6 @@ class Buffer {
             buffer = tmp;
         }
     }
+
 }
 

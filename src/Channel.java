@@ -14,7 +14,6 @@ class Channel extends UtilC implements Runnable {
     private int recipient = -1;
     private int rmpsize = 0;
     private boolean connected = false;
-    private int connectTimeout = 30000;
     private Session session;
 
     Channel(Session session) {

@@ -83,7 +83,7 @@ class Session extends UtilC implements Runnable{
     String username = null;
     byte[] password = null;
 
-    Session(String host, String username, int port, String password, int timeout) {
+    Session(String host, String username, int port, String password) {
         super();
         try {
             buf = new Buffer();
@@ -93,48 +93,29 @@ class Session extends UtilC implements Runnable{
             if (this.username == null)
                 this.username = (String)(System.getProperties().get("user.name"));
             setPassword(password);
-            connect(timeout);
-        } catch (ExceptionC e) {
+            connect();
+        } catch (Exception e) {
             System.err.println(e.toString());
             System.exit(1);
         }
     }
 
-    static Socket createSocket(String host, int port) throws ExceptionC {
-        Socket socket = null;
-        final String _host = host;
-        final int _port = port;
-        final Socket[] sockp = new Socket[1];
-        final Exception[] ee = new Exception[1];
-        Thread tmp = new Thread(new Runnable() {
-            public void run() {
-                try {
-                    sockp[0] = new Socket(_host, _port);
-                } catch (Exception eee) {}
-            }
-        });
-        tmp.start();
-        try {
-            tmp.join();
-        } catch (java.lang.InterruptedException e) {}
-        if (sockp[0] != null && sockp[0].isConnected()) {
-            socket = sockp[0];
-            return socket;
-        }
-        throw new ExceptionC("timeout: ", ee[0]);
-    }
-
-    public void connect(int connectTimeout) throws ExceptionC {
-        if (isConnected)
-            throw new ExceptionC("session is already connected");
+    public void connect() throws ExceptionC {
+        int traceLine=0;
         random = new java.security.SecureRandom();
         Packet.setRandom(random);
         try {
+            traceLine=1;
             int i, j;
             if (proxy == null) {
-                socket = createSocket(host, port); in = socket.getInputStream();
-                out = socket.getOutputStream();
-                socket.setTcpNoDelay(true);
+                try{
+                    socket = new Socket(host, port);
+                    in = socket.getInputStream();
+                    out = socket.getOutputStream();
+                    socket.setTcpNoDelay(true);
+                }catch (Exception e) {
+                    throw new ExceptionC("timeout");
+                }
             }
             isConnected = true;
             byte[] foo = new byte[V_C.length + 1];
@@ -142,7 +123,9 @@ class Session extends UtilC implements Runnable{
             foo[foo.length - 1] = (byte)
             '\n';
             put(foo, 0, foo.length);
+            traceLine=2;
             while (true) {
+                traceLine=3;
                 i = 0;
                 j = 0;
                 while (i < buf.buffer.length) {
@@ -162,13 +145,16 @@ class Session extends UtilC implements Runnable{
                 }
                 if (i <= 3 || ((i != buf.buffer.length) && (buf.buffer[0] != 'S' || buf.buffer[1] != 'S' || buf.buffer[2] != 'H' || buf.buffer[3] != '-')))
                     continue;
+                traceLine=4;
                 if (i == buf.buffer.length ||
                     i < 7 ||
                     (buf.buffer[4] == '1' && buf.buffer[6] != '9')
-                )
+                )                    
                     throw new ExceptionC("invalid server's version string");
+                traceLine=5;
                 break;
             }
+            traceLine=6;
             V_S = new byte[i];
             System.arraycopy(buf.buffer, 0, V_S, 0, i);
             send_kexinit();
@@ -178,9 +164,13 @@ class Session extends UtilC implements Runnable{
                 throw new ExceptionC("invalid protocol: " + buf.getCommand());
             }
             ECDH521 kex = receive_kexinit(buf);
+            traceLine=7;
             while (true) {
+                traceLine=8;
                 buf = read(buf);
+                traceLine=800;
                 if (kex.getState() == buf.getCommand()) {
+                    traceLine=9;
                     kex_start_time = System.currentTimeMillis();
                     boolean result = kex.next(buf);
                     if (!result) {
@@ -188,23 +178,15 @@ class Session extends UtilC implements Runnable{
                         throw new ExceptionC("verify: " + result);
                     }
                 } else {
+                    traceLine=10;
                     in_kex = false;
                     throw new ExceptionC("invalid protocol(kex): " + buf.getCommand());
                 }
+                traceLine=11;
                 if (kex.getState() == ECDH521.STATE_END)
                     break;
             }
-            try {
-                long tmp = System.currentTimeMillis();
-                in_prompt = true;
-                checkHost(host, port, kex);
-                in_prompt = false;
-                kex_start_time += (System.currentTimeMillis() - tmp);
-            } catch (ExceptionC ee) {
-                in_kex = false;
-                in_prompt = false;
-                throw ee;
-            }
+            in_prompt = false;
             send_newkeys();
             buf = read(buf);
             if (buf.getCommand() == SSH_MSG_NEWKEYS) {
@@ -213,6 +195,7 @@ class Session extends UtilC implements Runnable{
                 in_kex = false;
                 throw new ExceptionC("invalid protocol(newkyes): " + buf.getCommand());
             }
+            traceLine=12;
             try {
                 packet.reset();
                 buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
@@ -222,7 +205,7 @@ class Session extends UtilC implements Runnable{
             } catch (Exception e) {
                 throw new ExceptionC(e.toString(), e);
             }
-
+            traceLine=13;
             int SSH_MSG_USERAUTH_REQUEST = 50;
             int SSH_MSG_USERAUTH_FAILURE = 51;
             int SSH_MSG_USERAUTH_BANNER = 53;
@@ -240,6 +223,7 @@ class Session extends UtilC implements Runnable{
             buf.putString(password);
             pre_write(packet);
             buf = read(buf);
+            traceLine=14;
             int command = buf.getCommand() & 0xff;
             if (command == SSH_MSG_USERAUTH_BANNER)
                 throw new Exception("USERAUTH_BANNER");
@@ -247,8 +231,8 @@ class Session extends UtilC implements Runnable{
                 throw new Exception("Stop - USERAUTH_PASSWD_CHANGEREQ");
             if (command == SSH_MSG_USERAUTH_FAILURE)
                 throw new Exception("UserAuth Fail!");
-
-            if (socket != null && (connectTimeout > 0 || timeout > 0))
+            traceLine=15;
+            if (socket != null && timeout > 0)
                 socket.setSoTimeout(timeout);
             isAuthed = true;
             synchronized(lock) {
@@ -260,7 +244,7 @@ class Session extends UtilC implements Runnable{
                     connectThread.start();
                 }
             }
-        } catch (Exception e) {
+        }catch (Exception e) {
             in_kex = false;
             try {
                 if (isConnected) {
@@ -277,7 +261,7 @@ class Session extends UtilC implements Runnable{
             isConnected = false;
             if (e instanceof RuntimeException) throw (RuntimeException) e;
             if (e instanceof ExceptionC) throw (ExceptionC) e;
-            throw new ExceptionC("Session.connect: " + e);
+            throw new ExceptionC("Session.connect: " + e + " traceLine:" + traceLine);
         }
     }
 
@@ -306,25 +290,6 @@ class Session extends UtilC implements Runnable{
         send_kexinit();
     }
 
-    static String diffString(String str, String[] not_available) {
-        String[] stra = str.split(",");
-        String result = null;
-        loop:
-            for (int i = 0; i < stra.length; i++) {
-                for (int j = 0; j < not_available.length; j++) {
-                    if (stra[i].equals(not_available[j])) {
-                        continue loop;
-                    }
-                }
-                if (result == null) {
-                    result = stra[i];
-                } else {
-                    result = result + "," + stra[i];
-                }
-            }
-        return result;
-    }
-
     private void send_kexinit() throws Exception {
         if (in_kex)
             return;
@@ -336,7 +301,6 @@ class Session extends UtilC implements Runnable{
         packet.reset();
         buf.putByte((byte) SSH_MSG_KEXINIT);
         synchronized(random) {
-            //random fill
             int start_fill = buf.index;
             int len_fill = 16;
             byte[] tmp_fill = new byte[16];
@@ -347,7 +311,6 @@ class Session extends UtilC implements Runnable{
             System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
             buf.skip(16);
         }
-
         buf.putString(str2byte("ecdh-sha2-nistp521", "UTF-8"));
         buf.putString(str2byte("ssh-rsa,ecdsa-sha2-nistp521", "UTF-8"));
         buf.putString(str2byte("aes256-ctr", "UTF-8"));
@@ -372,13 +335,6 @@ class Session extends UtilC implements Runnable{
         pre_write(packet);
     }
 
-    private void checkHost(String chost, int port, ECDH521 kex) throws ExceptionC {
-        if (hostKeyAlias != null)
-            chost = hostKeyAlias;
-        if (hostKeyAlias == null && port != 22)
-            chost = ("[" + chost + "]:" + port);
-    }
-
     public void encode(Packet packet) throws Exception {
         if (c2scipher != null) {
             packet.padding(c2scipher_size);
@@ -389,9 +345,8 @@ class Session extends UtilC implements Runnable{
                 int start_fill = packet.buffer.index - pad;
                 int len_fill = pad;
                 byte[] tmp_fill = new byte[16];
-                if (len_fill > tmp_fill.length) {
+                if (len_fill > tmp_fill.length)
                     tmp_fill = new byte[len_fill];
-                }
                 random.nextBytes(tmp_fill);
                 System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
             }
@@ -482,8 +437,9 @@ class Session extends UtilC implements Runnable{
                 buf.getShort();
                 buf.getInt();
                 Channel c = Channel.getChannel(this);
-                if (c != null)
+                if (c != null){
                     c.add_rwsize(buf.getUInt());
+                }
             } else {
                 isAuthed = true;
                 break;
@@ -526,8 +482,6 @@ class Session extends UtilC implements Runnable{
         sha512.update(buf.buffer, 0, buf.index);
         MACs2c = sha512.digest();
         try {
-            String method;
-            method = guess[ECDH521.PROPOSAL_ENC_ALGS_STOC];
             while (32 > Es2c.length) {
                 buf.reset();
                 buf.putMPInt(K);
@@ -556,7 +510,6 @@ class Session extends UtilC implements Runnable{
                 s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
             }
             s2ccipher_size = 16;
-            method = guess[ECDH521.PROPOSAL_MAC_ALGS_STOC];
             if (MACs2c.length > 20) {
                 byte[] tmp2 = new byte[20];
                 System.arraycopy(MACs2c, 0, tmp2, 0, 20);
@@ -566,7 +519,6 @@ class Session extends UtilC implements Runnable{
             s2cmac.init(new javax.crypto.spec.SecretKeySpec(MACs2c, "HmacSHA1"));
             s2cmac_result1 = new byte[20];
             s2cmac_result2 = new byte[20];
-            method = guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS];
             while (32 > Ec2s.length) {
                 buf.reset();
                 buf.putMPInt(K);
@@ -602,7 +554,6 @@ class Session extends UtilC implements Runnable{
             }
             c2smac = javax.crypto.Mac.getInstance("HmacSHA1");
             c2smac.init(new javax.crypto.spec.SecretKeySpec(MACc2s, "HmacSHA1"));
-
         } catch (Exception e) {
             System.out.println("ex_149");
             if (e instanceof ExceptionC)
@@ -627,9 +578,7 @@ class Session extends UtilC implements Runnable{
                 command == SSH_MSG_DISCONNECT) {
                 break;
             }
-            try {
-                Thread.sleep(10);
-            } catch (java.lang.InterruptedException e) {};
+            sleep(10);
         }
         pos_write(packet);
     }
@@ -640,9 +589,7 @@ class Session extends UtilC implements Runnable{
             if (in_kex) {
                 if (t > 0L && (System.currentTimeMillis() - kex_start_time) > t)
                     throw new ExceptionC("timeout in waiting for rekeying process.");
-                try {
-                    Thread.sleep(10);
-                } catch (java.lang.InterruptedException e) {};
+                sleep(10);
                 continue;
             }
             if (c.get_close() || !c.isConnected())

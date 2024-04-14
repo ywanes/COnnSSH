@@ -126,9 +126,6 @@ class ECDH521 extends UtilC{
     java.security.MessageDigest getHash() {
         return sha512;
     }
-    byte[] getHostKey() {
-        return K_S;
-    }
     protected byte[] normalize(byte[] secret) {
         if (secret.length > 1 && secret[0] == 0 && (secret[1] & 0x80) == 0) {
             byte[] tmp = new byte[secret.length - 1];
@@ -164,13 +161,11 @@ class ECDH521 extends UtilC{
             PublicKey pubKey2 = keyFactory.generatePublic(rsaPubKeySpec);
             signature.initVerify(pubKey2);
             signature.update(H);
-            int i_RSA = 0;
-            int j_RSA = 0;
             byte[] tmp_RSA;
             Buffer buf_RSA = new Buffer(sig_of_H);
             if (new String(buf_RSA.getString()).equals("ssh-rsa")) {
-                j_RSA = buf_RSA.getInt();
-                i_RSA = buf_RSA.getOffSet();
+                int j_RSA = buf_RSA.getInt();
+                int i_RSA = buf_RSA.getOffSet();
                 tmp_RSA = new byte[j_RSA];
                 System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
                 sig_of_H = tmp_RSA;
@@ -185,8 +180,8 @@ class ECDH521 extends UtilC{
         int i, j;
         switch (state) {
             case SSH_MSG_KEX_ECDH_REPLY:
-                j = _buf.getInt();
-                j = _buf.getByte();
+                _buf.getInt();
+                _buf.getByte();
                 j = _buf.getByte();
                 if (j != 31) {
                     System.err.println("type: must be 31 " + j);
@@ -295,10 +290,7 @@ class ECDH521 extends UtilC{
             System.arraycopy(s_array, 0, tmp, 1 + r_array.length, s_array.length);
             return tmp;
         }
-        private void bzero(byte[] buf) {
-            for (int i = 0; i < buf.length; i++) buf[i] = 0;
-        }
-
+        
         class ECDSA {
             byte[] d;
             byte[] r;
@@ -334,7 +326,6 @@ class ECDH521 extends UtilC{
             java.security.interfaces.ECPrivateKey getPrivateKey() {
                 return prvKey;
             }
-
             private byte[] insert0(byte[] buf) {
                 byte[] tmp = new byte[buf.length + 1];
                 System.arraycopy(buf, 0, tmp, 1, buf.length);
