@@ -31,7 +31,7 @@ class Channel extends UtilC implements Runnable {
     Channel(Session session) {
         try {
             this.session = session;
-            this.channel = this;
+            channel = this;
             connect();
             while (!eof_remote) {}
         } catch (Exception e) {
