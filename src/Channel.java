@@ -141,7 +141,7 @@ class Channel extends UtilC implements Runnable {
         Packet packet = new Packet(buf);
         try {
             while (isConnected()) {
-                int i = in .read(buf.buffer, 14, buf.buffer.length - 14 - (32 + 64 + 32));
+                int i = in.read(buf.buffer, 14, buf.buffer.length -142);
                 if (i == 0)
                     continue;
                 if (i == -1)
@@ -149,7 +149,7 @@ class Channel extends UtilC implements Runnable {
                 if (close)
                     break;
                 packet.reset();
-                buf.putByte((byte) Session.SSH_MSG_CHANNEL_DATA);
+                buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
                 buf.putInt(recipient);
                 buf.putInt(i);
                 buf.skip(i);

@@ -332,7 +332,6 @@ class Session extends UtilC implements Runnable{
             packet.padding(c2scipher_size);
             int pad = packet.buffer.buffer[4];
             synchronized(random) {
-                //random fill
                 byte[] foo_fill = packet.buffer.buffer;
                 int start_fill = packet.buffer.index - pad;
                 int len_fill = pad;
@@ -413,8 +412,9 @@ class Session extends UtilC implements Runnable{
                 int reason_code = buf.getInt();
                 byte[] description = buf.getString();
                 byte[] language_tag = buf.getString();
-                throw new ExceptionC("SSH_MSG_DISCONNECT: " + reason_code + " " + byte2str(description) + " " + byte2str(language_tag));
-            } else if (type == SSH_MSG_IGNORE) {} else if (type == SSH_MSG_UNIMPLEMENTED) {
+                throw new ExceptionC("SSH_MSG_DISCONNECT" + reason_code + " " + byte2str(description) + " " + byte2str(language_tag));
+            } else if (type == SSH_MSG_IGNORE) {
+            } else if (type == SSH_MSG_UNIMPLEMENTED) {
                 buf.rewind();
                 buf.getInt();
                 buf.getShort();

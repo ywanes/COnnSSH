@@ -25,7 +25,6 @@ class Packet {
         System.arraycopy(ba4, 0, buffer.buffer, 0, 4);
         buffer.buffer[4] = (byte) pad;
         synchronized(random) {
-            //random fill
             byte[] foo_fill = buffer.buffer;
             int start_fill = buffer.index;
             int len_fill = pad;

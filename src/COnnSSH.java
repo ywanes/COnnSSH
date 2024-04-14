@@ -54,18 +54,14 @@ public class COnnSSH {
         if (!arg0.contains("@"))
             System.err.println("Error parameter.. example:user,pass@remotehost");
         String user = arg0.split("@")[0];
-        String host = arg0.split("@")[1];        
-        try{
-            new Channel(new Session(host, user, port, password));
-            return;
-        }catch(Exception e){}
-        try{
-            new Channel(new Session(host, user, port, password));
-            return;
-        }catch(Exception e){
-            System.err.println(e.toString());
+        String host = arg0.split("@")[1];  
+        int limit=10;
+        while(limit-->0){
+            try{
+                new Channel(new Session(host, user, port, password));
+                return;
+            }catch(Exception e){}            
         }
-        
     }
 
     public void comando_invalido(String[] args) {
