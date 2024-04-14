@@ -56,7 +56,7 @@ class Session extends UtilC implements Runnable{
     private byte[] s2cmac_result2;
     private Socket socket;
     private int timeout = 0;
-    private volatile boolean isConnected = false;
+    private boolean isConnected = false;
     private boolean isAuthed = false;
     private Thread connectThread = null;
     private Object lock = new Object();
@@ -276,8 +276,8 @@ class Session extends UtilC implements Runnable{
         kex.init(this, V_S, V_C, I_S, I_C);
         return kex;
     }
-    private volatile boolean in_kex = false;
-    private volatile boolean in_prompt = false;
+    private boolean in_kex = false;
+    private boolean in_prompt = false;
     public void rekey() throws Exception {
         send_kexinit();
     }
@@ -578,15 +578,10 @@ class Session extends UtilC implements Runnable{
         Channel c = Channel.getChannel(this);
         long t = getTimeout();
         while (true) {
-            if (in_kex) {
-                if (t > 0L && (System.currentTimeMillis() - kex_start_time) > t)
-                    throw new ExceptionC("timeout in waiting for rekeying process.");
-                sleep(10);
-                continue;
-            }
             if (c.get_close() || !c.isConnected())
                 throw new IOException("channel is broken");
-            boolean sendit = false;
+            if (in_kex)
+                sleep(10);
             int s = 0;
             byte command = 0;
             int recipient = -1;
@@ -596,21 +591,16 @@ class Session extends UtilC implements Runnable{
                     if (len > length)
                         len = length;
                     if (len != length)
-                        s = packet.shift((int) len, (c2scipher != null ? c2scipher_size : 8), (c2smac != null ? 20 : 0));
+                        s = packet.shift((int) len, c2scipher_size, 20);
                     command = packet.buffer.getCommand();
                     recipient = -1;
                     length -= len;
                     c.rwsize_substract(len);
-                    sendit = true;
+                    pos_write(packet);
+                    if (length == 0)
+                        return;
+                    packet.unshift(command, recipient, s, length);
                 }
-            }
-            if (sendit) {
-                pos_write(packet);
-                if (length == 0)
-                    return;
-                packet.unshift(command, recipient, s, length);
-            }
-            synchronized(c) {
                 if (in_kex)
                     continue;
                 if (c.get_rwsize() >= length) {

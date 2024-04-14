@@ -60,7 +60,15 @@ public class COnnSSH {
             try{
                 new Channel(new Session(host, user, port, password));
                 return;
-            }catch(Exception e){}            
+            }catch(Exception e){
+                String s=e.toString();
+                if ( s.contains("Connection reset") )
+                    continue;
+                if ( s.contains("UserAuth Fail!!") )
+                    s="UserAuth Fail";
+                System.err.println(s);
+                System.exit(1);
+            }            
         }
     }
 
