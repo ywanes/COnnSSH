@@ -66,7 +66,6 @@ class Session extends UtilC implements Runnable{
     OutputStream out = System.out;
     private boolean in_dontclose = false;
     private boolean out_dontclose = false;
-    private boolean out_ext_dontclose = false;
     static java.security.SecureRandom random;
     Buffer buf;
     Packet packet;
@@ -83,21 +82,14 @@ class Session extends UtilC implements Runnable{
     String username = null;
     byte[] password = null;
 
-    Session(String host, String username, int port, String password) {
+    Session(String host, String username, int port, String password) throws Exception {
         super();
-        try {
-            buf = new Buffer();
-            packet = new Packet(buf);
-            this.username = username;
-            this.port = port;
-            if (this.username == null)
-                this.username = (String)(System.getProperties().get("user.name"));
-            setPassword(password);
-            connect();
-        } catch (Exception e) {
-            System.err.println(e.toString());
-            System.exit(1);
-        }
+        buf = new Buffer();
+        packet = new Packet(buf);
+        this.username = username;
+        this.port = port;
+        setPassword(password);
+        connect();
     }
 
     public void connect() throws ExceptionC {
