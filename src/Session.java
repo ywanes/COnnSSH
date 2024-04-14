@@ -624,13 +624,13 @@ class Session extends UtilC implements Runnable{
         int[] start = new int[1];
         int[] length = new int[1];
         ECDH521 kex = null;
-        int stimeout = 0;
+        int stimeout = 0;        
         try {
             while (isConnected && thread != null) {
                 try {
                     buf = read(buf);
                     stimeout = 0;
-                } catch (InterruptedIOException /*SocketTimeoutException*/ ee) {
+                } catch (InterruptedIOException ee) {
                     if (!in_kex && stimeout < serverAliveCountMax) {
                         sendKeepAliveMsg();
                         stimeout++;
@@ -641,7 +641,7 @@ class Session extends UtilC implements Runnable{
                     }
                     throw ee;
                 }
-                int msgType = buf.getCommand() & 0xff;
+                int msgType = buf.getCommand() & 0xff;                
                 if (kex != null && kex.getState() == msgType) {
                     kex_start_time = System.currentTimeMillis();
                     boolean result = kex.next(buf);
@@ -650,15 +650,8 @@ class Session extends UtilC implements Runnable{
                     }
                     continue;
                 }
+                //System.out.print("[msgType:"+msgType+"]");// 80 91 94    
                 switch (msgType) {
-                    case SSH_MSG_KEXINIT:
-                        kex = receive_kexinit(buf);
-                        break;
-                    case SSH_MSG_NEWKEYS:
-                        send_newkeys();
-                        receive_newkeys(buf, kex);
-                        kex = null;
-                        break;
                     case SSH_MSG_CHANNEL_DATA:
                         buf.getInt();
                         buf.getByte();
@@ -666,45 +659,16 @@ class Session extends UtilC implements Runnable{
                         buf.getInt();
                         channel = Channel.getChannel();
                         foo = buf.getString(start, length);
-                        if (channel == null)
-                            break;
-                        if (length[0] == 0)
+                        if (channel == null || length[0] == 0)
                             break;
                         try {
                             // ponto critico retorno out
-                            channel.put(foo, start[0], length[0]);
+                            if ( Channel.permission_write(length[0]) )
+                                channel.put(foo, start[0], length[0]);
                         } catch (Exception e) {
                             System.exit(0);
                             break;
                         }
-                        break;
-                    case SSH_MSG_CHANNEL_EXTENDED_DATA:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        channel = Channel.getChannel();
-                        buf.getInt();
-                        foo = buf.getString(start, length);
-                        if (channel == null)
-                            break;
-                        if (length[0] == 0)
-                            break;
-                        channel.put_ext(foo, start[0], length[0]);
-                        break;
-                    case SSH_MSG_CHANNEL_WINDOW_ADJUST:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        channel = Channel.getChannel();
-                        if (channel == null)
-                            break;
-                        channel.add_rwsize(buf.getUInt());
-                        break;
-                    case SSH_MSG_CHANNEL_EOF:
-                        System.exit(1);
-                        break;
-                    case SSH_MSG_CHANNEL_CLOSE:
-                        System.exit(0);
                         break;
                     case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
                         buf.getInt();
@@ -720,80 +684,20 @@ class Session extends UtilC implements Runnable{
                             channel.set_recipient(r);
                         }
                         break;
-                    case SSH_MSG_CHANNEL_OPEN_FAILURE:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        channel = Channel.getChannel();
-                        if (channel != null) {
-                            channel.set_close(true);
-                            channel.set_eof_remote(true);
-                            channel.set_recipient(0);
-                        }
-                        break;
-                    case SSH_MSG_CHANNEL_REQUEST:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        foo = buf.getString();
-                        boolean reply = (buf.getByte() != 0);
-                        channel = Channel.getChannel();
-                        if (channel != null) {
-                            byte reply_type = (byte) SSH_MSG_CHANNEL_FAILURE;
-                            if ((byte2str(foo)).equals("exit-status")) {
-                                i = buf.getInt(); // exit-status
-                                reply_type = (byte) SSH_MSG_CHANNEL_SUCCESS;
-                            }
-                            if (reply) {
-                                packet.reset();
-                                buf.putByte(reply_type);
-                                //buf.putInt(channel.getRecipient());
-                                buf.putInt(-1);
-                                pre_write(packet);
-                            }
-                        }
-                        break;
-                    case SSH_MSG_CHANNEL_OPEN:
-                        buf.getInt();
-                        buf.getShort();
-                        foo = buf.getString();
-                        String ctyp = byte2str(foo);
-                        if (!"forwarded-tcpip".equals(ctyp) && !("x11".equals(ctyp) && x11_forwarding) && !("auth-agent@openssh.com".equals(ctyp) && agent_forwarding)) {
-                            packet.reset();
-                            buf.putByte((byte) SSH_MSG_CHANNEL_OPEN_FAILURE);
-                            buf.putInt(buf.getInt());
-                            buf.putInt(1);
-                            buf.putString((byte[]) str2byte("", "UTF-8"));
-                            buf.putString((byte[]) str2byte("", "UTF-8"));
-                            pre_write(packet);
-                        }
-                        break;
-                    case SSH_MSG_CHANNEL_SUCCESS:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        break;
-                    case SSH_MSG_CHANNEL_FAILURE:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        break;
                     case SSH_MSG_GLOBAL_REQUEST:
                         buf.getInt();
                         buf.getShort();
-                        foo = buf.getString();
-                        reply = (buf.getByte() != 0);
-                        if (reply) {
+                        buf.getString();
+                        if (buf.getByte() != 0) {
                             packet.reset();
                             buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
                             pre_write(packet);
                         }
                         break;
-                    case SSH_MSG_REQUEST_FAILURE:
-                    case SSH_MSG_REQUEST_SUCCESS:
-                        throw new IOException("removido");
+                    case SSH_MSG_CHANNEL_EOF:
+                        System.exit(0);
                     default:
-                        throw new IOException("Unknown SSH message type " + msgType);
+                        throw new IOException("removido outra comunicações - " + msgType);                
                 }
             }
         } catch (Exception e) {

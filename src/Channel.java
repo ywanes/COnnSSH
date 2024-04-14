@@ -16,6 +16,21 @@ class Channel extends UtilC implements Runnable {
     private boolean connected = false;
     private Session session;
 
+    
+    public static int count_line_return=-1;
+    public static int count_line_return_filter=0;
+    public static void reset_counter(){
+        count_line_return=0;        
+    }    
+    public static boolean permission_write(int len){
+        count_line_return++;
+        if ( count_line_return == 1 )
+            return false;
+        if ( count_line_return == 2 && len == 1 )
+            return false;  
+        return true;
+    }    
+    
     Channel(Session session) {
         try {
             this.session = session;
@@ -26,7 +41,7 @@ class Channel extends UtilC implements Runnable {
             System.err.println(e.toString());
             System.exit(1);
         }
-    }
+    }    
     static Channel getChannel() {
         return channel;
     }
@@ -142,6 +157,7 @@ class Channel extends UtilC implements Runnable {
         try {
             while (isConnected()) {
                 int i = in.read(buf.buffer, 14, buf.buffer.length -142);
+                reset_counter();
                 if (i == 0)
                     continue;
                 if (i == -1)
@@ -152,7 +168,7 @@ class Channel extends UtilC implements Runnable {
                 buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
                 buf.putInt(recipient);
                 buf.putInt(i);
-                buf.skip(i);
+                buf.skip(i);                
                 session.write(packet, i);
             }
         } catch (Exception e) {
