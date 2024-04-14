@@ -169,7 +169,7 @@ public class Buffer{
   }
 
   void checkFreeSize(int n){
-    int size = index+n+Session.buffer_margin;
+    int size = index+n+(32+64+32);
     if(buffer.length<size){
       int i=buffer.length*2;
       if(i<size)

@@ -142,7 +142,7 @@ public class Channel implements Runnable{
     Packet packet=new Packet(buf);
     try{
       while(isConnected()){
-        int i=in.read(buf.buffer, 14,    buf.buffer.length-14-Session.buffer_margin);
+        int i=in.read(buf.buffer, 14,    buf.buffer.length-14-(32+64+32));
 	if(i==0)
           continue;
 	if(i==-1)

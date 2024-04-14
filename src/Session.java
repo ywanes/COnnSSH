@@ -66,7 +66,6 @@ public class Session implements Runnable{
   static java.security.SecureRandom random;
   Buffer buf;
   Packet packet;
-  static final int buffer_margin = 32 + 64 + 32;  
   private Proxy proxy=null;
   private String hostKeyAlias=null;
   private int serverAliveInterval=0;
@@ -262,7 +261,7 @@ public class Session implements Runnable{
         if(isConnected){
           String message = e.toString();
           packet.reset();
-          buf.checkFreeSize(1+4*3+message.length()+2+buffer_margin);
+          buf.checkFreeSize(1+4*3+message.length()+2+(32+64+32));
           buf.putByte((byte)SSH_MSG_DISCONNECT);
           buf.putInt(3);
           buf.putString(str2byte(message));
