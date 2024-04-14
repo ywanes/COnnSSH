@@ -23,7 +23,9 @@ class Channel extends UtilC implements Runnable {
         count_line_return=0;        
     }    
     public static boolean permission_write(int len){
-        count_line_return++;
+        if ( count_line_return == -1 )
+            return true;
+        count_line_return++;        
         if ( count_line_return == 1 )
             return false;
         if ( count_line_return == 2 && len == 1 )
