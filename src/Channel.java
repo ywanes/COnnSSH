@@ -27,7 +27,7 @@ class Channel extends UtilC implements Runnable {
             System.exit(1);
         }
     }
-    static Channel getChannel(Session session) {
+    static Channel getChannel() {
         return channel;
     }
     synchronized public void set_recipient(int foo) {

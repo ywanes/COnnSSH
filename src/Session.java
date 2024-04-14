@@ -410,9 +410,9 @@ class Session extends UtilC implements Runnable{
                 buf.getInt();
                 buf.getShort();
                 int reason_code = buf.getInt();
-                byte[] description = buf.getString();
+                byte[] text = buf.getString();
                 byte[] language_tag = buf.getString();
-                throw new ExceptionC("SSH_MSG_DISCONNECT" + reason_code + " " + byte2str(description) + " " + byte2str(language_tag));
+                throw new ExceptionC("SSH_MSG_DISCONNECT" + reason_code + " " + byte2str(text) + " " + byte2str(language_tag));
             } else if (type == SSH_MSG_IGNORE) {
             } else if (type == SSH_MSG_UNIMPLEMENTED) {
                 buf.rewind();
@@ -428,7 +428,7 @@ class Session extends UtilC implements Runnable{
                 buf.getInt();
                 buf.getShort();
                 buf.getInt();
-                Channel c = Channel.getChannel(this);
+                Channel c = Channel.getChannel();
                 if (c != null){
                     c.add_rwsize(buf.getUInt());
                 }
@@ -575,7 +575,7 @@ class Session extends UtilC implements Runnable{
         pos_write(packet);
     }
     void write(Packet packet, int length) throws Exception {
-        Channel c = Channel.getChannel(this);
+        Channel c = Channel.getChannel();
         long t = getTimeout();
         while (true) {
             if (c.get_close() || !c.isConnected())
@@ -664,13 +664,14 @@ class Session extends UtilC implements Runnable{
                         buf.getByte();
                         buf.getByte();
                         buf.getInt();
-                        channel = Channel.getChannel(this);
+                        channel = Channel.getChannel();
                         foo = buf.getString(start, length);
                         if (channel == null)
                             break;
                         if (length[0] == 0)
                             break;
                         try {
+                            // ponto critico retorno out
                             channel.put(foo, start[0], length[0]);
                         } catch (Exception e) {
                             System.exit(0);
@@ -681,7 +682,7 @@ class Session extends UtilC implements Runnable{
                         buf.getInt();
                         buf.getShort();
                         buf.getInt();
-                        channel = Channel.getChannel(this);
+                        channel = Channel.getChannel();
                         buf.getInt();
                         foo = buf.getString(start, length);
                         if (channel == null)
@@ -694,30 +695,22 @@ class Session extends UtilC implements Runnable{
                         buf.getInt();
                         buf.getShort();
                         buf.getInt();
-                        channel = Channel.getChannel(this);
+                        channel = Channel.getChannel();
                         if (channel == null)
                             break;
                         channel.add_rwsize(buf.getUInt());
                         break;
                     case SSH_MSG_CHANNEL_EOF:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        channel = Channel.getChannel(this);
                         System.exit(1);
                         break;
                     case SSH_MSG_CHANNEL_CLOSE:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        channel = Channel.getChannel(this);
                         System.exit(0);
                         break;
                     case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
                         buf.getInt();
                         buf.getShort();
                         buf.getInt();
-                        channel = Channel.getChannel(this);
+                        channel = Channel.getChannel();
                         int r = buf.getInt();
                         long rws = buf.getUInt();
                         int rps = buf.getInt();
@@ -731,7 +724,7 @@ class Session extends UtilC implements Runnable{
                         buf.getInt();
                         buf.getShort();
                         buf.getInt();
-                        channel = Channel.getChannel(this);
+                        channel = Channel.getChannel();
                         if (channel != null) {
                             channel.set_close(true);
                             channel.set_eof_remote(true);
@@ -744,7 +737,7 @@ class Session extends UtilC implements Runnable{
                         buf.getInt();
                         foo = buf.getString();
                         boolean reply = (buf.getByte() != 0);
-                        channel = Channel.getChannel(this);
+                        channel = Channel.getChannel();
                         if (channel != null) {
                             byte reply_type = (byte) SSH_MSG_CHANNEL_FAILURE;
                             if ((byte2str(foo)).equals("exit-status")) {
@@ -779,17 +772,11 @@ class Session extends UtilC implements Runnable{
                         buf.getInt();
                         buf.getShort();
                         buf.getInt();
-                        channel = Channel.getChannel(this);
-                        if (channel == null)
-                            break;
                         break;
                     case SSH_MSG_CHANNEL_FAILURE:
                         buf.getInt();
                         buf.getShort();
                         buf.getInt();
-                        channel = Channel.getChannel(this);
-                        if (channel == null)
-                            break;
                         break;
                     case SSH_MSG_GLOBAL_REQUEST:
                         buf.getInt();

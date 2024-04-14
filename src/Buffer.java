@@ -41,19 +41,6 @@ class Buffer {
         System.arraycopy(tmp, 0, buffer, index, 4);
         index += 4;
     }
-    public void putLong(long val) {
-        tmp[0] = (byte)(val >>> 56);
-        tmp[1] = (byte)(val >>> 48);
-        tmp[2] = (byte)(val >>> 40);
-        tmp[3] = (byte)(val >>> 32);
-        System.arraycopy(tmp, 0, buffer, index, 4);
-        tmp[0] = (byte)(val >>> 24);
-        tmp[1] = (byte)(val >>> 16);
-        tmp[2] = (byte)(val >>> 8);
-        tmp[3] = (byte)(val);
-        System.arraycopy(tmp, 0, buffer, index + 4, 4);
-        index += 8;
-    }
     void skip(int n) {
         index += n;
     }
