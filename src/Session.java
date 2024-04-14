@@ -579,34 +579,29 @@ class Session extends UtilC implements Runnable{
         long t = getTimeout();
         while (true) {
             if (c.get_close() || !c.isConnected())
-                throw new IOException("channel is broken");
+                throw new Exception("channel is broken");
             if (in_kex)
                 sleep(10);
             int s = 0;
-            byte command = 0;
-            int recipient = -1;
-            synchronized(c) {
-                if (c.get_rwsize() > 0) {
-                    long len = c.get_rwsize();
-                    if (len > length)
-                        len = length;
-                    if (len != length)
-                        s = packet.shift((int) len, c2scipher_size, 20);
-                    command = packet.buffer.getCommand();
-                    recipient = -1;
-                    length -= len;
-                    c.rwsize_substract(len);
-                    pos_write(packet);
-                    if (length == 0)
-                        return;
-                    packet.unshift(command, recipient, s, length);
-                }
-                if (in_kex)
-                    continue;
-                if (c.get_rwsize() >= length) {
-                    c.rwsize_substract(length);
-                    break;
-                }
+            if (c.get_rwsize() > 0) {
+                long len = c.get_rwsize();
+                if (len > length)
+                    len = length;
+                if (len != length)
+                    s = packet.shift((int) len, c2scipher_size, 20);
+                byte command = packet.buffer.getCommand();
+                length -= len;
+                c.rwsize_substract(len);
+                pos_write(packet);
+                if (length == 0)
+                    return;
+                packet.unshift(command, -1, s, length);
+            }
+            if (in_kex)
+                continue;
+            if (c.get_rwsize() >= length) {
+                c.rwsize_substract(length);
+                break;
             }
         }
         pos_write(packet);

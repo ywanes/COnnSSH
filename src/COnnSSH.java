@@ -64,8 +64,8 @@ public class COnnSSH {
                 String s=e.toString();
                 if ( s.contains("Connection reset") )
                     continue;
-                if ( s.contains("UserAuth Fail!!") )
-                    s="UserAuth Fail";
+                if ( s.contains("UserAuth Fail") )
+                    s="UserAuth Fail!!";
                 System.err.println(s);
                 System.exit(1);
             }            
