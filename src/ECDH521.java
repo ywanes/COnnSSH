@@ -79,9 +79,9 @@ class ECDH521 extends UtilC{
     protected static String[] guess(byte[] I_S, byte[] I_C) {
         String[] guess = new String[PROPOSAL_MAX];
         Buffer sb = new Buffer(I_S);
-        sb.setOffSet(17);
+        sb.set_get(17);
         Buffer cb = new Buffer(I_C);
-        cb.setOffSet(17);
+        cb.set_get(17);
         for (int i = 0; i < PROPOSAL_MAX; i++) {
             byte[] sp = sb.getString();
             byte[] cp = cb.getString();
@@ -165,7 +165,7 @@ class ECDH521 extends UtilC{
             Buffer buf_RSA = new Buffer(sig_of_H);
             if (new String(buf_RSA.getString()).equals("ssh-rsa")) {
                 int j_RSA = buf_RSA.getInt();
-                int i_RSA = buf_RSA.getOffSet();
+                int i_RSA = buf_RSA.get_get();
                 tmp_RSA = new byte[j_RSA];
                 System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
                 sig_of_H = tmp_RSA;

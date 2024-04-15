@@ -165,7 +165,7 @@ class Channel extends UtilC implements Runnable {
                 buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
                 buf.putInt(recipient);
                 buf.putInt(i);
-                buf.skip(i);                
+                buf.skip_put(i);                
                 session.write(packet, i);
             }
         } catch (Exception e) {

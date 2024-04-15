@@ -242,7 +242,7 @@ class Session extends UtilC implements Runnable{
                 if (isConnected) {
                     String message = e.toString();
                     packet.reset();
-                    buf.checkFreeSize(1 + 4 * 3 + message.length() + 2 + (32 + 64 + 32));
+                    buf.fixSize(1 + 4 * 3 + message.length() + 2 + (32 + 64 + 32));
                     buf.putByte((byte) SSH_MSG_DISCONNECT);
                     buf.putInt(3);
                     buf.putString(str2byte(message, "UTF-8"));
@@ -261,10 +261,10 @@ class Session extends UtilC implements Runnable{
         int j = buf.getInt();
         if (j != buf.getLength()) {
             buf.getByte();
-            I_S = new byte[buf.index - 5];
+            I_S = new byte[buf.i_put - 5];
         } else
             I_S = new byte[j - 1 - buf.getByte()];
-        System.arraycopy(buf.buffer, buf.s, I_S, 0, I_S.length);
+        System.arraycopy(buf.buffer, buf.i_get, I_S, 0, I_S.length);
         if (!in_kex)
             send_kexinit();
         guess = ECDH521.guess(I_S, I_C);
@@ -293,7 +293,7 @@ class Session extends UtilC implements Runnable{
         packet.reset();
         buf.putByte((byte) SSH_MSG_KEXINIT);
         synchronized(random) {
-            int start_fill = buf.index;
+            int start_fill = buf.i_put;
             int len_fill = 16;
             byte[] tmp_fill = new byte[16];
             if (len_fill > tmp_fill.length) {
@@ -301,7 +301,7 @@ class Session extends UtilC implements Runnable{
             }
             random.nextBytes(tmp_fill);
             System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
-            buf.skip(16);
+            buf.skip_put(16);
         }
         buf.putString(str2byte("ecdh-sha2-nistp521", "UTF-8"));
         buf.putString(str2byte("ssh-rsa,ecdsa-sha2-nistp521", "UTF-8"));
@@ -315,7 +315,7 @@ class Session extends UtilC implements Runnable{
         buf.putString(str2byte("", "UTF-8"));
         buf.putByte((byte) 0);
         buf.putInt(0);
-        buf.setOffSet(5);
+        buf.set_get(5);
         I_C = new byte[buf.getLength()];
         buf.getByte(I_C, 0, I_C.length);
         pre_write(packet);
@@ -333,7 +333,7 @@ class Session extends UtilC implements Runnable{
             int pad = packet.buffer.buffer[4];
             synchronized(random) {
                 byte[] foo_fill = packet.buffer.buffer;
-                int start_fill = packet.buffer.index - pad;
+                int start_fill = packet.buffer.i_put - pad;
                 int len_fill = pad;
                 byte[] tmp_fill = new byte[16];
                 if (len_fill > tmp_fill.length)
@@ -351,15 +351,15 @@ class Session extends UtilC implements Runnable{
             tmp[2] = (byte)(seqo >>> 8);
             tmp[3] = (byte) seqo;
             c2smac.update(tmp, 0, 4);
-            c2smac.update(packet.buffer.buffer, 0, packet.buffer.index);
-            c2smac.doFinal(packet.buffer.buffer, packet.buffer.index);
+            c2smac.update(packet.buffer.buffer, 0, packet.buffer.i_put);
+            c2smac.doFinal(packet.buffer.buffer, packet.buffer.i_put);
         }
         if (c2scipher != null) {
             byte[] buf = packet.buffer.buffer;
-            c2scipher.update(buf, 0, packet.buffer.index, buf, 0);
+            c2scipher.update(buf, 0, packet.buffer.i_put, buf, 0);
         }
         if (c2smac != null) {
-            packet.buffer.skip(20);
+            packet.buffer.skip_put(20);
         }
     }
 
@@ -369,20 +369,20 @@ class Session extends UtilC implements Runnable{
         int j = 0;
         while (true) {
             buf.reset();
-            getByte(buf.buffer, buf.index, s2ccipher_size);
-            buf.index += s2ccipher_size;
+            getByte(buf.buffer, buf.i_put, s2ccipher_size);
+            buf.i_put += s2ccipher_size;
             if (s2ccipher != null)
                 s2ccipher.update(buf.buffer, 0, s2ccipher_size, buf.buffer, 0);
             j = ((buf.buffer[0] << 24) & 0xff000000) | ((buf.buffer[1] << 16) & 0x00ff0000) | ((buf.buffer[2] << 8) & 0x0000ff00) | ((buf.buffer[3]) & 0x000000ff);
             int need = j + 4 - s2ccipher_size;
-            if ((buf.index + need) > buf.buffer.length) {
-                byte[] foo = new byte[buf.index + need];
-                System.arraycopy(buf.buffer, 0, foo, 0, buf.index);
+            if ((buf.i_put + need) > buf.buffer.length) {
+                byte[] foo = new byte[buf.i_put + need];
+                System.arraycopy(buf.buffer, 0, foo, 0, buf.i_put);
                 buf.buffer = foo;
             }
             if (need > 0) {
-                getByte(buf.buffer, buf.index, need);
-                buf.index += (need);
+                getByte(buf.buffer, buf.i_put, need);
+                buf.i_put += (need);
                 if (s2ccipher != null) {
                     s2ccipher.update(buf.buffer, s2ccipher_size, need, buf.buffer, s2ccipher_size);
                 }
@@ -394,7 +394,7 @@ class Session extends UtilC implements Runnable{
                 tmp[2] = (byte)(seqi >>> 8);
                 tmp[3] = (byte) seqi;
                 s2cmac.update(tmp, 0, 4);
-                s2cmac.update(buf.buffer, 0, buf.index);
+                s2cmac.update(buf.buffer, 0, buf.i_put);
                 s2cmac.doFinal(s2cmac_result1, 0);
                 getByte(s2cmac_result2, 0, s2cmac_result2.length);
                 if (!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)) {
@@ -429,9 +429,11 @@ class Session extends UtilC implements Runnable{
                 buf.getShort();
                 buf.getInt();
                 Channel c = Channel.getChannel();
-                if (c != null){
-                    c.add_rwsize(buf.getUInt());
-                }
+                //if (c != null){
+                //    c.add_rwsize(buf.getUInt());
+                //}
+                if (c != null)
+                    c.add_rwsize(buf.getInt());
             } else {
                 isAuthed = true;
                 break;
@@ -455,23 +457,23 @@ class Session extends UtilC implements Runnable{
         buf.putByte(H);
         buf.putByte((byte) 0x41);
         buf.putByte(session_id);
-        sha512.update(buf.buffer, 0, buf.index);
+        sha512.update(buf.buffer, 0, buf.i_put);
         IVc2s = sha512.digest();
-        int j = buf.index - session_id.length - 1;
+        int j = buf.i_put - session_id.length - 1;
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.index);
+        sha512.update(buf.buffer, 0, buf.i_put);
         IVs2c = sha512.digest();
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.index);
+        sha512.update(buf.buffer, 0, buf.i_put);
         Ec2s = sha512.digest();
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.index);
+        sha512.update(buf.buffer, 0, buf.i_put);
         Es2c = sha512.digest();
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.index);
+        sha512.update(buf.buffer, 0, buf.i_put);
         MACc2s = sha512.digest();
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.index);
+        sha512.update(buf.buffer, 0, buf.i_put);
         MACs2c = sha512.digest();
         try {
             while (32 > Es2c.length) {
@@ -479,7 +481,7 @@ class Session extends UtilC implements Runnable{
                 buf.putMPInt(K);
                 buf.putByte(H);
                 buf.putByte(Es2c);
-                sha512.update(buf.buffer, 0, buf.index);
+                sha512.update(buf.buffer, 0, buf.i_put);
                 byte[] foo = sha512.digest();
                 byte[] bar = new byte[Es2c.length + foo.length];
                 System.arraycopy(Es2c, 0, bar, 0, Es2c.length);
@@ -516,7 +518,7 @@ class Session extends UtilC implements Runnable{
                 buf.putMPInt(K);
                 buf.putByte(H);
                 buf.putByte(Ec2s);
-                sha512.update(buf.buffer, 0, buf.index);
+                sha512.update(buf.buffer, 0, buf.i_put);
                 byte[] foo = sha512.digest();
                 byte[] bar = new byte[Ec2s.length + foo.length];
                 System.arraycopy(Ec2s, 0, bar, 0, Ec2s.length);
@@ -650,7 +652,6 @@ class Session extends UtilC implements Runnable{
                     }
                     continue;
                 }
-                //System.out.print("[msgType:"+msgType+"]");// 80 91 94    
                 switch (msgType) {
                     case SSH_MSG_CHANNEL_DATA:
                         buf.getInt();
@@ -658,13 +659,13 @@ class Session extends UtilC implements Runnable{
                         buf.getByte();
                         buf.getInt();
                         channel = Channel.getChannel();
-                        foo = buf.getString(start, length);
-                        if (channel == null || length[0] == 0)
+                        byte[] a = buf.getString();
+                        if (channel == null || a.length == 0)
                             break;
                         try {
                             // ponto critico retorno out
-                            if ( Channel.permission_write(length[0]) )
-                                channel.put(foo, start[0], length[0]);
+                            if ( Channel.permission_write(a.length) )
+                                channel.put(a, 0, a.length);
                         } catch (Exception e) {
                             System.exit(0);
                             break;
@@ -675,13 +676,13 @@ class Session extends UtilC implements Runnable{
                         buf.getShort();
                         buf.getInt();
                         channel = Channel.getChannel();
-                        int r = buf.getInt();
-                        long rws = buf.getUInt();
+                        buf.getInt();
+                        buf.getInt();
                         int rps = buf.getInt();
                         if (channel != null) {
-                            channel.set_rwsize(rws);
+                            channel.set_recipient(0);
+                            channel.set_rwsize(0);
                             channel.set_rmpsize(rps);
-                            channel.set_recipient(r);
                         }
                         break;
                     case SSH_MSG_GLOBAL_REQUEST:
@@ -818,7 +819,7 @@ class Session extends UtilC implements Runnable{
         this.daemon_thread = enable;
     }
     public void put(Packet p) throws IOException, java.net.SocketException {
-        out.write(p.buffer.buffer, 0, p.buffer.index);
+        out.write(p.buffer.buffer, 0, p.buffer.i_put);
         out.flush();
     }
     void put(byte[] array, int begin, int length) throws IOException {

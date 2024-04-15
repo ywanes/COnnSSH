@@ -10,10 +10,10 @@ class Packet {
         this.buffer = buffer;
     }
     public void reset() {
-        buffer.index = 5;
+        buffer.i_put = 5;
     }
     void padding(int bsize) {
-        int len = buffer.index;
+        int len = buffer.i_put;
         int pad = (-len) & (bsize - 1);
         if (pad < bsize)
             pad += bsize;
@@ -26,7 +26,7 @@ class Packet {
         buffer.buffer[4] = (byte) pad;
         synchronized(random) {
             byte[] foo_fill = buffer.buffer;
-            int start_fill = buffer.index;
+            int start_fill = buffer.i_put;
             int len_fill = pad;
             byte[] tmp_fill = new byte[16];
             if (len_fill > tmp_fill.length) {
@@ -35,7 +35,7 @@ class Packet {
             random.nextBytes(tmp_fill);
             System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
         }
-        buffer.skip(pad);
+        buffer.skip_put(pad);
     }
 
     int shift(int len, int bsize, int mac) {
@@ -45,24 +45,24 @@ class Packet {
         s += pad;
         s += mac;
         s += 32;
-        if (buffer.buffer.length < s + buffer.index - 5 - 9 - len) {
-            byte[] foo = new byte[s + buffer.index - 5 - 9 - len];
+        if (buffer.buffer.length < s + buffer.i_put - 5 - 9 - len) {
+            byte[] foo = new byte[s + buffer.i_put - 5 - 9 - len];
             System.arraycopy(buffer.buffer, 0, foo, 0, buffer.buffer.length);
             buffer.buffer = foo;
         }
-        System.arraycopy(buffer.buffer, len + 5 + 9, buffer.buffer, s, buffer.index - 5 - 9 - len);
-        buffer.index = 10;
+        System.arraycopy(buffer.buffer, len + 5 + 9, buffer.buffer, s, buffer.i_put - 5 - 9 - len);
+        buffer.i_put = 10;
         buffer.putInt(len);
-        buffer.index = len + 5 + 9;
+        buffer.i_put = len + 5 + 9;
         return s;
     }
     void unshift(byte command, int recipient, int s, int len) {
         System.arraycopy(buffer.buffer, s, buffer.buffer, 5 + 9, len);
         buffer.buffer[5] = command;
-        buffer.index = 6;
+        buffer.i_put = 6;
         buffer.putInt(recipient);
         buffer.putInt(len);
-        buffer.index = len + 5 + 9;
+        buffer.i_put = len + 5 + 9;
     }
 }
 
