@@ -44,7 +44,7 @@ class Buffer {
         }
         putBytes(foo, 0, foo.length);
     }
-    public int getLength() {
+    public int getLength(){
         return i_put - i_get;
     }
     public int get_get() {
@@ -62,14 +62,19 @@ class Buffer {
     public byte getByte() {
         return buffer[i_get++];
     }
-    public byte[] getBytes(int len) {
+    public byte[] getBytes() {
+        int len = getInt();
         byte[] foo = new byte[len];
         System.arraycopy(buffer, i_get, foo, 0, len);
         i_get += len;
-        return foo;
+        return foo;        
     }
-    public byte[] getBytes() {
-        return getBytes(getInt());
+    public byte[] getBytesAll(){
+        int len = getLength();
+        byte[] foo = new byte[len];
+        System.arraycopy(buffer, i_get, foo, 0, len);
+        i_get += len;
+        return foo;        
     }
     public void reset() {
         i_put = 0;
