@@ -6,9 +6,6 @@ class Buffer {
     public Buffer() {
         this(new byte[1024 * 10 * 2]);
     }
-    public Buffer(int size) {
-        this(new byte[size]);
-    }
     public Buffer(byte[] buffer) {
         this.buffer = buffer;
         i_put = 0;

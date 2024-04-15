@@ -50,7 +50,7 @@ class Channel extends UtilC implements Runnable {
     public void connect() throws ExceptionC, Exception {
         if (!session.isConnected())
             throw new ExceptionC("session is down");
-        Buffer buf = new Buffer(100);
+        Buffer buf = new Buffer(new byte[100]);
         Packet packet = new Packet(buf);
         packet.reset();
         buf.putByte((byte) 90);
@@ -149,7 +149,7 @@ class Channel extends UtilC implements Runnable {
     }
     public void run() {
         // ponto critico!!
-        Buffer buf = new Buffer(rmpsize);
+        Buffer buf = new Buffer(new byte[rmpsize]);
         Packet packet = new Packet(buf);
         try {
             while (isConnected()) {
