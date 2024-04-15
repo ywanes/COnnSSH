@@ -7,7 +7,6 @@ class Channel extends UtilC{
     private InputStream in = System.in;
     private OutputStream out = System.out;
     private OutputStream out_ext = null;
-    private int notifyme = 0;
     private long rwsize = 0;
     private boolean close = false;
     private boolean eof_remote = false;
@@ -42,10 +41,8 @@ class Channel extends UtilC{
     static Channel getChannel() {
         return channel;
     }
-    synchronized public void set_recipient(int foo) {
-        this.recipient = foo;
-        if (notifyme > 0)
-            notifyAll();
+    public void set_recipient(int recipient){
+        this.recipient=recipient;
     }
     public void connect() throws ExceptionC, Exception {
         if (!session.isConnected())
@@ -59,19 +56,14 @@ class Channel extends UtilC{
         buf.putInt(0x100000);
         buf.putInt(0x4000);
         session.pre_write(packet);
-        int retry = 2000;
         
-        // critico
-        synchronized(this) {
-            if (recipient == -1 && session.isConnected() && retry > 0) {
-                try {
-                    notifyme = 1;
-                    wait(30000);
-                } finally {
-                    notifyme = 0;
-                }
-                retry--;
+        // critico           
+        for ( int i=0;i<300;i++ ){
+            if ( recipient < 0 ){
+                sleep(10);
+                continue;
             }
+            break;
         }
         
         if (!session.isConnected())
@@ -133,12 +125,6 @@ class Channel extends UtilC{
         } catch (Exception e) {
             System.out.println("ex_20");
         }
-    }
-    public void add_notifyme(int a) {
-        notifyme += a;
-    }
-    public void notifyme_substract(int a) {
-        notifyme -= a;
     }
     public void set_eof_remote(boolean a) {
         eof_remote = a;

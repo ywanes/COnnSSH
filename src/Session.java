@@ -59,8 +59,6 @@ class Session extends UtilC{
     private boolean isConnected = false;
     private boolean isAuthed = false;
     private Object lock = new Object();
-    boolean x11_forwarding = false;
-    boolean agent_forwarding = false;
     InputStream in = System.in;
     OutputStream out = System.out;
     private boolean in_dontclose = false;
@@ -152,7 +150,9 @@ class Session extends UtilC{
                                     buf.getInt();
                                     int rps = buf.getInt();
                                     if (channel != null) {
-                                        channel.set_recipient(0);
+                                        //channel.set_recipient(0);
+                                        //channel.no[0]=1;
+                                        channel.set_recipient(0);                                        
                                         channel.set_rwsize(0);
                                         channel.set_rmpsize(rps);
                                     }
@@ -181,6 +181,7 @@ class Session extends UtilC{
                     isConnected = false;                    
                 }
             }.start();
+            
         }
     }
 
@@ -825,13 +826,16 @@ class Session extends UtilC{
     }
     void out_close() {
         try {
-            if (out != null && !out_dontclose) out.close();
+            if (out != null && !out_dontclose) 
+                out.close();
             out = null;
         } catch (Exception ee) {}
     }
     public void close() {
         try {
-            if ( in != null && !in_dontclose) in .close(); in = null;
+            if ( in != null && !in_dontclose) 
+                in.close(); 
+            in = null;
         } catch (Exception ee) {}
         out_close();
     }
