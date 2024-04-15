@@ -17,19 +17,13 @@ class Buffer {
     public void putByte(byte foo) {
         buffer[i_put++] = foo;
     }
-    public void putByte(byte[] foo) {
-        putByte(foo, 0, foo.length);
-    }
-    public void putByte(byte[] foo, int begin, int len) {
+    public void putBytes(byte[] foo, int begin, int len) {
         System.arraycopy(foo, begin, buffer, i_put, len);
         i_put += len;
     }
     public void putString(byte[] foo) {
-        putString(foo, 0, foo.length);
-    }
-    public void putString(byte[] foo, int begin, int len) {
-        putInt(len);
-        putByte(foo, begin, len);
+        putInt(foo.length);
+        putBytes(foo, 0, foo.length);
     }
     public void putInt(int val) {
         tmp_putInt[0] = (byte)(val >>> 24);
@@ -51,7 +45,7 @@ class Buffer {
         } else {
             putInt(i);
         }
-        putByte(foo);
+        putBytes(foo, 0, foo.length);
     }
     public int getLength() {
         return i_put - i_get;
@@ -60,7 +54,7 @@ class Buffer {
         return i_get;
     }
     public void set_get(int s) {
-        this.i_get = s;
+        i_get = s;
     }
     public int getInt(){
         return ((getShort() << 16) & 0xffff0000) | (getShort() & 0xffff);
@@ -90,7 +84,7 @@ class Buffer {
     byte getCommand() {
         return buffer[5];
     }
-    void fixSize(int n) {
+    void resize_buffer(int n) {
         int i = i_put + n + (32 + 64 + 32);
         if ( buffer.length <  i){
             byte[] tmp = new byte[i];

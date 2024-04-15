@@ -38,7 +38,7 @@ class Session extends UtilC implements Runnable{
     private byte[] V_C = str2byte("SSH-2.0-JSCH-0.1.54", "UTF-8");
     private byte[] I_C;
     private byte[] I_S;
-    private byte[] session_id;
+    private byte[] session_ids;
     private byte[] IVc2s;
     private byte[] IVs2c;
     private byte[] Ec2s;
@@ -242,7 +242,7 @@ class Session extends UtilC implements Runnable{
                 if (isConnected) {
                     String message = e.toString();
                     packet.reset();
-                    buf.fixSize(1 + 4 * 3 + message.length() + 2 + (32 + 64 + 32));
+                    buf.resize_buffer(1 + 4 * 3 + message.length() + 2 + (32 + 64 + 32));
                     buf.putByte((byte) SSH_MSG_DISCONNECT);
                     buf.putInt(3);
                     buf.putString(str2byte(message, "UTF-8"));
@@ -444,18 +444,18 @@ class Session extends UtilC implements Runnable{
         byte[] K = kex.getK();
         byte[] H = kex.getH();
         java.security.MessageDigest sha512 = kex.getHash();
-        if (session_id == null) {
-            session_id = new byte[H.length];
-            System.arraycopy(H, 0, session_id, 0, H.length);
+        if (session_ids == null) {
+            session_ids = new byte[H.length];
+            System.arraycopy(H, 0, session_ids, 0, H.length);
         }
         buf.reset();
         buf.putMPInt(K);
-        buf.putByte(H);
+        buf.putBytes(H, 0, H.length);
         buf.putByte((byte) 0x41);
-        buf.putByte(session_id);
+        buf.putBytes(session_ids, 0, session_ids.length);
         sha512.update(buf.buffer, 0, buf.i_put);
         IVc2s = sha512.digest();
-        int j = buf.i_put - session_id.length - 1;
+        int j = buf.i_put - session_ids.length - 1;
         buf.buffer[j]++;
         sha512.update(buf.buffer, 0, buf.i_put);
         IVs2c = sha512.digest();
@@ -475,8 +475,8 @@ class Session extends UtilC implements Runnable{
             while (32 > Es2c.length) {
                 buf.reset();
                 buf.putMPInt(K);
-                buf.putByte(H);
-                buf.putByte(Es2c);
+                buf.putBytes(H, 0, H.length);
+                buf.putBytes(Es2c, 0, Es2c.length);
                 sha512.update(buf.buffer, 0, buf.i_put);
                 byte[] foo = sha512.digest();
                 byte[] bar = new byte[Es2c.length + foo.length];
@@ -512,8 +512,8 @@ class Session extends UtilC implements Runnable{
             while (32 > Ec2s.length) {
                 buf.reset();
                 buf.putMPInt(K);
-                buf.putByte(H);
-                buf.putByte(Ec2s);
+                buf.putBytes(H, 0, H.length);
+                buf.putBytes(Ec2s, 0, Ec2s.length);
                 sha512.update(buf.buffer, 0, buf.i_put);
                 byte[] foo = sha512.digest();
                 byte[] bar = new byte[Ec2s.length + foo.length];
