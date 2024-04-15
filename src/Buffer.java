@@ -1,20 +1,18 @@
 class Buffer {
-    final byte[] tmp = new byte[4];
+    final byte[] tmp_putInt = new byte[4];
     byte[] buffer;
     int i_put;
     int i_get;
+    public Buffer() {
+        this(new byte[1024 * 10 * 2]);
+    }
     public Buffer(int size) {
-        buffer = new byte[size];
-        i_put = 0;
-        i_get = 0;
+        this(new byte[size]);
     }
     public Buffer(byte[] buffer) {
         this.buffer = buffer;
         i_put = 0;
         i_get = 0;
-    }
-    public Buffer() {
-        this(1024 * 10 * 2);
     }
     public void putByte(byte foo) {
         buffer[i_put++] = foo;
@@ -29,16 +27,16 @@ class Buffer {
     public void putString(byte[] foo) {
         putString(foo, 0, foo.length);
     }
-    public void putString(byte[] foo, int begin, int length) {
-        putInt(length);
-        putByte(foo, begin, length);
+    public void putString(byte[] foo, int begin, int len) {
+        putInt(len);
+        putByte(foo, begin, len);
     }
     public void putInt(int val) {
-        tmp[0] = (byte)(val >>> 24);
-        tmp[1] = (byte)(val >>> 16);
-        tmp[2] = (byte)(val >>> 8);
-        tmp[3] = (byte)(val);
-        System.arraycopy(tmp, 0, buffer, i_put, 4);
+        tmp_putInt[0] = (byte)(val >>> 24);
+        tmp_putInt[1] = (byte)(val >>> 16);
+        tmp_putInt[2] = (byte)(val >>> 8);
+        tmp_putInt[3] = (byte)(val);
+        System.arraycopy(tmp_putInt, 0, buffer, i_put, 4);
         i_put += 4;
     }
     void skip_put(int n) {
@@ -70,17 +68,13 @@ class Buffer {
     int getShort() {
         return ((getByte() << 8) & 0xff00) | (getByte() & 0xff);
     }
-    public int getByte() {
-        return (int)buffer[i_get++];
+    public byte getByte() {
+        return buffer[i_get++];
     }
     void getByte(byte[] foo, int start, int len) {
+        //byte[] foo = new byte[len];
         System.arraycopy(buffer, i_get, foo, start, len);
         i_get += len;
-    }
-    public int getByte2(int len) { // ?
-        int foo = i_get;
-        i_get += len;
-        return foo;
     }
     public byte[] getMPInt() {
         int i = getInt();
