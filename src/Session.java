@@ -405,32 +405,29 @@ class Session extends UtilC implements Runnable{
             seqi++;
             int type = buf.getCommand() & 0xff;
             if (type == SSH_MSG_DISCONNECT) {
-                buf.rewind();
+                buf.reset_get();
                 buf.getInt();
                 buf.getShort();
                 int reason_code = buf.getInt();
-                byte[] text = buf.getString();
-                byte[] language_tag = buf.getString();
+                byte[] text = buf.getBytes();
+                byte[] language_tag = buf.getBytes();
                 throw new ExceptionC("SSH_MSG_DISCONNECT" + reason_code + " " + byte2str(text) + " " + byte2str(language_tag));
             } else if (type == SSH_MSG_IGNORE) {
             } else if (type == SSH_MSG_UNIMPLEMENTED) {
-                buf.rewind();
+                buf.reset_get();
                 buf.getInt();
                 buf.getShort();
                 buf.getInt();
             } else if (type == SSH_MSG_DEBUG) {
-                buf.rewind();
+                buf.reset_get();
                 buf.getInt();
                 buf.getShort();
             } else if (type == SSH_MSG_CHANNEL_WINDOW_ADJUST) {
-                buf.rewind();
+                buf.reset_get();
                 buf.getInt();
                 buf.getShort();
                 buf.getInt();
                 Channel c = Channel.getChannel();
-                //if (c != null){
-                //    c.add_rwsize(buf.getUInt());
-                //}
                 if (c != null)
                     c.add_rwsize(buf.getInt());
             } else {
@@ -438,7 +435,7 @@ class Session extends UtilC implements Runnable{
                 break;
             }
         }
-        buf.rewind();
+        buf.reset_get();
         return buf;
     }
 
@@ -658,7 +655,7 @@ class Session extends UtilC implements Runnable{
                         buf.getByte();
                         buf.getInt();
                         channel = Channel.getChannel();
-                        byte[] a = buf.getString();
+                        byte[] a = buf.getBytes();
                         if (channel == null || a.length == 0)
                             break;
                         try {
@@ -687,7 +684,7 @@ class Session extends UtilC implements Runnable{
                     case SSH_MSG_GLOBAL_REQUEST:
                         buf.getInt();
                         buf.getShort();
-                        buf.getString();
+                        buf.getBytes();
                         if (buf.getByte() != 0) {
                             packet.reset();
                             buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);

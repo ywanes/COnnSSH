@@ -83,8 +83,8 @@ class ECDH521 extends UtilC{
         Buffer cb = new Buffer(I_C);
         cb.set_get(17);
         for (int i = 0; i < PROPOSAL_MAX; i++) {
-            byte[] sp = sb.getString();
-            byte[] cp = cb.getString();
+            byte[] sp = sb.getBytes();
+            byte[] cp = cb.getBytes();
             int j = 0;
             int k = 0;
             label_break:
@@ -163,7 +163,7 @@ class ECDH521 extends UtilC{
             signature.update(H);
             byte[] tmp_RSA;
             Buffer buf_RSA = new Buffer(sig_of_H);
-            if (new String(buf_RSA.getString()).equals("ssh-rsa")) {
+            if (new String(buf_RSA.getBytes()).equals("ssh-rsa")) {
                 int j_RSA = buf_RSA.getInt();
                 int i_RSA = buf_RSA.get_get();
                 tmp_RSA = new byte[j_RSA];
@@ -187,14 +187,14 @@ class ECDH521 extends UtilC{
                     System.err.println("type: must be 31 " + j);
                     return false;
                 }
-                K_S = _buf.getString();
-                byte[] Q_S = _buf.getString();
+                K_S = _buf.getBytes();
+                byte[] Q_S = _buf.getBytes();
                 byte[][] r_s = fromPoint(Q_S);
                 if (!ecdh.validate(r_s[0], r_s[1]))
                     return false;
                 K = ecdh.getSecret(r_s[0], r_s[1]);
                 K = normalize(K);
-                byte[] sig_of_H = _buf.getString();
+                byte[] sig_of_H = _buf.getBytes();
                 buf.reset();
                 buf.putString(V_C);
                 buf.putString(V_S);

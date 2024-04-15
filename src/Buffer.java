@@ -77,35 +77,14 @@ class Buffer {
         i_get += len;
         return foo;
     }
-    public byte[] getMPInt() {
-        return getString();
-    }
-    public byte[] getMPIntBits() {
-        int bits = getInt();
-        int bytes = (bits + 7) / 8;
-        byte[] foo = getBytes(bytes);
-        if ((foo[0] & 0x80) != 0) {
-            byte[] bar = new byte[foo.length + 1];
-            bar[0] = 0;
-            System.arraycopy(foo, 0, bar, 1, foo.length);
-            foo = bar;
-        }
-        return foo;
-    }
-    public byte[] getString() {
+    public byte[] getBytes() {
         return getBytes(getInt());
     }
     public void reset() {
         i_put = 0;
         i_get = 0;
     }
-    public void shift() {
-        if (i_get == 0) return;
-        System.arraycopy(buffer, i_get, buffer, 0, i_put - i_get);
-        i_put = i_put - i_get;
-        i_get = 0;
-    }
-    void rewind() {
+    void reset_get() {
         i_get = 0;
     }
     byte getCommand() {
