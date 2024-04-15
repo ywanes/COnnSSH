@@ -5,7 +5,7 @@ import java.io.OutputStream;
 import java.net.Proxy;
 import java.net.Socket;
 
-class Session extends UtilC implements Runnable{
+class Session extends UtilC{
     static final int SSH_MSG_DISCONNECT = 1;
     static final int SSH_MSG_IGNORE = 2;
     static final int SSH_MSG_UNIMPLEMENTED = 3;
@@ -58,7 +58,6 @@ class Session extends UtilC implements Runnable{
     private int timeout = 0;
     private boolean isConnected = false;
     private boolean isAuthed = false;
-    private Thread connectThread = null;
     private Object lock = new Object();
     boolean x11_forwarding = false;
     boolean agent_forwarding = false;
@@ -82,13 +81,107 @@ class Session extends UtilC implements Runnable{
     byte[] password = null;
 
     Session(String host, String username, int port, String password) throws Exception {
-        super();
         buf = new Buffer();
         packet = new Packet(buf);
         this.username = username;
         this.port = port;
         setPassword(password);
-        connect();
+        connect();        
+        if (isConnected){
+            new Thread(){
+                public void run(){
+                    byte[] foo;
+                    Buffer buf = new Buffer();
+                    Packet packet = new Packet(buf);
+                    int i = 0;
+                    Channel channel;
+                    int[] start = new int[1];
+                    int[] length = new int[1];
+                    ECDH521 kex = null;
+                    int stimeout = 0;        
+                    try {
+                        while (isConnected) {
+                            try {
+                                buf = read(buf);
+                                stimeout = 0;
+                            } catch (InterruptedIOException ee) {
+                                if (!in_kex && stimeout < serverAliveCountMax) {
+                                    sendKeepAliveMsg();
+                                    stimeout++;
+                                    continue;
+                                } else if (in_kex && stimeout < serverAliveCountMax) {
+                                    stimeout++;
+                                    continue;
+                                }
+                                throw ee;
+                            }
+                            int msgType = buf.getCommand() & 0xff;                
+                            if (kex != null && kex.getState() == msgType) {
+                                kex_start_time = System.currentTimeMillis();
+                                boolean result = kex.next(buf);
+                                if (!result) {
+                                    throw new ExceptionC("verify: " + result);
+                                }
+                                continue;
+                            }
+                            switch (msgType) {
+                                case SSH_MSG_CHANNEL_DATA:
+                                    buf.getInt();
+                                    buf.getByte();
+                                    buf.getByte();
+                                    buf.getInt();
+                                    channel = Channel.getChannel();
+                                    byte[] a = buf.getBytes();
+                                    if (channel == null || a.length == 0)
+                                        break;
+                                    try {
+                                        // ponto critico retorno out
+                                        if ( Channel.permission_write(a.length) )
+                                            channel.put(a, 0, a.length);
+                                    } catch (Exception e) {
+                                        System.exit(0);
+                                        break;
+                                    }
+                                    break;
+                                case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
+                                    buf.getInt();
+                                    buf.getShort();
+                                    buf.getInt();
+                                    channel = Channel.getChannel();
+                                    buf.getInt();
+                                    buf.getInt();
+                                    int rps = buf.getInt();
+                                    if (channel != null) {
+                                        channel.set_recipient(0);
+                                        channel.set_rwsize(0);
+                                        channel.set_rmpsize(rps);
+                                    }
+                                    break;
+                                case SSH_MSG_GLOBAL_REQUEST:
+                                    buf.getInt();
+                                    buf.getShort();
+                                    buf.getBytes();
+                                    if (buf.getByte() != 0) {
+                                        packet.reset();
+                                        buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
+                                        pre_write(packet);
+                                    }
+                                    break;
+                                case SSH_MSG_CHANNEL_EOF:
+                                    System.exit(0);
+                                default:
+                                    throw new IOException("msgType " + msgType+" not found. - Only 3 msgType implementations");
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.out.println("ex_151 " + e.toString());
+                        in_kex = false;
+                    }
+                    System.exit(0);
+                    isConnected = false;                    
+                }
+            }.start();
+        }
     }
 
     public void connect() throws ExceptionC {
@@ -226,13 +319,6 @@ class Session extends UtilC implements Runnable{
             if (socket != null && timeout > 0)
                 socket.setSoTimeout(timeout);
             isAuthed = true;
-            synchronized(lock) {
-                if (isConnected) {
-                    connectThread = new Thread(this);
-                    connectThread.setName("Connect thread " + host + " session");
-                    connectThread.start();
-                }
-            }
         }catch (Exception e) {
             in_kex = false;
             try {
@@ -607,99 +693,6 @@ class Session extends UtilC implements Runnable{
             put(packet);
             seqo++;
         }
-    }
-    Runnable thread;
-    public void run() {
-        thread = this;
-        byte[] foo;
-        Buffer buf = new Buffer();
-        Packet packet = new Packet(buf);
-        int i = 0;
-        Channel channel;
-        int[] start = new int[1];
-        int[] length = new int[1];
-        ECDH521 kex = null;
-        int stimeout = 0;        
-        try {
-            while (isConnected && thread != null) {
-                try {
-                    buf = read(buf);
-                    stimeout = 0;
-                } catch (InterruptedIOException ee) {
-                    if (!in_kex && stimeout < serverAliveCountMax) {
-                        sendKeepAliveMsg();
-                        stimeout++;
-                        continue;
-                    } else if (in_kex && stimeout < serverAliveCountMax) {
-                        stimeout++;
-                        continue;
-                    }
-                    throw ee;
-                }
-                int msgType = buf.getCommand() & 0xff;                
-                if (kex != null && kex.getState() == msgType) {
-                    kex_start_time = System.currentTimeMillis();
-                    boolean result = kex.next(buf);
-                    if (!result) {
-                        throw new ExceptionC("verify: " + result);
-                    }
-                    continue;
-                }
-                switch (msgType) {
-                    case SSH_MSG_CHANNEL_DATA:
-                        buf.getInt();
-                        buf.getByte();
-                        buf.getByte();
-                        buf.getInt();
-                        channel = Channel.getChannel();
-                        byte[] a = buf.getBytes();
-                        if (channel == null || a.length == 0)
-                            break;
-                        try {
-                            // ponto critico retorno out
-                            if ( Channel.permission_write(a.length) )
-                                channel.put(a, 0, a.length);
-                        } catch (Exception e) {
-                            System.exit(0);
-                            break;
-                        }
-                        break;
-                    case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        channel = Channel.getChannel();
-                        buf.getInt();
-                        buf.getInt();
-                        int rps = buf.getInt();
-                        if (channel != null) {
-                            channel.set_recipient(0);
-                            channel.set_rwsize(0);
-                            channel.set_rmpsize(rps);
-                        }
-                        break;
-                    case SSH_MSG_GLOBAL_REQUEST:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getBytes();
-                        if (buf.getByte() != 0) {
-                            packet.reset();
-                            buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
-                            pre_write(packet);
-                        }
-                        break;
-                    case SSH_MSG_CHANNEL_EOF:
-                        System.exit(0);
-                    default:
-                        throw new IOException("removido outra comunicações - " + msgType);                
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("ex_151 " + e.toString());
-            in_kex = false;
-        }
-        System.exit(0);
-        isConnected = false;
     }
     public void setProxy(Proxy proxy) {
         this.proxy = proxy;
