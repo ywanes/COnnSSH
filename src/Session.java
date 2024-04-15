@@ -316,8 +316,7 @@ class Session extends UtilC implements Runnable{
         buf.putByte((byte) 0);
         buf.putInt(0);
         buf.set_get(5);
-        I_C = new byte[buf.getLength()];
-        buf.getByte(I_C, 0, I_C.length);
+        I_C = buf.getBytes(buf.getLength());
         pre_write(packet);
     }
 

@@ -71,24 +71,19 @@ class Buffer {
     public byte getByte() {
         return buffer[i_get++];
     }
-    void getByte(byte[] foo, int start, int len) {
-        //byte[] foo = new byte[len];
-        System.arraycopy(buffer, i_get, foo, start, len);
+    public byte[] getBytes(int len) {
+        byte[] foo = new byte[len];
+        System.arraycopy(buffer, i_get, foo, 0, len);
         i_get += len;
+        return foo;
     }
     public byte[] getMPInt() {
-        int i = getInt();
-        if (i < 0 || i > 8 * 1024)
-            i = 8 * 1024;
-        byte[] foo = new byte[i];
-        getByte(foo, 0, i);
-        return foo;
+        return getString();
     }
     public byte[] getMPIntBits() {
         int bits = getInt();
         int bytes = (bits + 7) / 8;
-        byte[] foo = new byte[bytes];
-        getByte(foo, 0, bytes);
+        byte[] foo = getBytes(bytes);
         if ((foo[0] & 0x80) != 0) {
             byte[] bar = new byte[foo.length + 1];
             bar[0] = 0;
@@ -98,10 +93,7 @@ class Buffer {
         return foo;
     }
     public byte[] getString() {
-        int i = getInt();
-        byte[] foo = new byte[i];
-        getByte(foo, 0, i);
-        return foo;
+        return getBytes(getInt());
     }
     public void reset() {
         i_put = 0;

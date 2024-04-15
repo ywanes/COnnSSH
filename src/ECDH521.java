@@ -204,8 +204,7 @@ class ECDH521 extends UtilC{
                 buf.putString(Q_C);
                 buf.putString(Q_S);
                 buf.putMPInt(K);
-                byte[] foo = new byte[buf.getLength()];
-                buf.getByte(foo, 0, foo.length);
+                byte[] foo = buf.getBytes(buf.getLength());
                 sha512.update(foo, 0, foo.length);
                 H = sha512.digest();
                 i = 0;
