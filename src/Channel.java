@@ -2,7 +2,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-class Channel extends UtilC implements Runnable {
+class Channel extends UtilC{
     private static Channel channel = null;
     private InputStream in = System.in;
     private OutputStream out = System.out;
@@ -60,6 +60,8 @@ class Channel extends UtilC implements Runnable {
         buf.putInt(0x4000);
         session.pre_write(packet);
         int retry = 2000;
+        
+        // critico
         synchronized(this) {
             if (recipient == -1 && session.isConnected() && retry > 0) {
                 try {
@@ -71,6 +73,7 @@ class Channel extends UtilC implements Runnable {
                 retry--;
             }
         }
+        
         if (!session.isConnected())
             throw new ExceptionC("session is down");
         if (recipient == -1)
@@ -81,30 +84,55 @@ class Channel extends UtilC implements Runnable {
         int trow = 24;
         int twp = 640;
         int thp = 480;
-        Buffer buf2 = new Buffer();
-        Packet packet2 = new Packet(buf2);
-        packet2.reset();
-        buf2.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-        buf2.putInt(recipient);
-        buf2.putString(str2byte("pty-req", "UTF-8"));
-        buf2.putByte((byte) 0);
-        buf2.putString(str2byte(ttype, "UTF-8"));
-        buf2.putInt(tcol);
-        buf2.putInt(trow);
-        buf2.putInt(twp);
-        buf2.putInt(thp);
-        buf2.putString(terminal_mode);
-        session.pre_write(packet2);
-        buf2 = new Buffer();
-        packet2 = new Packet(buf2);
-        packet2.reset();
-        buf2.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-        buf2.putInt(recipient);
-        buf2.putString(str2byte("shell", "UTF-8"));
-        buf2.putByte((byte) 0);
-        session.pre_write(packet2);
+        
+        buf = new Buffer();
+        packet = new Packet(buf);
+        packet.reset();
+        buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+        buf.putInt(recipient);
+        buf.putString(str2byte("pty-req", "UTF-8"));
+        buf.putByte((byte) 0);
+        buf.putString(str2byte(ttype, "UTF-8"));
+        buf.putInt(tcol);
+        buf.putInt(trow);
+        buf.putInt(twp);
+        buf.putInt(thp);
+        buf.putString(terminal_mode);
+        session.pre_write(packet);
+        
+        buf = new Buffer();
+        packet = new Packet(buf);
+        packet.reset();
+        buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+        buf.putInt(recipient);
+        buf.putString(str2byte("shell", "UTF-8"));
+        buf.putByte((byte) 0);
+        session.pre_write(packet);
         connected = true;
-        new Thread(this).start();
+        
+        // ponto critico!!
+        buf = new Buffer(new byte[rmpsize]);
+        packet = new Packet(buf);
+        try {
+            while (isConnected()) {
+                int i = in.read(buf.buffer, 14, buf.buffer.length -142);
+                count_line_return=0;
+                if (i == 0)
+                    continue;
+                if (i == -1)
+                    break;
+                if (close)
+                    break;
+                packet.reset();
+                buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
+                buf.putInt(recipient);
+                buf.putInt(i);
+                buf.skip_put(i);                
+                session.write(packet, i);
+            }
+        } catch (Exception e) {
+            System.out.println("ex_20");
+        }
     }
     public void add_notifyme(int a) {
         notifyme += a;
@@ -146,31 +174,6 @@ class Channel extends UtilC implements Runnable {
     }
     public boolean isConnected() {
         return session != null && session.isConnected() && connected;
-    }
-    public void run() {
-        // ponto critico!!
-        Buffer buf = new Buffer(new byte[rmpsize]);
-        Packet packet = new Packet(buf);
-        try {
-            while (isConnected()) {
-                int i = in.read(buf.buffer, 14, buf.buffer.length -142);
-                count_line_return=0;
-                if (i == 0)
-                    continue;
-                if (i == -1)
-                    break;
-                if (close)
-                    break;
-                packet.reset();
-                buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
-                buf.putInt(recipient);
-                buf.putInt(i);
-                buf.skip_put(i);                
-                session.write(packet, i);
-            }
-        } catch (Exception e) {
-            System.out.println("ex_20");
-        }
     }
 }
 
