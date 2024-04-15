@@ -73,7 +73,6 @@ class Session extends UtilC implements Runnable{
     private String hostKeyAlias = null;
     private int serverAliveInterval = 0;
     private int serverAliveCountMax = 1;
-    protected boolean daemon_thread = false;
     private long kex_start_time = 0L;
     int max_auth_tries = 6;
     int auth_failures = 0;
@@ -231,8 +230,6 @@ class Session extends UtilC implements Runnable{
                 if (isConnected) {
                     connectThread = new Thread(this);
                     connectThread.setName("Connect thread " + host + " session");
-                    if (daemon_thread)
-                        connectThread.setDaemon(daemon_thread);
                     connectThread.start();
                 }
             }
@@ -810,9 +807,6 @@ class Session extends UtilC implements Runnable{
     }
     public int getServerAliveCountMax() {
         return this.serverAliveCountMax;
-    }
-    public void setDaemonThread(boolean enable) {
-        this.daemon_thread = enable;
     }
     public void put(Packet p) throws IOException, java.net.SocketException {
         out.write(p.buffer.buffer, 0, p.buffer.i_put);

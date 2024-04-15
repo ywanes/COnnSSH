@@ -94,6 +94,5 @@ class Buffer {
             buffer = tmp;
         }
     }
-
 }
 

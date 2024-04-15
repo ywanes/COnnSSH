@@ -103,8 +103,8 @@ class Channel extends UtilC implements Runnable {
         buf2.putString(str2byte("shell", "UTF-8"));
         buf2.putByte((byte) 0);
         session.pre_write(packet2);
-        new Thread(this).start();
         connected = true;
+        new Thread(this).start();
     }
     public void add_notifyme(int a) {
         notifyme += a;
