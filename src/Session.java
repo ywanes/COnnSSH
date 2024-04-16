@@ -370,8 +370,8 @@ class Session extends UtilC{
             System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
             buf.skip_put(16);
         }
-        buf.putString(str2byte("ecdh-sha2-nistp521", "UTF-8"));
-        buf.putString(str2byte("ssh-rsa,ecdsa-sha2-nistp521", "UTF-8"));
+        buf.putString(str2byte("ecdh-sha2-nistp521", "UTF-8")); // ecdh-sha2-nistp256
+        buf.putString(str2byte("ssh-rsa,ecdsa-sha2-nistp521", "UTF-8")); // ssh-rsa,ecdsa-sha2-nistp256
         buf.putString(str2byte("aes256-ctr", "UTF-8"));
         buf.putString(str2byte("aes256-ctr", "UTF-8"));
         buf.putString(str2byte("hmac-sha1", "UTF-8"));

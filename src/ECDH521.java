@@ -38,8 +38,7 @@ class ECDH521 extends UtilC{
     private Buffer buf;
     private Packet packet;
     private KeyExchangeECDH ecdh;
-    protected String sha_name = "sha-512";
-    protected int key_size = 521;
+    protected int key_size = 521; // 256
 
     public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
         this.session = session;
@@ -47,7 +46,7 @@ class ECDH521 extends UtilC{
         this.V_C = V_C;
         this.I_S = I_S;
         this.I_C = I_C;
-        sha512 = java.security.MessageDigest.getInstance("SHA-512");
+        sha512 = java.security.MessageDigest.getInstance("SHA-512"); // 256
         buf = new Buffer();
         packet = new Packet(buf);
         packet.reset();
@@ -59,9 +58,9 @@ class ECDH521 extends UtilC{
             buf.putString(Q_C);
         } catch (Exception e) {
             System.out.println("ex_90");
-            if (e instanceof Throwable)
-                throw new ExceptionC("Error ECDH521 Throwable " + e.toString());
-            throw new ExceptionC("Error ECDH521 " + e.toString());
+            if (e instanceof Throwable)                
+                throw new ExceptionC("Error ECDH521 Throwable " + e.toString()); // ECDH256
+            throw new ExceptionC("Error ECDH521 " + e.toString()); // 256
         }
         if (V_S == null)
             return;
@@ -298,7 +297,7 @@ class ECDH521 extends UtilC{
             java.security.interfaces.ECPrivateKey prvKey;
             public void init(int key_size) throws Exception {
                 java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
-                ECGenParameterSpec ecsp = new ECGenParameterSpec("secp521r1");
+                ECGenParameterSpec ecsp = new ECGenParameterSpec("secp521r1"); // secp256r1                
                 kpg.initialize(ecsp);
                 java.security.KeyPair kp = kpg.genKeyPair();
                 prvKey = (java.security.interfaces.ECPrivateKey) kp.getPrivate();
