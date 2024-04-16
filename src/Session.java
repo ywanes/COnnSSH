@@ -435,7 +435,7 @@ class Session extends UtilC{
         int j = 0;
         while (true) {
             buf.reset();
-            getByte(buf.buffer, buf.i_put, s2ccipher_size);
+            getByte(buf.buffer, buf.i_put, s2ccipher_size, 1);
             buf.i_put += s2ccipher_size;
             if (s2ccipher != null)
                 s2ccipher.update(buf.buffer, 0, s2ccipher_size, buf.buffer, 0);
@@ -447,7 +447,7 @@ class Session extends UtilC{
                 buf.buffer = foo;
             }
             if (need > 0) {
-                getByte(buf.buffer, buf.i_put, need);
+                getByte(buf.buffer, buf.i_put, need, 2);
                 buf.i_put += (need);
                 if (s2ccipher != null) {
                     s2ccipher.update(buf.buffer, s2ccipher_size, need, buf.buffer, s2ccipher_size);
@@ -462,7 +462,7 @@ class Session extends UtilC{
                 s2cmac.update(tmp, 0, 4);
                 s2cmac.update(buf.buffer, 0, buf.i_put);
                 s2cmac.doFinal(s2cmac_result1, 0);
-                getByte(s2cmac_result2, 0, s2cmac_result2.length);
+                getByte(s2cmac_result2, 0, s2cmac_result2.length, 3);
                 if (!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)) {
                     if (need > PACKET_MAX_SIZE)
                         throw new IOException("MAC Error");
@@ -794,11 +794,12 @@ class Session extends UtilC{
     int getByte() throws IOException {
         return in.read();
     }
-    void getByte(byte[] array, int begin, int length) throws IOException {
+    void getByte(byte[] array, int begin, int length, int identity) throws IOException {
         do {
-            int completed = in.read(array, begin, length);
+            int completed = in.read(array, begin, length);            
+            // here error ubuntu
             if (completed < 0)
-                throw new IOException("End of IO Stream Read"); // error ubuntu
+                throw new IOException("End of IO Stream Read - identity: " + identity); // error ubuntu
             begin += completed;
             length -= completed;
         }
