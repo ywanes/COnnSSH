@@ -12,6 +12,8 @@ public class COnnSSH {
     }
 
     public void go() {
+        // test windows
+        // ssh -o HostKeyAlgorithms=ecdsa-sha2-nistp256 ywanes@192.168.0.100
         // cd C:\tmp\tmp_teste && xcopy "D:\NetBeansProjects2\teste\src" . /h /i /c /k /e /r /y && y cls && javac teste.java && native-image teste --no-fallback && teste
         String access = "ywanes";
         File f = new java.io.File("..\\key.txt");
