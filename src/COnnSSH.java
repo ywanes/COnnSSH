@@ -58,7 +58,7 @@ public class COnnSSH {
         String user = arg0.split("@")[0];
         String host = arg0.split("@")[1];  
         int limit=10;
-        String s="";
+        String s="Error unknow";
         while(limit-->0){
             try{
                 new Channel(new Session(host, user, port, password));
