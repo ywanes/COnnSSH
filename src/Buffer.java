@@ -87,7 +87,7 @@ class Buffer {
         return buffer[5];
     }
     void resize_buffer(int n) {
-        int i = i_put + n + (32 + 64 + 32);
+        int i = i_put + n + ECDH.nn;
         if ( buffer.length <  i){
             byte[] tmp = new byte[i];
             System.arraycopy(buffer, 0, tmp, 0, i_put);

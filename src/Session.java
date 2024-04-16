@@ -213,7 +213,7 @@ class Session extends UtilC{
                 if (isConnected) {
                     String message = e.toString();
                     packet.reset();
-                    buf.resize_buffer(1 + 4 * 3 + message.length() + 2 + (32 + 64 + 32));
+                    buf.resize_buffer(1 + 4 * 3 + message.length() + 2 + ECDH.nn);
                     buf.putByte((byte)SSH_MSG_DISCONNECT);
                     buf.putInt(3);
                     buf.putString(str2byte(message, "UTF-8"));

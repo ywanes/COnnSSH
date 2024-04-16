@@ -14,14 +14,22 @@ import javax.crypto.KeyAgreement;
 
 
 
-
 class ECDH extends ECDH256{}
+//class ECDH extends ECDH521{}
+
+
+
+
+
+
 class ECDH256 extends UtilC{
     protected int key_size = 256; // 256
     protected java.security.MessageDigest sha512 = null; // sha256
     public static String cipher = "ecdh-sha2-nistp256"; // ecdh-sha2-nistp256
     public static String groupCipher = "ssh-rsa,ecdsa-sha2-nistp256"; // "ssh-rsa,ecdsa-sha2-nistp256"
-
+    public static int nn_cipher=32; // 32
+    
+    public static int nn=32 + nn_cipher + 32;    
     static final int PROPOSAL_ENC_ALGS_CTOS = 2;
     static final int PROPOSAL_ENC_ALGS_STOC = 3;
     static final int PROPOSAL_MAX = 10;
@@ -348,14 +356,14 @@ class ECDH256 extends UtilC{
 
 
 
-/*
-class ECDH extends ECDH521{}
 class ECDH521 extends UtilC{
     protected int key_size = 521; // 256
     protected java.security.MessageDigest sha512 = null; // sha256
     public static String cipher = "ecdh-sha2-nistp521"; // ecdh-sha2-nistp256
     public static String groupCipher = "ssh-rsa,ecdsa-sha2-nistp521"; // "ssh-rsa,ecdsa-sha2-nistp256"
-
+    public static int nn_cipher=64; // 32
+    
+    public static int nn=32 + nn_cipher + 32;    
     static final int PROPOSAL_ENC_ALGS_CTOS = 2;
     static final int PROPOSAL_ENC_ALGS_STOC = 3;
     static final int PROPOSAL_MAX = 10;
@@ -669,5 +677,3 @@ class ECDH521 extends UtilC{
         }
     }
 }
-*/
-

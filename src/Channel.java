@@ -106,7 +106,7 @@ class Channel extends UtilC{
         packet = new Packet(buf);
         try {
             while (isConnected()) {
-                int i = in.read(buf.buffer, 14, buf.buffer.length -142);
+                int i = in.read(buf.buffer, 14, buf.buffer.length -14 -ECDH.nn);
                 count_line_return=0;
                 if (i == 0)
                     continue;
