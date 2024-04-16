@@ -144,7 +144,7 @@ class Session extends UtilC{
                 in_kex = false;
                 throw new ExceptionC("invalid protocol: " + buf.getCommand());
             }
-            ECDH521 kex = receive_kexinit(buf);
+            ECDH kex = receive_kexinit(buf);
             while (true) {
                 buf = read(buf);
                 if (kex.getState() == buf.getCommand()) {
@@ -158,7 +158,7 @@ class Session extends UtilC{
                     in_kex = false;
                     throw new ExceptionC("invalid protocol(kex): " + buf.getCommand());
                 }
-                if (kex.getState() == ECDH521.STATE_END)
+                if (kex.getState() == ECDH.STATE_END)
                     break;
             }
             in_prompt = false;
@@ -239,7 +239,7 @@ class Session extends UtilC{
                 Buffer buf = new Buffer();
                 Packet packet = new Packet(buf);
                 Channel channel;
-                ECDH521 kex = null;
+                ECDH kex = null;
                 int stimeout = 0;        
                 try {
                     while (isConnected) {
@@ -324,7 +324,7 @@ class Session extends UtilC{
         }.start();            
     }
     
-    private ECDH521 receive_kexinit(Buffer buf) throws Exception {
+    private ECDH receive_kexinit(Buffer buf) throws Exception {
         int j = buf.getInt();
         if (j != buf.getLength()) {
             buf.getByte();
@@ -334,12 +334,12 @@ class Session extends UtilC{
         System.arraycopy(buf.buffer, buf.i_get, I_S, 0, I_S.length);
         if (!in_kex)
             send_kexinit();
-        guess = ECDH521.guess(I_S, I_C);
+        guess = ECDH.guess(I_S, I_C);
         if (guess == null)
             throw new ExceptionC("Algorithm negotiation fail");
-        if (!isAuthed && (guess[ECDH521.PROPOSAL_ENC_ALGS_CTOS].equals("none") || (guess[ECDH521.PROPOSAL_ENC_ALGS_STOC].equals("none"))))
+        if (!isAuthed && (guess[ECDH.PROPOSAL_ENC_ALGS_CTOS].equals("none") || (guess[ECDH.PROPOSAL_ENC_ALGS_STOC].equals("none"))))
             throw new ExceptionC("NONE Cipher should not be chosen before authentification is successed.");
-        ECDH521 kex = new ECDH521();
+        ECDH kex = new ECDH();
         kex.init(this, V_S, V_C, I_S, I_C);
         return kex;
     }
@@ -370,8 +370,8 @@ class Session extends UtilC{
             System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
             buf.skip_put(16);
         }
-        buf.putString(str2byte("ecdh-sha2-nistp521", "UTF-8")); // ecdh-sha2-nistp256
-        buf.putString(str2byte("ssh-rsa,ecdsa-sha2-nistp521", "UTF-8")); // ssh-rsa,ecdsa-sha2-nistp256
+        buf.putString(str2byte(ECDH.cipher, "UTF-8"));
+        buf.putString(str2byte(ECDH.groupCipher, "UTF-8"));
         buf.putString(str2byte("aes256-ctr", "UTF-8"));
         buf.putString(str2byte("aes256-ctr", "UTF-8"));
         buf.putString(str2byte("hmac-sha1", "UTF-8"));
@@ -506,7 +506,7 @@ class Session extends UtilC{
         return buf;
     }
 
-    private void receive_newkeys(Buffer buf, ECDH521 kex) throws Exception {
+    private void receive_newkeys(Buffer buf, ECDH kex) throws Exception {
         in_kex = false;
         byte[] K = kex.getK();
         byte[] H = kex.getH();

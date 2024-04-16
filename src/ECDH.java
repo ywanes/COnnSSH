@@ -11,12 +11,13 @@ import java.security.spec.EllipticCurve;
 import java.security.spec.RSAPublicKeySpec;
 import javax.crypto.KeyAgreement;
 
-class ECDH521 extends UtilC{
+class ECDH extends UtilC{
     static final int PROPOSAL_ENC_ALGS_CTOS = 2;
     static final int PROPOSAL_ENC_ALGS_STOC = 3;
-    static final int PROPOSAL_MAC_ALGS_STOC = 5;
     static final int PROPOSAL_MAX = 10;
     public static final int STATE_END = 0;
+    public static String cipher = "ecdh-sha2-nistp521"; // ecdh-sha2-nistp256
+    public static String groupCipher = "ssh-rsa,ecdsa-sha2-nistp521"; // "ssh-rsa,ecdsa-sha2-nistp256"
     protected Session session = null;
     protected java.security.MessageDigest sha512 = null;
     protected byte[] K = null;
@@ -59,8 +60,8 @@ class ECDH521 extends UtilC{
         } catch (Exception e) {
             System.out.println("ex_90");
             if (e instanceof Throwable)                
-                throw new ExceptionC("Error ECDH521 Throwable " + e.toString()); // ECDH256
-            throw new ExceptionC("Error ECDH521 " + e.toString()); // 256
+                throw new ExceptionC("Error ECDH Throwable " + e.toString()); // ECDH
+            throw new ExceptionC("Error ECDH " + e.toString());
         }
         if (V_S == null)
             return;
