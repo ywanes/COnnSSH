@@ -11,7 +11,21 @@ import java.security.spec.EllipticCurve;
 import java.security.spec.RSAPublicKeySpec;
 import javax.crypto.KeyAgreement;
 
-class ECDH extends UtilC{
+
+
+/*
+// pending implementation => ECDH256
+class ECDH extends ECDH256{}
+class ECDH256 extends UtilC{
+....
+}
+
+*/
+
+
+
+class ECDH extends ECDH521{}
+class ECDH521 extends UtilC{
     static final int PROPOSAL_ENC_ALGS_CTOS = 2;
     static final int PROPOSAL_ENC_ALGS_STOC = 3;
     static final int PROPOSAL_MAX = 10;
@@ -19,7 +33,7 @@ class ECDH extends UtilC{
     public static String cipher = "ecdh-sha2-nistp521"; // ecdh-sha2-nistp256
     public static String groupCipher = "ssh-rsa,ecdsa-sha2-nistp521"; // "ssh-rsa,ecdsa-sha2-nistp256"
     protected Session session = null;
-    protected java.security.MessageDigest sha512 = null;
+    protected java.security.MessageDigest sha512 = null; // sha256
     protected byte[] K = null;
     protected byte[] H = null;
     protected byte[] K_S = null;
@@ -60,21 +74,13 @@ class ECDH extends UtilC{
         } catch (Exception e) {
             System.out.println("ex_90");
             if (e instanceof Throwable)                
-                throw new ExceptionC("Error ECDH Throwable " + e.toString()); // ECDH
+                throw new ExceptionC("Error ECDH Throwable " + e.toString());
             throw new ExceptionC("Error ECDH " + e.toString());
         }
         if (V_S == null)
             return;
         session.pre_write(packet);
         state = SSH_MSG_KEX_ECDH_REPLY;
-    }
-    public String getKeyType() {
-        if (type == DSS) return "DSA";
-        if (type == RSA) return "RSA";
-        return "ECDSA";
-    }
-    public String getKeyAlgorithName() {
-        return key_alg_name;
     }
     protected static String[] guess(byte[] I_S, byte[] I_C) {
         String[] guess = new String[PROPOSAL_MAX];
