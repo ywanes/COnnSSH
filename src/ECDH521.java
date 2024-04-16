@@ -60,8 +60,8 @@ class ECDH521 extends UtilC{
         } catch (Exception e) {
             System.out.println("ex_90");
             if (e instanceof Throwable)
-                throw new ExceptionC(e.toString(), (Throwable) e);
-            throw new ExceptionC(e.toString());
+                throw new ExceptionC("Error ECDH521 Throwable " + e.toString());
+            throw new ExceptionC("Error ECDH521 " + e.toString());
         }
         if (V_S == null)
             return;

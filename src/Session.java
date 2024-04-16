@@ -90,11 +90,9 @@ class Session extends UtilC{
     }
     
     public void connect() throws ExceptionC {
-        int traceLine=0;
         random = new java.security.SecureRandom();
         Packet.setRandom(random);
         try {
-            traceLine=1;
             int i, j;
             if (proxy == null) {
                 try{
@@ -103,18 +101,15 @@ class Session extends UtilC{
                     out = socket.getOutputStream();
                     socket.setTcpNoDelay(true);
                 }catch (Exception e) {
-                    throw new ExceptionC("timeout");
+                    throw new ExceptionC("Error session connect socket " + e);
                 }
             }
             isConnected = true;
             byte[] foo = new byte[V_C.length + 1];
             System.arraycopy(V_C, 0, foo, 0, V_C.length);
-            foo[foo.length - 1] = (byte)
-            '\n';
+            foo[foo.length - 1] = (byte)'\n';
             put(foo, 0, foo.length);
-            traceLine=2;
             while (true) {
-                traceLine=3;
                 i = 0;
                 j = 0;
                 while (i < buf.buffer.length) {
@@ -134,16 +129,13 @@ class Session extends UtilC{
                 }
                 if (i <= 3 || ((i != buf.buffer.length) && (buf.buffer[0] != 'S' || buf.buffer[1] != 'S' || buf.buffer[2] != 'H' || buf.buffer[3] != '-')))
                     continue;
-                traceLine=4;
                 if (i == buf.buffer.length ||
                     i < 7 ||
                     (buf.buffer[4] == '1' && buf.buffer[6] != '9')
                 )                    
                     throw new ExceptionC("invalid server's version string");
-                traceLine=5;
                 break;
             }
-            traceLine=6;
             V_S = new byte[i];
             System.arraycopy(buf.buffer, 0, V_S, 0, i);
             send_kexinit();
@@ -153,13 +145,9 @@ class Session extends UtilC{
                 throw new ExceptionC("invalid protocol: " + buf.getCommand());
             }
             ECDH521 kex = receive_kexinit(buf);
-            traceLine=7;
             while (true) {
-                traceLine=8;
                 buf = read(buf);
-                traceLine=800;
                 if (kex.getState() == buf.getCommand()) {
-                    traceLine=9;
                     kex_start_time = System.currentTimeMillis();
                     boolean result = kex.next(buf);
                     if (!result) {
@@ -167,11 +155,9 @@ class Session extends UtilC{
                         throw new ExceptionC("verify: " + result);
                     }
                 } else {
-                    traceLine=10;
                     in_kex = false;
                     throw new ExceptionC("invalid protocol(kex): " + buf.getCommand());
                 }
-                traceLine=11;
                 if (kex.getState() == ECDH521.STATE_END)
                     break;
             }
@@ -184,7 +170,6 @@ class Session extends UtilC{
                 in_kex = false;
                 throw new ExceptionC("invalid protocol(newkyes): " + buf.getCommand());
             }
-            traceLine=12;
             try {
                 packet.reset();
                 buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
@@ -192,9 +177,8 @@ class Session extends UtilC{
                 pre_write(packet);
                 read(buf);
             } catch (Exception e) {
-                throw new ExceptionC(e.toString(), e);
+                throw new ExceptionC("Error Session 180 " + e.toString());
             }
-            traceLine=13;
             int SSH_MSG_USERAUTH_REQUEST = 50;
             int SSH_MSG_USERAUTH_FAILURE = 51;
             int SSH_MSG_USERAUTH_BANNER = 53;
@@ -212,7 +196,6 @@ class Session extends UtilC{
             buf.putString(password);
             pre_write(packet);
             buf = read(buf);
-            traceLine=14;
             int command = buf.getCommand() & 0xff;
             if (command == SSH_MSG_USERAUTH_BANNER)
                 throw new Exception("USERAUTH_BANNER");
@@ -220,28 +203,32 @@ class Session extends UtilC{
                 throw new Exception("Stop - USERAUTH_PASSWD_CHANGEREQ");
             if (command == SSH_MSG_USERAUTH_FAILURE)
                 throw new Exception("UserAuth Fail!");
-            traceLine=15;
             if (socket != null && timeout > 0)
                 socket.setSoTimeout(timeout);
             isAuthed = true;
-        }catch (Exception e) {
+        }catch(Exception e){
+            System.err.println("[]"+ e);
             in_kex = false;
             try {
                 if (isConnected) {
                     String message = e.toString();
                     packet.reset();
                     buf.resize_buffer(1 + 4 * 3 + message.length() + 2 + (32 + 64 + 32));
-                    buf.putByte((byte) SSH_MSG_DISCONNECT);
+                    buf.putByte((byte)SSH_MSG_DISCONNECT);
                     buf.putInt(3);
                     buf.putString(str2byte(message, "UTF-8"));
                     buf.putString(str2byte("en", "UTF-8"));
                     pre_write(packet);
                 }
-            } catch (Exception ee) {}
+            } catch (Exception ee) {
+                throw new ExceptionC("Error Session 224 " + e.toString());
+            }
             isConnected = false;
-            if (e instanceof RuntimeException) throw (RuntimeException) e;
-            if (e instanceof ExceptionC) throw (ExceptionC) e;
-            throw new ExceptionC("Session.connect: " + e + " traceLine:" + traceLine);
+            if (e instanceof RuntimeException) 
+                throw new ExceptionC(".Session.connect: " + e);
+            if (e instanceof ExceptionC) 
+                throw new ExceptionC("..Session.connect: " + e);
+            throw new ExceptionC("...Session.connect: " + e);
         }
     }
 
@@ -251,10 +238,7 @@ class Session extends UtilC{
                 byte[] foo;
                 Buffer buf = new Buffer();
                 Packet packet = new Packet(buf);
-                int i = 0;
                 Channel channel;
-                int[] start = new int[1];
-                int[] length = new int[1];
                 ECDH521 kex = null;
                 int stimeout = 0;        
                 try {
@@ -271,7 +255,7 @@ class Session extends UtilC{
                                 stimeout++;
                                 continue;
                             }
-                            throw ee;
+                            throw new ExceptionC("Error Session 261 " + ee);
                         }
                         int msgType = buf.getCommand() & 0xff;                
                         if (kex != null && kex.getState() == msgType) {
@@ -297,8 +281,7 @@ class Session extends UtilC{
                                     if ( Channel.can_print(a.length) )
                                         channel.put(a, 0, a.length);
                                 } catch (Exception e) {
-                                    System.exit(0);
-                                    break;
+                                    throw new ExceptionC("Error Session 287 " + e);                                    
                                 }
                                 break;
                             case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:

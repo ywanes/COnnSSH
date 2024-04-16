@@ -131,7 +131,9 @@ public class COnnSSH {
                     result += "\n";
                 result += strLine;
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            System.err.println("Error read file ");
+        }
         int[] ofuscado = new int[] {
             152,
             143,

@@ -6,6 +6,7 @@ class UtilC{
         try {
             return new String(str, s, l, encoding);
         } catch (java.io.UnsupportedEncodingException e) {
+            System.err.println(".Util UnsupportedEncodingException " + e);
             return new String(str, s, l);
         }
     }
@@ -14,12 +15,15 @@ class UtilC{
         try {
             return str.getBytes(encoding);
         } catch (java.io.UnsupportedEncodingException e) {
+            System.err.println("..Util UnsupportedEncodingException " + e);
             return str.getBytes();
         }
     }       
     static void sleep(long a){
         try {
             Thread.sleep(a);
-        } catch (Exception e) {};        
+        } catch (Exception e) {
+            System.err.println("...Util Error sleep " + e);
+        };        
     }
 }

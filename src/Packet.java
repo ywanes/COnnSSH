@@ -1,4 +1,4 @@
-class Packet {
+class Packet{
     private static java.security.SecureRandom random = null;
     static void setRandom(java.security.SecureRandom foo) {
         random = foo;
