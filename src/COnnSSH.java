@@ -58,19 +58,22 @@ public class COnnSSH {
         String user = arg0.split("@")[0];
         String host = arg0.split("@")[1];  
         int limit=10;
+        String s="";
         while(limit-->0){
             try{
                 new Channel(new Session(host, user, port, password));
                 return;
             }catch(Exception e){
-                String s=e.toString();
+                s=e.toString();
                 if ( s.contains("Connection reset") )
+                    continue;
+                if ( s.contains("verify: false") && limit > 5 )
                     continue;
                 if ( s.contains("UserAuth Fail") )
                     s="UserAuth Fail!!";
-                System.err.println(s);
-                System.exit(1);
             }            
+            System.err.println(s);
+            System.exit(1);
         }
     }
 

@@ -796,7 +796,7 @@ class Session extends UtilC{
     }
     void getByte(byte[] array, int begin, int length) throws IOException {
         do {
-            int completed = in .read(array, begin, length);
+            int completed = in.read(array, begin, length);
             if (completed < 0) {
                 throw new IOException("End of IO Stream Read");
             }
