@@ -26,14 +26,16 @@ class ECDH256 extends UtilC{
 
 class ECDH extends ECDH521{}
 class ECDH521 extends UtilC{
+    protected int key_size = 521; // 256
+    protected java.security.MessageDigest sha512 = null; // sha256
+    public static String cipher = "ecdh-sha2-nistp521"; // ecdh-sha2-nistp256
+    public static String groupCipher = "ssh-rsa,ecdsa-sha2-nistp521"; // "ssh-rsa,ecdsa-sha2-nistp256"
+
     static final int PROPOSAL_ENC_ALGS_CTOS = 2;
     static final int PROPOSAL_ENC_ALGS_STOC = 3;
     static final int PROPOSAL_MAX = 10;
     public static final int STATE_END = 0;
-    public static String cipher = "ecdh-sha2-nistp521"; // ecdh-sha2-nistp256
-    public static String groupCipher = "ssh-rsa,ecdsa-sha2-nistp521"; // "ssh-rsa,ecdsa-sha2-nistp256"
     protected Session session = null;
-    protected java.security.MessageDigest sha512 = null; // sha256
     protected byte[] K = null;
     protected byte[] H = null;
     protected byte[] K_S = null;
@@ -53,7 +55,6 @@ class ECDH521 extends UtilC{
     private Buffer buf;
     private Packet packet;
     private KeyExchangeECDH ecdh;
-    protected int key_size = 521; // 256
 
     public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
         this.session = session;
