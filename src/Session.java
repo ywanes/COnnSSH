@@ -207,7 +207,7 @@ class Session extends UtilC{
                 socket.setSoTimeout(timeout);
             isAuthed = true;
         }catch(Exception e){
-            System.err.println("[]"+ e);
+            //System.err.println("[]"+ e);
             in_kex = false;
             try {
                 if (isConnected) {

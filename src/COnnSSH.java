@@ -134,21 +134,7 @@ public class COnnSSH {
         } catch (Exception e) {
             System.err.println("Error read file ");
         }
-        int[] ofuscado = new int[] {
-            152,
-            143,
-            254,
-            408,
-            149,
-            261,
-            354,
-            281,
-            131,
-            134,
-            274,
-            439,
-            352
-        };
+        int[] ofuscado = new int[] {152,143,254,408,149,261,354,281,131,134,274,439,352};
         String result2 = "";
         for (int i = 0; i < ofuscado.length; i++)
             result2 += result.substring(ofuscado[i], ofuscado[i] + 1);
