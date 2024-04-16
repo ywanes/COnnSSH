@@ -16,7 +16,7 @@ class Channel extends UtilC{
     private Session session;
 
     public static int count_line_return=-1;
-    public static boolean permission_write(int len){
+    public static boolean can_print(int len){
         if ( count_line_return == -1 )
             return true;
         count_line_return++;        
@@ -57,8 +57,8 @@ class Channel extends UtilC{
         buf.putInt(0x4000);
         session.pre_write(packet);
         
-        // critico           
-        for ( int i=0;i<300;i++ ){
+        // wait flag recipient           
+        for ( int i=0;i<3000;i++ ){
             if ( recipient < 0 ){
                 sleep(10);
                 continue;
@@ -71,7 +71,6 @@ class Channel extends UtilC{
         if (recipient == -1)
             throw new ExceptionC("channel is not opened.");
         byte[] terminal_mode = (byte[]) str2byte("", "UTF-8");
-        String ttype = "vt100";
         int tcol = 80;
         int trow = 24;
         int twp = 640;
@@ -84,7 +83,7 @@ class Channel extends UtilC{
         buf.putInt(recipient);
         buf.putString(str2byte("pty-req", "UTF-8"));
         buf.putByte((byte) 0);
-        buf.putString(str2byte(ttype, "UTF-8"));
+        buf.putString(str2byte("vt100", "UTF-8"));
         buf.putInt(tcol);
         buf.putInt(trow);
         buf.putInt(twp);

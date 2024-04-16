@@ -294,7 +294,7 @@ class Session extends UtilC{
                                     break;
                                 try {
                                     // ponto critico retorno out
-                                    if ( Channel.permission_write(a.length) )
+                                    if ( Channel.can_print(a.length) )
                                         channel.put(a, 0, a.length);
                                 } catch (Exception e) {
                                     System.exit(0);
@@ -689,11 +689,9 @@ class Session extends UtilC{
         pos_write(packet);
     }
     private void pos_write(Packet packet) throws Exception {
-        synchronized(lock) {
-            encode(packet);
-            put(packet);
-            seqo++;
-        }
+        encode(packet);
+        put(packet);
+        seqo++;
     }
     public void setProxy(Proxy proxy) {
         this.proxy = proxy;
