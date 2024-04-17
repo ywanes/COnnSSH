@@ -35,7 +35,7 @@ class Session extends UtilC{
     static final int SSH_MSG_CHANNEL_FAILURE = 100;
     private static final int PACKET_MAX_SIZE = 256 * 1024;
     private byte[] V_S;
-    private byte[] V_C = str2byte("SSH-2.0-JSCH-0.1.54", "UTF-8");
+    private byte[] V_C = str2byte("SSH-2.0-CUSTOM", "UTF-8");
     private byte[] I_C;
     private byte[] I_S;
     private byte[] session_ids;
@@ -175,7 +175,7 @@ class Session extends UtilC{
                 buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
                 buf.putString(str2byte("ssh-userauth", "UTF-8"));
                 pre_write(packet);
-                read(buf);
+                buf = read(buf); // ?
             } catch (Exception e) {
                 throw new ExceptionC("Error Session 180 " + e.toString());
             }
@@ -797,9 +797,10 @@ class Session extends UtilC{
     void getByte(byte[] array, int begin, int length, int identity) throws IOException {
         do {
             int completed = in.read(array, begin, length);            
+            show("cipher", completed, array);
             // here error ubuntu
             if (completed < 0)
-                throw new IOException("End of IO Stream Read - identity: " + identity); // error ubuntu
+                throw new IOException("End of IO Stream Read - identity: " + identity);
             begin += completed;
             length -= completed;
         }

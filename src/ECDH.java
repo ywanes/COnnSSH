@@ -21,7 +21,6 @@ class ECDH extends ECDH256{}
 
 
 
-
 class ECDH256 extends UtilC{
     protected int key_size = 256; // 256
     protected java.security.MessageDigest sha512 = null; // sha256

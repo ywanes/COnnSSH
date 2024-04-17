@@ -1,4 +1,20 @@
 class UtilC{
+    static void show(String cipher, int completed, byte[] array){
+        boolean _enable=false;
+        if ( _enable ){
+            if ( completed > 0 ){
+                System.out.print("["+cipher+"-");
+                for(int i=0;i<completed;i++){
+                    if ( i > 0 )
+                        System.out.print("-");
+                    System.out.print((int)array[i]);
+                }
+                System.out.println("]");
+            }else{
+                System.out.print("["+cipher+"]");
+            }
+        }
+    }    
     static String byte2str(byte[] str) {
         return byte2str(str, 0, str.length, "UTF-8");
     }
