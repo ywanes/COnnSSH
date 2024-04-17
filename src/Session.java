@@ -235,7 +235,6 @@ class Session extends UtilC{
     public void threading(){
         new Thread(){
             public void run(){
-                byte[] foo;
                 Buffer buf = new Buffer();
                 Packet packet = new Packet(buf);
                 Channel channel;

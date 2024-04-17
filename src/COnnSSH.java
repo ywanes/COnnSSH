@@ -44,10 +44,8 @@ public class COnnSSH {
                 return;
             }
         }
-        String[] senha = new String[] {
-            ""
-        };
-        pedeSenhaCasoNaoTenha(args, senha);
+        String[] senha = new String[]{""};
+        tryTakePassword(args, senha);
         ssh(args[1], senha[0], port);
         System.exit(0);
     }
@@ -85,7 +83,7 @@ public class COnnSSH {
         System.err.println("]");
     }
 
-    public void pedeSenhaCasoNaoTenha(String[] args, String[] senha) {
+    public void tryTakePassword(String[] args, String[] senha) {
         for (int i = 0; i < args.length; i++) {
             if (args[i].contains("@")) {
                 if (args[i].startsWith("@") || args[i].endsWith("@")) {
