@@ -27,13 +27,11 @@ class Packet{
         synchronized(random) {
             byte[] foo_fill = buffer.buffer;
             int start_fill = buffer.i_put;
-            int len_fill = pad;
             byte[] tmp_fill = new byte[16];
-            if (len_fill > tmp_fill.length) {
-                tmp_fill = new byte[len_fill];
-            }
+            if (pad > tmp_fill.length)
+                tmp_fill = new byte[pad];
             random.nextBytes(tmp_fill);
-            System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
+            System.arraycopy(tmp_fill, 0, foo_fill, start_fill, pad);
         }
         buffer.skip_put(pad);
     }

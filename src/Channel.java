@@ -153,10 +153,6 @@ class Channel extends UtilC{
         out.write(array, begin, length);
         out.flush();
     }
-    void put_ext(byte[] array, int begin, int length) throws IOException {
-        out_ext.write(array, begin, length);
-        out_ext.flush();
-    }
     public boolean isConnected() {
         return session != null && session.isConnected() && connected;
     }
