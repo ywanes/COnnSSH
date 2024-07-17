@@ -13,7 +13,7 @@ import javax.crypto.KeyAgreement;
 
 
 
-
+// os dois tipos funcionam
 class ECDH extends ECDH256{}
 //class ECDH extends ECDH521{}
 
