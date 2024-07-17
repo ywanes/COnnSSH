@@ -8,24 +8,28 @@ import java.util.List;
 public class COnnSSH {
     public static void main(String[] args) {
         try {
-            new COnnSSH().go();
+            new COnnSSH().go(args);
         } catch (Exception e) {
             System.err.println(e.toString());
         }
     }
 
-    public void go() {
+    public void go(String [] args) {
         // test windows
         // ssh -o HostKeyAlgorithms=ecdsa-sha2-nistp256 ywanes@192.168.0.100
         // cd C:\tmp\tmp_teste && xcopy "D:\NetBeansProjects2\teste\src" . /h /i /c /k /e /r /y && y cls && javac teste.java && native-image teste --no-fallback && teste
-        String access = "ywanes";
-        File f = new java.io.File("..\\key.txt");
-        if (f.exists() && f.isFile()){
-            access = lendo_arquivo_ofuscado(f.getAbsolutePath());
+        String access = "ywanes@192.168.0.100";
+        if ( args.length > 0 )
+            access=args[0];
+        else{
+            File f = new java.io.File("..\\key.txt");
+            if (f.exists() && f.isFile()){
+                access = lendo_arquivo_ofuscado(f.getAbsolutePath()) + "@192.168.0.100";
+            }
         }
         ssh(new String[] {
             "ssh",
-            access + "@192.168.0.100"
+            access
         });
     }
     private void ssh(String[] args) {
