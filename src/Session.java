@@ -81,6 +81,7 @@ class Session extends UtilC{
     Session(String host, String username, int port, String password) throws Exception {
         buf = new Buffer();
         packet = new Packet(buf);
+        this.host=host;
         this.username = username;
         this.port = port;
         setPassword(password);
@@ -434,6 +435,7 @@ class Session extends UtilC{
         int j = 0;
         while (true) {
             buf.reset();
+            //////////
             getByte(buf.buffer, buf.i_put, s2ccipher_size, 1);
             buf.i_put += s2ccipher_size;
             if (s2ccipher != null)

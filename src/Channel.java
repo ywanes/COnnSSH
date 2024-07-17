@@ -39,7 +39,7 @@ class Channel extends UtilC{
         }
     }    
     static Channel getChannel() {
-        return channel;
+        return channel;        
     }
     public void set_recipient(int recipient){
         this.recipient=recipient;
