@@ -239,7 +239,6 @@ class Session extends UtilC{
                 Buffer buf = new Buffer();
                 Packet packet = new Packet(buf);
                 Channel channel;
-                ECDH kex = null;
                 int stimeout = 0;        
                 try {
                     while (isConnected) {
@@ -258,14 +257,6 @@ class Session extends UtilC{
                             throw new ExceptionC("Error Session 261 " + ee);
                         }
                         int msgType = buf.getCommand() & 0xff;                
-                        if (kex != null && kex.getState() == msgType) {
-                            kex_start_time = System.currentTimeMillis();
-                            boolean result = kex.next(buf);
-                            if (!result) {
-                                throw new ExceptionC("verify: " + result);
-                            }
-                            continue;
-                        }
                         switch (msgType) {
                             case SSH_MSG_CHANNEL_DATA:
                                 buf.getInt();
@@ -278,6 +269,7 @@ class Session extends UtilC{
                                     break;
                                 try {
                                     // ponto critico retorno out
+                                    ///////////                                    
                                     if ( Channel.can_print(a.length) )
                                         channel.put(a, 0, a.length);
                                 } catch (Exception e) {
@@ -434,8 +426,7 @@ class Session extends UtilC{
     public Buffer read(Buffer buf) throws Exception {
         int j = 0;
         while (true) {
-            buf.reset();
-            //////////
+            buf.reset();            
             getByte(buf.buffer, buf.i_put, s2ccipher_size, 1);
             buf.i_put += s2ccipher_size;
             if (s2ccipher != null)
@@ -499,6 +490,7 @@ class Session extends UtilC{
                 if (c != null)
                     c.add_rwsize(buf.getInt());
             } else {
+                //////////////
                 isAuthed = true;
                 break;
             }
