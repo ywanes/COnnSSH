@@ -246,6 +246,7 @@ class Session extends UtilC{
                             buf = read(buf);
                             stimeout = 0;
                         } catch (InterruptedIOException ee) {
+                            // nao ha problemas aqui
                             if (!in_kex && stimeout < serverAliveCountMax) {
                                 sendKeepAliveMsg();
                                 stimeout++;
@@ -269,6 +270,9 @@ class Session extends UtilC{
                                     break;
                                 try {
                                     // ponto critico retorno out
+                                    // enviando ls ele só retorna ls
+                                    // analisando o send, dá para observar que ele manda o dado
+                                    // ainda não sei porque ele nao me responde corretamente.
                                     ///////////                                    
                                     if ( Channel.can_print(a.length) )
                                         channel.put(a, 0, a.length);
@@ -777,6 +781,7 @@ class Session extends UtilC{
         return this.serverAliveCountMax;
     }
     public void put(Packet p) throws IOException, java.net.SocketException {
+        //////////// System.out.write(p.buffer.buffer, 0, p.buffer.i_put);
         out.write(p.buffer.buffer, 0, p.buffer.i_put);
         out.flush();
     }

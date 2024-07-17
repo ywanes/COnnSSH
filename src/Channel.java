@@ -101,19 +101,24 @@ class Channel extends UtilC{
         session.pre_write(packet);
         connected = true;
         
+        ///////////
         // ponto critico!!
         buf = new Buffer(new byte[rmpsize]);
         packet = new Packet(buf);
         try {
             while (isConnected()) {
                 int i = in.read(buf.buffer, 14, buf.buffer.length -14 -ECDH.nn);
+                //System.out.write("[IN]".getBytes());
+                //System.out.write(buf.buffer, 0, i);
+                //System.out.write("[OUT]".getBytes());                
                 count_line_return=0;
                 if (i == 0)
                     continue;
                 if (i == -1)
                     break;
-                if (close)
+                if (close){
                     break;
+                }
                 packet.reset();
                 buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
                 buf.putInt(recipient);
