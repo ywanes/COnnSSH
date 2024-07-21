@@ -1,5 +1,4 @@
-class Buffer {
-    final byte[] tmp_putInt = new byte[4];
+class Buffer {    
     byte[] buffer;
     int i_put;
     int i_get;
@@ -23,24 +22,23 @@ class Buffer {
         putBytes(foo, 0, foo.length);
     }
     public void putInt(int val) {
-        tmp_putInt[0] = (byte)(val >>> 24);
-        tmp_putInt[1] = (byte)(val >>> 16);
-        tmp_putInt[2] = (byte)(val >>> 8);
-        tmp_putInt[3] = (byte)(val);
-        System.arraycopy(tmp_putInt, 0, buffer, i_put, 4);
+        final byte[] foo = new byte[4];
+        foo[0] = (byte)(val >>> 24);
+        foo[1] = (byte)(val >>> 16);
+        foo[2] = (byte)(val >>> 8);
+        foo[3] = (byte)(val);
+        System.arraycopy(foo, 0, buffer, i_put, 4);
         i_put += 4;
     }
     void skip_put(int n) {
         i_put += n;
     }   
     public void putMPInt(byte[] foo) {
-        int i = foo.length;
-        if ((foo[0] & 0x80) != 0) {
-            i++;
-            putInt(i + 1);
-            putByte((byte) 0);
+        if ((foo[0] & 0x80) == 0) {
+            putInt(foo.length);
         } else {
-            putInt(i);
+            putInt(foo.length + 2);
+            putByte((byte) 0);
         }
         putBytes(foo, 0, foo.length);
     }
@@ -53,14 +51,17 @@ class Buffer {
     public void set_get(int s) {
         i_get = s;
     }
-    public int getInt(){
-        return ((getShort() << 16) & 0xffff0000) | (getShort() & 0xffff);
-    }
-    int getShort() {
-        return ((getByte() << 8) & 0xff00) | (getByte() & 0xff);
-    }
     public byte getByte() {
         return buffer[i_get++];
+    }
+    private int getB() {
+        return getByte() & 0xff;
+    }
+    public int getShort() {
+        return getB() << 8 | getB();        
+    }
+    public int getInt(){
+        return getB() << 24 | getB() << 16 | getB() << 8 | getB(); 
     }
     public byte[] getBytes() {
         int len = getInt();
@@ -70,7 +71,7 @@ class Buffer {
         return foo;        
     }
     public byte[] getBytesAll(){
-        int len = getLength();
+        int len = getLength(); // getLength
         byte[] foo = new byte[len];
         System.arraycopy(buffer, i_get, foo, 0, len);
         i_get += len;
@@ -89,9 +90,9 @@ class Buffer {
     void resize_buffer(int n) {
         int i = i_put + n + ECDH.nn;
         if ( buffer.length <  i){
-            byte[] tmp = new byte[i];
-            System.arraycopy(buffer, 0, tmp, 0, i_put);
-            buffer = tmp;
+            byte[] foo = new byte[i];
+            System.arraycopy(buffer, 0, foo, 0, i_put);
+            buffer = foo;
         }
     }
 }
