@@ -44,9 +44,9 @@ class Channel extends UtilC{
     public void set_recipient(int recipient){
         this.recipient=recipient;
     }
-    public void connect() throws ExceptionC, Exception {
+    public void connect() throws Exception, Exception {
         if (!session.isConnected())
-            throw new ExceptionC("session is down");
+            throw new Exception("session is down");
         Buffer buf = new Buffer(new byte[100]);
         Packet packet = new Packet(buf);
         packet.reset();
@@ -67,9 +67,9 @@ class Channel extends UtilC{
         }
         
         if (!session.isConnected())
-            throw new ExceptionC("session is down");
+            throw new Exception("session is down");
         if (recipient == -1)
-            throw new ExceptionC("channel is not opened.");
+            throw new Exception("channel is not opened.");
         byte[] terminal_mode = (byte[]) str2byte("", "UTF-8");
         int tcol = 80;
         int trow = 24;

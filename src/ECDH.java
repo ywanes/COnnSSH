@@ -73,8 +73,8 @@ class ECDH256 extends UtilC{
         } catch (Exception e) {
             System.out.println("ex_90");
             if (e instanceof Throwable)                
-                throw new ExceptionC("Error ECDH Throwable " + e.toString());
-            throw new ExceptionC("Error ECDH " + e.toString());
+                throw new Exception("Error ECDH Throwable " + e.toString());
+            throw new Exception("Error ECDH " + e.toString());
         }
         if (V_S == null)
             return;
@@ -407,8 +407,8 @@ class ECDH521 extends UtilC{
         } catch (Exception e) {
             System.out.println("ex_90");
             if (e instanceof Throwable)                
-                throw new ExceptionC("Error ECDH Throwable " + e.toString());
-            throw new ExceptionC("Error ECDH " + e.toString());
+                throw new Exception("Error ECDH Throwable " + e.toString());
+            throw new Exception("Error ECDH " + e.toString());
         }
         if (V_S == null)
             return;

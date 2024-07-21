@@ -90,7 +90,7 @@ class Session extends UtilC{
             threading();
     }
     
-    public void connect() throws ExceptionC {
+    public void connect() throws Exception {
         random = new java.security.SecureRandom();
         Packet.setRandom(random);
         try {
@@ -102,7 +102,7 @@ class Session extends UtilC{
                     out = socket.getOutputStream();
                     socket.setTcpNoDelay(true);
                 }catch (Exception e) {
-                    throw new ExceptionC("Error session connect socket " + e);
+                    throw new Exception("Error session connect socket " + e);
                 }
             }
             isConnected = true;
@@ -122,7 +122,7 @@ class Session extends UtilC{
                         break;
                 }
                 if (j < 0)
-                    throw new ExceptionC("connection is closed by foreign host");
+                    throw new Exception("connection is closed by foreign host");
                 if (buf.buffer[i - 1] == 10) {
                     i--;
                     if (i > 0 && buf.buffer[i - 1] == 13)
@@ -134,7 +134,7 @@ class Session extends UtilC{
                     i < 7 ||
                     (buf.buffer[4] == '1' && buf.buffer[6] != '9')
                 )                    
-                    throw new ExceptionC("invalid server's version string");
+                    throw new Exception("invalid server's version string");
                 break;
             }
             V_S = new byte[i];
@@ -143,7 +143,7 @@ class Session extends UtilC{
             buf = read(buf);
             if (buf.getCommand() != SSH_MSG_KEXINIT) {
                 in_kex = false;
-                throw new ExceptionC("invalid protocol: " + buf.getCommand());
+                throw new Exception("invalid protocol: " + buf.getCommand());
             }
             ECDH kex = receive_kexinit(buf);
             while (true) {
@@ -153,11 +153,11 @@ class Session extends UtilC{
                     boolean result = kex.next(buf);
                     if (!result) {
                         in_kex = false;
-                        throw new ExceptionC("verify: " + result);
+                        throw new Exception("verify: " + result);
                     }
                 } else {
                     in_kex = false;
-                    throw new ExceptionC("invalid protocol(kex): " + buf.getCommand());
+                    throw new Exception("invalid protocol(kex): " + buf.getCommand());
                 }
                 if (kex.getState() == ECDH.STATE_END)
                     break;
@@ -169,7 +169,7 @@ class Session extends UtilC{
                 receive_newkeys(buf, kex);
             } else {
                 in_kex = false;
-                throw new ExceptionC("invalid protocol(newkyes): " + buf.getCommand());
+                throw new Exception("invalid protocol(newkyes): " + buf.getCommand());
             }
             try {
                 packet.reset();
@@ -178,7 +178,7 @@ class Session extends UtilC{
                 pre_write(packet);
                 buf = read(buf); // ?
             } catch (Exception e) {
-                throw new ExceptionC("Error Session 180 " + e.toString());
+                throw new Exception("Error Session 180 " + e.toString());
             }
             int SSH_MSG_USERAUTH_REQUEST = 50;
             int SSH_MSG_USERAUTH_FAILURE = 51;
@@ -222,14 +222,14 @@ class Session extends UtilC{
                     pre_write(packet);
                 }
             } catch (Exception ee) {
-                throw new ExceptionC("Error Session 224 " + e.toString());
+                throw new Exception("Error Session 224 " + e.toString());
             }
             isConnected = false;
             if (e instanceof RuntimeException) 
-                throw new ExceptionC(".Session.connect: " + e);
-            if (e instanceof ExceptionC) 
-                throw new ExceptionC("..Session.connect: " + e);
-            throw new ExceptionC("...Session.connect: " + e);
+                throw new Exception(".Session.connect: " + e);
+            if (e instanceof Exception) 
+                throw new Exception("..Session.connect: " + e);
+            throw new Exception("...Session.connect: " + e);
         }
     }
 
@@ -255,7 +255,7 @@ class Session extends UtilC{
                                 stimeout++;
                                 continue;
                             }
-                            throw new ExceptionC("Error Session 261 " + ee);
+                            throw new Exception("Error Session 261 " + ee);
                         }
                         int msgType = buf.getCommand() & 0xff;                
                         switch (msgType) {
@@ -277,7 +277,7 @@ class Session extends UtilC{
                                     if ( Channel.can_print(a.length) )
                                         channel.put(a, 0, a.length);
                                 } catch (Exception e) {
-                                    throw new ExceptionC("Error Session 287 " + e);                                    
+                                    throw new Exception("Error Session 287 " + e);                                    
                                 }
                                 break;
                             case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
@@ -332,9 +332,9 @@ class Session extends UtilC{
             send_kexinit();
         guess = ECDH.guess(I_S, I_C);
         if (guess == null)
-            throw new ExceptionC("Algorithm negotiation fail");
+            throw new Exception("Algorithm negotiation fail");
         if (!isAuthed && (guess[ECDH.PROPOSAL_ENC_ALGS_CTOS].equals("none") || (guess[ECDH.PROPOSAL_ENC_ALGS_STOC].equals("none"))))
-            throw new ExceptionC("NONE Cipher should not be chosen before authentification is successed.");
+            throw new Exception("NONE Cipher should not be chosen before authentification is successed.");
         ECDH kex = new ECDH();
         kex.init(this, V_S, V_C, I_S, I_C);
         return kex;
@@ -474,7 +474,7 @@ class Session extends UtilC{
                 int reason_code = buf.getInt();
                 byte[] text = buf.getBytes();
                 byte[] language_tag = buf.getBytes();
-                throw new ExceptionC("SSH_MSG_DISCONNECT" + reason_code + " " + byte2str(text) + " " + byte2str(language_tag));
+                throw new Exception("SSH_MSG_DISCONNECT" + reason_code + " " + byte2str(text) + " " + byte2str(language_tag));
             } else if (type == SSH_MSG_IGNORE) {
             } else if (type == SSH_MSG_UNIMPLEMENTED) {
                 buf.reset_get();
@@ -610,16 +610,16 @@ class Session extends UtilC{
             c2smac.init(new javax.crypto.spec.SecretKeySpec(MACc2s, "HmacSHA1"));
         } catch (Exception e) {
             System.out.println("ex_149");
-            if (e instanceof ExceptionC)
+            if (e instanceof Exception)
                 throw e;
-            throw new ExceptionC(e.toString(), e);
+            throw new Exception(e.toString());
         }
     }
     public void pre_write(Packet packet) throws Exception {
         long t = getTimeout();
         while (in_kex) {
             if (t > 0L && (System.currentTimeMillis() - kex_start_time) > t && !in_prompt)
-                throw new ExceptionC("timeout in waiting for rekeying process.");
+                throw new Exception("timeout in waiting for rekeying process.");
             byte command = packet.buffer.getCommand();
             if (command == SSH_MSG_KEXINIT ||
                 command == SSH_MSG_NEWKEYS ||
@@ -698,10 +698,10 @@ class Session extends UtilC{
     public int getTimeout() {
         return timeout;
     }
-    public void setTimeout(int timeout) throws ExceptionC {
+    public void setTimeout(int timeout) throws Exception {
         if (socket == null) {
             if (timeout < 0) {
-                throw new ExceptionC("invalid timeout value");
+                throw new Exception("invalid timeout value");
             }
             this.timeout = timeout;
             return;
@@ -711,9 +711,7 @@ class Session extends UtilC{
             this.timeout = timeout;
         } catch (Exception e) {
             System.out.println("ex_156");
-            if (e instanceof Throwable)
-                throw new ExceptionC(e.toString(), (Throwable) e);
-            throw new ExceptionC(e.toString());
+            throw new Exception(e.toString());
         }
     }
     public String getServerVersion() {
@@ -767,7 +765,7 @@ class Session extends UtilC{
     public String getHostKeyAlias() {
         return hostKeyAlias;
     }
-    public void setServerAliveInterval(int interval) throws ExceptionC {
+    public void setServerAliveInterval(int interval) throws Exception {
         setTimeout(interval);
         this.serverAliveInterval = interval;
     }
