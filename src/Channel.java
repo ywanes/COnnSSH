@@ -91,7 +91,7 @@ class Channel extends UtilC{
         packet.reset();
         buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(recipient);
-        buf.putString(str2byte("shell", "UTF-8"));
+        buf.putString(str2byte("shell", "UTF-8"));        
         buf.putByte((byte) 0);
         session.pre_write(packet);
         connected = true;

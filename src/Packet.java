@@ -1,9 +1,6 @@
 class Packet{
-    private static java.security.SecureRandom random = null;
-    static void setRandom(java.security.SecureRandom foo) {
-        random = foo;
-    }
-    Buffer buffer;
+    public static java.security.SecureRandom random = new java.security.SecureRandom();
+    public Buffer buffer;
     byte[] ba4 = new byte[4];
 
     public Packet(Buffer buffer) {
@@ -24,15 +21,12 @@ class Packet{
         ba4[3] = (byte)(len);
         System.arraycopy(ba4, 0, buffer.buffer, 0, 4);
         buffer.buffer[4] = (byte) pad;
-        synchronized(random) {
-            byte[] foo_fill = buffer.buffer;
-            int start_fill = buffer.get_put();
-            byte[] tmp_fill = new byte[16];
-            if (pad > tmp_fill.length)
-                tmp_fill = new byte[pad];
-            random.nextBytes(tmp_fill);
-            System.arraycopy(tmp_fill, 0, foo_fill, start_fill, pad);
-        }
+        int start_fill = buffer.get_put();
+        byte[] tmp_fill = new byte[16];
+        if (pad > tmp_fill.length)
+            tmp_fill = new byte[pad];
+        random.nextBytes(tmp_fill);
+        System.arraycopy(tmp_fill, 0, buffer.buffer, start_fill, pad);
         buffer.skip_put(pad);
     }
 

@@ -62,7 +62,6 @@ class Session extends UtilC{
     OutputStream out = System.out;
     private boolean in_dontclose = false;
     private boolean out_dontclose = false;
-    static java.security.SecureRandom random;
     Buffer buf;
     Packet packet;
     private Proxy proxy = null;
@@ -90,9 +89,7 @@ class Session extends UtilC{
             threading();
     }
     
-    public void connect() throws Exception {
-        random = new java.security.SecureRandom();
-        Packet.setRandom(random);
+    public void connect() throws Exception {        
         try {
             int i, j;
             if (proxy == null) {
@@ -346,17 +343,15 @@ class Session extends UtilC{
         Packet packet = new Packet(buf);
         packet.reset();
         buf.putByte((byte) SSH_MSG_KEXINIT);
-        synchronized(random) {
-            int start_fill = buf.get_put();
-            int len_fill = 16;
-            byte[] tmp_fill = new byte[16];
-            if (len_fill > tmp_fill.length) {
-                tmp_fill = new byte[len_fill];
-            }
-            random.nextBytes(tmp_fill);
-            System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
-            buf.skip_put(16);
+        int start_fill = buf.get_put();
+        int len_fill = 16;
+        byte[] tmp_fill = new byte[16];
+        if (len_fill > tmp_fill.length) {
+            tmp_fill = new byte[len_fill];
         }
+        Packet.random.nextBytes(tmp_fill);
+        System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
+        buf.skip_put(16);
         buf.putString(str2byte(ECDH.cipher, "UTF-8"));
         buf.putString(str2byte(ECDH.groupCipher, "UTF-8"));
         buf.putString(str2byte("aes256-ctr", "UTF-8"));
@@ -384,16 +379,14 @@ class Session extends UtilC{
         if (c2scipher != null) {
             packet.padding(c2scipher_size);
             int pad = packet.buffer.buffer[4];
-            synchronized(random) {
-                byte[] foo_fill = packet.buffer.buffer;
-                int start_fill = packet.buffer.get_put() - pad;
-                int len_fill = pad;
-                byte[] tmp_fill = new byte[16];
-                if (len_fill > tmp_fill.length)
-                    tmp_fill = new byte[len_fill];
-                random.nextBytes(tmp_fill);
-                System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
-            }
+            byte[] foo_fill = packet.buffer.buffer;
+            int start_fill = packet.buffer.get_put() - pad;
+            int len_fill = pad;
+            byte[] tmp_fill = new byte[16];
+            if (len_fill > tmp_fill.length)
+                tmp_fill = new byte[len_fill];
+            Packet.random.nextBytes(tmp_fill);
+            System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
         } else {
             packet.padding(8);
         }
