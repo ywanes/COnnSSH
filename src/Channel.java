@@ -3,7 +3,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 class Channel extends UtilC{
-    private static Channel channel = null;
+    //private static Channel channel = null;
     private InputStream in = System.in;
     private OutputStream out = System.out;
     private long rwsize = 0;
@@ -29,17 +29,13 @@ class Channel extends UtilC{
     Channel(Session session) {
         try {
             this.session = session;
-            channel = this;
+            this.session.channel = this;
             connect();
-            while (!eof_remote) {}
         } catch (Exception e) {
             System.err.println(e.toString());
             System.exit(1);
         }
     }    
-    static Channel getChannel() {
-        return channel;        
-    }
     public void set_recipient(int recipient){
         this.recipient=recipient;
     }
