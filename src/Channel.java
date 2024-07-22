@@ -6,7 +6,6 @@ class Channel extends UtilC{
     private static Channel channel = null;
     private InputStream in = System.in;
     private OutputStream out = System.out;
-    private OutputStream out_ext = null;
     private long rwsize = 0;
     private boolean close = false;
     private boolean eof_remote = false;

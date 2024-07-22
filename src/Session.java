@@ -793,8 +793,6 @@ class Session extends UtilC{
     void getByte(byte[] array, int begin, int length, int identity) throws IOException {
         do {
             int completed = in.read(array, begin, length);            
-            show("cipher", completed, array);
-            // here error ubuntu
             if (completed < 0)
                 throw new IOException("End of IO Stream Read - identity: " + identity);
             begin += completed;
