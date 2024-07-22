@@ -1,7 +1,7 @@
 class Buffer {    
-    byte[] buffer;
-    int i_put;
-    int i_get;
+    public byte[] buffer;
+    private int i_put;
+    private int i_get;
     public Buffer() {
         this(new byte[1024 * 10 * 2]);
     }
@@ -50,6 +50,15 @@ class Buffer {
     }
     public void set_get(int s) {
         i_get = s;
+    }
+    public int get_put() {
+        return i_put;
+    }
+    public void set_put(int s) {
+        i_put = s;
+    }
+    public void add_put(int s){
+        i_put += s;
     }
     public byte getByte() {
         return buffer[i_get++];

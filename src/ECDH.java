@@ -94,13 +94,17 @@ class ECDH256 extends UtilC{
             int k = 0;
             label_break:
                 while (j < cp.length) {
-                    while (j < cp.length && cp[j] != ',') j++;
+                    while (j < cp.length && cp[j] != ','){
+                        j++;
+                    }
                     if (k == j) return null;
                     String algorithm = byte2str(cp, k, j - k, "UTF-8");
                     int l = 0;
                     int m = 0;
                     while (l < sp.length) {
-                        while (l < sp.length && sp[l] != ',') l++;
+                        while (l < sp.length && sp[l] != ','){
+                            l++;
+                        }
                         if (m == l)
                             return null;
                         if (algorithm.equals(byte2str(sp, m, l - m, "UTF-8"))) {
@@ -228,7 +232,9 @@ class ECDH256 extends UtilC{
 
     static byte[][] fromPoint(byte[] point) {
         int i = 0;
-        while (point[i] != 4) i++;
+        while (point[i] != 4){
+            i++;
+        }        
         i++;
         byte[][] tmp = new byte[2][];
         byte[] r_array = new byte[(point.length - i) / 2];
@@ -428,13 +434,17 @@ class ECDH521 extends UtilC{
             int k = 0;
             label_break:
                 while (j < cp.length) {
-                    while (j < cp.length && cp[j] != ',') j++;
+                    while (j < cp.length && cp[j] != ','){
+                        j++;
+                    }
                     if (k == j) return null;
                     String algorithm = byte2str(cp, k, j - k, "UTF-8");
                     int l = 0;
                     int m = 0;
                     while (l < sp.length) {
-                        while (l < sp.length && sp[l] != ',') l++;
+                        while (l < sp.length && sp[l] != ','){
+                            l++;
+                        }
                         if (m == l)
                             return null;
                         if (algorithm.equals(byte2str(sp, m, l - m, "UTF-8"))) {
@@ -560,7 +570,9 @@ class ECDH521 extends UtilC{
 
     static byte[][] fromPoint(byte[] point) {
         int i = 0;
-        while (point[i] != 4) i++;
+        while (point[i] != 4){
+            i++;
+        }
         i++;
         byte[][] tmp = new byte[2][];
         byte[] r_array = new byte[(point.length - i) / 2];

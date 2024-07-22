@@ -58,7 +58,6 @@ class Session extends UtilC{
     private int timeout = 0;
     private boolean isConnected = false;
     private boolean isAuthed = false;
-    private Object lock = new Object();
     InputStream in = System.in;
     OutputStream out = System.out;
     private boolean in_dontclose = false;
@@ -71,12 +70,12 @@ class Session extends UtilC{
     private int serverAliveInterval = 0;
     private int serverAliveCountMax = 1;
     private long kex_start_time = 0L;
-    int max_auth_tries = 6;
-    int auth_failures = 0;
     String host = null;
     int port = 22;
     String username = null;
     byte[] password = null;
+    private boolean in_kex = false;
+    private boolean in_prompt = false;
 
     Session(String host, String username, int port, String password) throws Exception {
         buf = new Buffer();
@@ -186,8 +185,6 @@ class Session extends UtilC{
             int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60;
             if (password == null)
                 throw new Exception("Error AuthCancel - not found password");
-            if (auth_failures >= max_auth_tries)
-                return;
             packet.reset();
             buf.putByte((byte) SSH_MSG_USERAUTH_REQUEST);
             buf.putString(str2byte(username, "UTF-8"));
@@ -208,7 +205,6 @@ class Session extends UtilC{
                 socket.setSoTimeout(timeout);
             isAuthed = true;
         }catch(Exception e){
-            //System.err.println("[]"+ e);
             in_kex = false;
             try {
                 if (isConnected) {
@@ -324,10 +320,10 @@ class Session extends UtilC{
         int j = buf.getInt();
         if (j != buf.getLength()) {
             buf.getByte();
-            I_S = new byte[buf.i_put - 5];
+            I_S = new byte[buf.get_put() - 5];
         } else
             I_S = new byte[j - 1 - buf.getByte()];
-        System.arraycopy(buf.buffer, buf.i_get, I_S, 0, I_S.length);
+        System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
         if (!in_kex)
             send_kexinit();
         guess = ECDH.guess(I_S, I_C);
@@ -339,8 +335,6 @@ class Session extends UtilC{
         kex.init(this, V_S, V_C, I_S, I_C);
         return kex;
     }
-    private boolean in_kex = false;
-    private boolean in_prompt = false;
     public void rekey() throws Exception {
         send_kexinit();
     }
@@ -348,7 +342,6 @@ class Session extends UtilC{
     private void send_kexinit() throws Exception {
         if (in_kex)
             return;
-
         in_kex = true;
         kex_start_time = System.currentTimeMillis();
         Buffer buf = new Buffer();
@@ -356,7 +349,7 @@ class Session extends UtilC{
         packet.reset();
         buf.putByte((byte) SSH_MSG_KEXINIT);
         synchronized(random) {
-            int start_fill = buf.i_put;
+            int start_fill = buf.get_put();
             int len_fill = 16;
             byte[] tmp_fill = new byte[16];
             if (len_fill > tmp_fill.length) {
@@ -395,7 +388,7 @@ class Session extends UtilC{
             int pad = packet.buffer.buffer[4];
             synchronized(random) {
                 byte[] foo_fill = packet.buffer.buffer;
-                int start_fill = packet.buffer.i_put - pad;
+                int start_fill = packet.buffer.get_put() - pad;
                 int len_fill = pad;
                 byte[] tmp_fill = new byte[16];
                 if (len_fill > tmp_fill.length)
@@ -413,12 +406,12 @@ class Session extends UtilC{
             tmp[2] = (byte)(seqo >>> 8);
             tmp[3] = (byte) seqo;
             c2smac.update(tmp, 0, 4);
-            c2smac.update(packet.buffer.buffer, 0, packet.buffer.i_put);
-            c2smac.doFinal(packet.buffer.buffer, packet.buffer.i_put);
+            c2smac.update(packet.buffer.buffer, 0, packet.buffer.get_put());
+            c2smac.doFinal(packet.buffer.buffer, packet.buffer.get_put());
         }
         if (c2scipher != null) {
             byte[] buf = packet.buffer.buffer;
-            c2scipher.update(buf, 0, packet.buffer.i_put, buf, 0);
+            c2scipher.update(buf, 0, packet.buffer.get_put(), buf, 0);
         }
         if (c2smac != null) {
             packet.buffer.skip_put(20);
@@ -431,20 +424,20 @@ class Session extends UtilC{
         int j = 0;
         while (true) {
             buf.reset();            
-            getByte(buf.buffer, buf.i_put, s2ccipher_size, 1);
-            buf.i_put += s2ccipher_size;
+            getByte(buf.buffer, buf.get_put(), s2ccipher_size, 1);
+            buf.add_put(s2ccipher_size);
             if (s2ccipher != null)
                 s2ccipher.update(buf.buffer, 0, s2ccipher_size, buf.buffer, 0);
             j = ((buf.buffer[0] << 24) & 0xff000000) | ((buf.buffer[1] << 16) & 0x00ff0000) | ((buf.buffer[2] << 8) & 0x0000ff00) | ((buf.buffer[3]) & 0x000000ff);
             int need = j + 4 - s2ccipher_size;
-            if ((buf.i_put + need) > buf.buffer.length) {
-                byte[] foo = new byte[buf.i_put + need];
-                System.arraycopy(buf.buffer, 0, foo, 0, buf.i_put);
+            if ((buf.get_put() + need) > buf.buffer.length) {
+                byte[] foo = new byte[buf.get_put() + need];
+                System.arraycopy(buf.buffer, 0, foo, 0, buf.get_put());
                 buf.buffer = foo;
             }
             if (need > 0) {
-                getByte(buf.buffer, buf.i_put, need, 2);
-                buf.i_put += (need);
+                getByte(buf.buffer, buf.get_put(), need, 2);
+                buf.add_put(need);
                 if (s2ccipher != null) {
                     s2ccipher.update(buf.buffer, s2ccipher_size, need, buf.buffer, s2ccipher_size);
                 }
@@ -456,7 +449,7 @@ class Session extends UtilC{
                 tmp[2] = (byte)(seqi >>> 8);
                 tmp[3] = (byte) seqi;
                 s2cmac.update(tmp, 0, 4);
-                s2cmac.update(buf.buffer, 0, buf.i_put);
+                s2cmac.update(buf.buffer, 0, buf.get_put());
                 s2cmac.doFinal(s2cmac_result1, 0);
                 getByte(s2cmac_result2, 0, s2cmac_result2.length, 3);
                 if (!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)) {
@@ -517,23 +510,23 @@ class Session extends UtilC{
         buf.putBytes(H, 0, H.length);
         buf.putByte((byte) 0x41);
         buf.putBytes(session_ids, 0, session_ids.length);
-        sha512.update(buf.buffer, 0, buf.i_put);
+        sha512.update(buf.buffer, 0, buf.get_put());
         IVc2s = sha512.digest();
-        int j = buf.i_put - session_ids.length - 1;
+        int j = buf.get_put() - session_ids.length - 1;
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.i_put);
+        sha512.update(buf.buffer, 0, buf.get_put());
         IVs2c = sha512.digest();
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.i_put);
+        sha512.update(buf.buffer, 0, buf.get_put());
         Ec2s = sha512.digest();
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.i_put);
+        sha512.update(buf.buffer, 0, buf.get_put());
         Es2c = sha512.digest();
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.i_put);
+        sha512.update(buf.buffer, 0, buf.get_put());
         MACc2s = sha512.digest();
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.i_put);
+        sha512.update(buf.buffer, 0, buf.get_put());
         MACs2c = sha512.digest();
         try {
             while (32 > Es2c.length) {
@@ -541,7 +534,7 @@ class Session extends UtilC{
                 buf.putMPInt(K);
                 buf.putBytes(H, 0, H.length);
                 buf.putBytes(Es2c, 0, Es2c.length);
-                sha512.update(buf.buffer, 0, buf.i_put);
+                sha512.update(buf.buffer, 0, buf.get_put());
                 byte[] foo = sha512.digest();
                 byte[] bar = new byte[Es2c.length + foo.length];
                 System.arraycopy(Es2c, 0, bar, 0, Es2c.length);
@@ -560,9 +553,7 @@ class Session extends UtilC{
                 Es2c = tmp;
             }
             s2ccipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-            synchronized(javax.crypto.Cipher.class) {
-                s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
-            }
+            s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
             s2ccipher_size = 16;
             if (MACs2c.length > 20) {
                 byte[] tmp2 = new byte[20];
@@ -578,7 +569,7 @@ class Session extends UtilC{
                 buf.putMPInt(K);
                 buf.putBytes(H, 0, H.length);
                 buf.putBytes(Ec2s, 0, Ec2s.length);
-                sha512.update(buf.buffer, 0, buf.i_put);
+                sha512.update(buf.buffer, 0, buf.get_put());
                 byte[] foo = sha512.digest();
                 byte[] bar = new byte[Ec2s.length + foo.length];
                 System.arraycopy(Ec2s, 0, bar, 0, Ec2s.length);
@@ -597,9 +588,7 @@ class Session extends UtilC{
                 Ec2s = tmp3;
             }
             c2scipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-            synchronized(javax.crypto.Cipher.class) {
-                c2scipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Ec2s, "AES"), new javax.crypto.spec.IvParameterSpec(IVc2s));
-            }
+            c2scipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Ec2s, "AES"), new javax.crypto.spec.IvParameterSpec(IVc2s));
             c2scipher_size = 16;
             if (MACc2s.length > 20) {
                 byte[] tmp4 = new byte[20];
@@ -779,8 +768,8 @@ class Session extends UtilC{
         return this.serverAliveCountMax;
     }
     public void put(Packet p) throws IOException, java.net.SocketException {
-        //////////// System.out.write(p.buffer.buffer, 0, p.buffer.i_put);
-        out.write(p.buffer.buffer, 0, p.buffer.i_put);
+        //////////// System.out.write(p.buffer.buffer, 0, p.buffer.get_put());
+        out.write(p.buffer.buffer, 0, p.buffer.get_put());
         out.flush();
     }
     void put(byte[] array, int begin, int length) throws IOException {
