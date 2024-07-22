@@ -1,33 +1,36 @@
 class Packet{
     public static java.security.SecureRandom random = new java.security.SecureRandom();
-    public Buffer buffer;
-    byte[] ba4 = new byte[4];
+    public Buffer buf;    
 
-    public Packet(Buffer buffer) {
-        this.buffer = buffer;
+    public Packet(Buffer buf) {
+        this.buf = buf;
+    }
+    public Packet() {
+        this(new Buffer());
     }
     public void reset() {        
-        buffer.set_put(5);
+        buf.set_put(5);
     }
     void padding(int bsize) {
-        int len = buffer.get_put();
+        int len = buf.get_put();
         int pad = (-len) & (bsize - 1);
         if (pad < bsize)
             pad += bsize;
         len = len + pad - 4;
+        byte[] ba4 = new byte[4];
         ba4[0] = (byte)(len >>> 24);
         ba4[1] = (byte)(len >>> 16);
         ba4[2] = (byte)(len >>> 8);
         ba4[3] = (byte)(len);
-        System.arraycopy(ba4, 0, buffer.buffer, 0, 4);
-        buffer.buffer[4] = (byte) pad;
-        int start_fill = buffer.get_put();
+        System.arraycopy(ba4, 0, buf.buffer, 0, 4);
+        buf.buffer[4] = (byte) pad;
+        int start_fill = buf.get_put();
         byte[] tmp_fill = new byte[16];
         if (pad > tmp_fill.length)
             tmp_fill = new byte[pad];
         random.nextBytes(tmp_fill);
-        System.arraycopy(tmp_fill, 0, buffer.buffer, start_fill, pad);
-        buffer.skip_put(pad);
+        System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, pad);
+        buf.skip_put(pad);
     }
 
     int shift(int len, int bsize, int mac) {
@@ -37,24 +40,24 @@ class Packet{
         s += pad;
         s += mac;
         s += 32;
-        if (buffer.buffer.length < s + buffer.get_put() - 5 - 9 - len) {
-            byte[] foo = new byte[s + buffer.get_put() - 5 - 9 - len];
-            System.arraycopy(buffer.buffer, 0, foo, 0, buffer.buffer.length);
-            buffer.buffer = foo;
+        if (buf.buffer.length < s + buf.get_put() - 5 - 9 - len) {
+            byte[] foo = new byte[s + buf.get_put() - 5 - 9 - len];
+            System.arraycopy(buf.buffer, 0, foo, 0, buf.buffer.length);
+            buf.buffer = foo;
         }
-        System.arraycopy(buffer.buffer, len + 5 + 9, buffer.buffer, s, buffer.get_put() - 5 - 9 - len);
-        buffer.set_put(10);
-        buffer.putInt(len);
-        buffer.set_put(len + 5 + 9);
+        System.arraycopy(buf.buffer, len + 5 + 9, buf.buffer, s, buf.get_put() - 5 - 9 - len);
+        buf.set_put(10);
+        buf.putInt(len);
+        buf.set_put(len + 5 + 9);
         return s;
     }
     void unshift(byte command, int recipient, int s, int len) {
-        System.arraycopy(buffer.buffer, s, buffer.buffer, 5 + 9, len);
-        buffer.buffer[5] = command;
-        buffer.set_put(6);
-        buffer.putInt(recipient);
-        buffer.putInt(len);
-        buffer.set_put(len + 5 + 9);
+        System.arraycopy(buf.buffer, s, buf.buffer, 5 + 9, len);
+        buf.buffer[5] = command;
+        buf.set_put(6);
+        buf.putInt(recipient);
+        buf.putInt(len);
+        buf.set_put(len + 5 + 9);
     }
 }
 

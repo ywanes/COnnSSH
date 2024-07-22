@@ -41,15 +41,14 @@ class Channel extends UtilC{
     }
     public void connect() throws Exception, Exception {
         if (!session.isConnected())
-            throw new Exception("session is down");
-        Buffer buf = new Buffer(new byte[100]);
-        Packet packet = new Packet(buf);
+            throw new Exception("session is down");        
+        Packet packet = new Packet(new Buffer(new byte[100]));
         packet.reset();
-        buf.putByte((byte) 90);
-        buf.putString(str2byte("session", "UTF-8"));
-        buf.putInt(0);
-        buf.putInt(0x100000);
-        buf.putInt(0x4000);
+        packet.buf.putByte((byte) 90);
+        packet.buf.putString(str2byte("session", "UTF-8"));
+        packet.buf.putInt(0);
+        packet.buf.putInt(0x100000);
+        packet.buf.putInt(0x4000);
         session.pre_write(packet);
         
         // wait flag recipient           
@@ -70,39 +69,36 @@ class Channel extends UtilC{
         int trow = 24;
         int twp = 640;
         int thp = 480;
-        
-        buf = new Buffer();
-        packet = new Packet(buf);
+                
+        packet = new Packet();
         packet.reset();
-        buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-        buf.putInt(recipient);
-        buf.putString(str2byte("pty-req", "UTF-8"));
-        buf.putByte((byte) 0);
-        buf.putString(str2byte("vt100", "UTF-8"));
-        buf.putInt(tcol);
-        buf.putInt(trow);
-        buf.putInt(twp);
-        buf.putInt(thp);
-        buf.putString(terminal_mode);
+        packet.buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+        packet.buf.putInt(recipient);
+        packet.buf.putString(str2byte("pty-req", "UTF-8"));
+        packet.buf.putByte((byte) 0);
+        packet.buf.putString(str2byte("vt100", "UTF-8"));
+        packet.buf.putInt(tcol);
+        packet.buf.putInt(trow);
+        packet.buf.putInt(twp);
+        packet.buf.putInt(thp);
+        packet.buf.putString(terminal_mode);
         session.pre_write(packet);
         
-        buf = new Buffer();
-        packet = new Packet(buf);
+        packet = new Packet();
         packet.reset();
-        buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-        buf.putInt(recipient);
-        buf.putString(str2byte("shell", "UTF-8"));        
-        buf.putByte((byte) 0);
+        packet.buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+        packet.buf.putInt(recipient);
+        packet.buf.putString(str2byte("shell", "UTF-8"));        
+        packet.buf.putByte((byte) 0);
         session.pre_write(packet);
         connected = true;
         
         ///////////
         // ponto critico!!
-        buf = new Buffer(new byte[rmpsize]);
-        packet = new Packet(buf);
+        packet = new Packet(new Buffer(new byte[rmpsize]));
         try {
             while (isConnected()) {
-                int i = in.read(buf.buffer, 14, buf.buffer.length -14 -ECDH.nn);
+                int i = in.read(packet.buf.buffer, 14, packet.buf.buffer.length -14 -ECDH.nn);
                 //System.out.write("[IN]".getBytes());
                 //System.out.write(buf.buffer, 0, i);
                 //System.out.write("[OUT]".getBytes());                
@@ -115,10 +111,10 @@ class Channel extends UtilC{
                     break;
                 }
                 packet.reset();
-                buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
-                buf.putInt(recipient);
-                buf.putInt(i);
-                buf.skip_put(i);                
+                packet.buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
+                packet.buf.putInt(recipient);
+                packet.buf.putInt(i);
+                packet.buf.skip_put(i);                
                 session.write(packet, i);
             }
         } catch (Exception e) {
