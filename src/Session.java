@@ -64,7 +64,7 @@ class Session extends UtilC{
     Packet _packet;
     private int serverAliveCountMax = 1;
     private long kex_start_time = 0L;
-    public Channel channel=null;
+    public Channel channel=null;    
     String host = null;
     int port = 22;
     String username = null;
@@ -164,7 +164,7 @@ class Session extends UtilC{
             try {
                 _packet.reset();
                 _packet.buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
-                _packet.buf.putString(str2byte("ssh-userauth", "UTF-8"));
+                _packet.buf.putValue(str2byte("ssh-userauth", "UTF-8"));
                 pre_write(_packet);
                 _packet.buf = read(_packet.buf); // ?
             } catch (Exception e) {
@@ -178,11 +178,11 @@ class Session extends UtilC{
                 throw new Exception("Error AuthCancel - not found password");
             _packet.reset();
             _packet.buf.putByte((byte) SSH_MSG_USERAUTH_REQUEST);
-            _packet.buf.putString(str2byte(username, "UTF-8"));
-            _packet.buf.putString(str2byte("ssh-connection", "UTF-8"));
-            _packet.buf.putString(str2byte("password", "UTF-8"));
+            _packet.buf.putValue(str2byte(username, "UTF-8"));
+            _packet.buf.putValue(str2byte("ssh-connection", "UTF-8"));
+            _packet.buf.putValue(str2byte("password", "UTF-8"));
             _packet.buf.putByte((byte) 0);
-            _packet.buf.putString(password);
+            _packet.buf.putValue(password);
             pre_write(_packet);
             _packet.buf = read(_packet.buf);
             int command = _packet.buf.getCommand() & 0xff;
@@ -204,8 +204,8 @@ class Session extends UtilC{
                     _packet.buf.resize_buffer(1 + 4 * 3 + message.length() + 2 + ECDH.nn);
                     _packet.buf.putByte((byte)SSH_MSG_DISCONNECT);
                     _packet.buf.putInt(3);
-                    _packet.buf.putString(str2byte(message, "UTF-8"));
-                    _packet.buf.putString(str2byte("en", "UTF-8"));
+                    _packet.buf.putValue(str2byte(message, "UTF-8"));
+                    _packet.buf.putValue(str2byte("en", "UTF-8"));
                     pre_write(_packet);
                 }
             } catch (Exception ee) {
@@ -214,8 +214,6 @@ class Session extends UtilC{
             isConnected = false;
             if (e instanceof RuntimeException) 
                 throw new Exception(".Session.connect: " + e);
-            if (e instanceof Exception) 
-                throw new Exception("..Session.connect: " + e);
             throw new Exception("...Session.connect: " + e);
         }
     }
@@ -249,7 +247,7 @@ class Session extends UtilC{
                                 packet.buf.getByte();
                                 packet.buf.getByte();
                                 packet.buf.getInt();
-                                byte[] a = packet.buf.getBytes();
+                                byte[] a = packet.buf.getValue();
                                 if (channel == null || a.length == 0)
                                     break;
                                 try {
@@ -272,7 +270,8 @@ class Session extends UtilC{
                                 packet.buf.getInt();
                                 int rps = packet.buf.getInt();
                                 if (channel != null) {
-                                    channel.set_recipient(0);                                        
+                                    //channel.set_recipient(0);                                        
+                                    channel.channel_opened=true;
                                     channel.set_rwsize(0);
                                     channel.set_rmpsize(rps);
                                 }
@@ -280,7 +279,7 @@ class Session extends UtilC{
                             case SSH_MSG_GLOBAL_REQUEST:
                                 packet.buf.getInt();
                                 packet.buf.getShort();
-                                packet.buf.getBytes();
+                                packet.buf.getValue();
                                 if (packet.buf.getByte() != 0) {
                                     packet.reset();
                                     packet.buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
@@ -344,20 +343,20 @@ class Session extends UtilC{
         Packet.random.nextBytes(tmp_fill);
         System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
         buf.skip_put(16);
-        buf.putString(str2byte(ECDH.cipher, "UTF-8"));
-        buf.putString(str2byte(ECDH.groupCipher, "UTF-8"));
-        buf.putString(str2byte("aes256-ctr", "UTF-8"));
-        buf.putString(str2byte("aes256-ctr", "UTF-8"));
-        buf.putString(str2byte("hmac-sha1", "UTF-8"));
-        buf.putString(str2byte("hmac-sha1", "UTF-8"));
-        buf.putString(str2byte("none", "UTF-8"));
-        buf.putString(str2byte("none", "UTF-8"));
-        buf.putString(str2byte("", "UTF-8"));
-        buf.putString(str2byte("", "UTF-8"));
+        buf.putValue(str2byte(ECDH.cipher, "UTF-8"));
+        buf.putValue(str2byte(ECDH.groupCipher, "UTF-8"));
+        buf.putValue(str2byte("aes256-ctr", "UTF-8"));
+        buf.putValue(str2byte("aes256-ctr", "UTF-8"));
+        buf.putValue(str2byte("hmac-sha1", "UTF-8"));
+        buf.putValue(str2byte("hmac-sha1", "UTF-8"));
+        buf.putValue(str2byte("none", "UTF-8"));
+        buf.putValue(str2byte("none", "UTF-8"));
+        buf.putValue(str2byte("", "UTF-8"));
+        buf.putValue(str2byte("", "UTF-8"));
         buf.putByte((byte) 0);
         buf.putInt(0);
         buf.set_get(5);
-        I_C = buf.getBytesAll();
+        I_C = buf.getValueAllLen();
         pre_write(packet);
     }
 
@@ -446,8 +445,8 @@ class Session extends UtilC{
                 buf.getInt();
                 buf.getShort();
                 int reason_code = buf.getInt();
-                byte[] text = buf.getBytes();
-                byte[] language_tag = buf.getBytes();
+                byte[] text = buf.getValue();
+                byte[] language_tag = buf.getValue();
                 throw new Exception("SSH_MSG_DISCONNECT" + reason_code + " " + byte2str(text) + " " + byte2str(language_tag));
             } else if (type == SSH_MSG_IGNORE) {
             } else if (type == SSH_MSG_UNIMPLEMENTED) {
@@ -486,10 +485,10 @@ class Session extends UtilC{
             System.arraycopy(H, 0, session_ids, 0, H.length);
         }
         buf.reset();
-        buf.putMPInt(K);
-        buf.putBytes(H, 0, H.length);
+        buf.putValue(K);
+        buf.putBytes(H);
         buf.putByte((byte) 0x41);
-        buf.putBytes(session_ids, 0, session_ids.length);
+        buf.putBytes(session_ids);
         sha512.update(buf.buffer, 0, buf.get_put());
         IVc2s = sha512.digest();
         int j = buf.get_put() - session_ids.length - 1;
@@ -511,9 +510,9 @@ class Session extends UtilC{
         try {
             while (32 > Es2c.length) {
                 buf.reset();
-                buf.putMPInt(K);
-                buf.putBytes(H, 0, H.length);
-                buf.putBytes(Es2c, 0, Es2c.length);
+                buf.putValue(K);
+                buf.putBytes(H);
+                buf.putBytes(Es2c);
                 sha512.update(buf.buffer, 0, buf.get_put());
                 byte[] foo = sha512.digest();
                 byte[] bar = new byte[Es2c.length + foo.length];
@@ -546,9 +545,9 @@ class Session extends UtilC{
             s2cmac_result2 = new byte[20];
             while (32 > Ec2s.length) {
                 buf.reset();
-                buf.putMPInt(K);
-                buf.putBytes(H, 0, H.length);
-                buf.putBytes(Ec2s, 0, Ec2s.length);
+                buf.putValue(K);
+                buf.putBytes(H);
+                buf.putBytes(Ec2s);
                 sha512.update(buf.buffer, 0, buf.get_put());
                 byte[] foo = sha512.digest();
                 byte[] bar = new byte[Ec2s.length + foo.length];
@@ -672,7 +671,7 @@ class Session extends UtilC{
         Packet packet = new Packet(buf);
         packet.reset();
         buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
-        buf.putString(keepalivemsg);
+        buf.putValue(keepalivemsg);
         buf.putByte((byte) 1);
         pre_write(packet);
     }

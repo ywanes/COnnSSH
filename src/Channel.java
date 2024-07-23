@@ -9,7 +9,8 @@ class Channel extends UtilC{
     private long rwsize = 0;
     private boolean close = false;
     private boolean eof_remote = false;
-    private int recipient = -1;
+    //private int recipient = -1;
+    public boolean channel_opened=false;
     private int rmpsize = 0;
     private boolean connected = false;
     private Session session;
@@ -36,16 +37,18 @@ class Channel extends UtilC{
             System.exit(1);
         }
     }    
+    /*
     public void set_recipient(int recipient){
         this.recipient=recipient;
     }
+    */
     public void connect() throws Exception, Exception {
         if (!session.isConnected())
             throw new Exception("session is down");        
         Packet packet = new Packet(new Buffer(new byte[100]));
         packet.reset();
         packet.buf.putByte((byte) 90);
-        packet.buf.putString(str2byte("session", "UTF-8"));
+        packet.buf.putValue(str2byte("session", "UTF-8"));
         packet.buf.putInt(0);
         packet.buf.putInt(0x100000);
         packet.buf.putInt(0x4000);
@@ -53,7 +56,7 @@ class Channel extends UtilC{
         
         // wait flag recipient           
         for ( int i=0;i<3000;i++ ){
-            if ( recipient < 0 ){
+            if ( !channel_opened ){
                 sleep(10);
                 continue;
             }
@@ -62,7 +65,7 @@ class Channel extends UtilC{
         
         if (!session.isConnected())
             throw new Exception("session is down");
-        if (recipient == -1)
+        if ( !channel_opened )
             throw new Exception("channel is not opened.");
         byte[] terminal_mode = (byte[]) str2byte("", "UTF-8");
         int tcol = 80;
@@ -73,22 +76,22 @@ class Channel extends UtilC{
         packet = new Packet();
         packet.reset();
         packet.buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-        packet.buf.putInt(recipient);
-        packet.buf.putString(str2byte("pty-req", "UTF-8"));
+        packet.buf.putInt(0);
+        packet.buf.putValue(str2byte("pty-req", "UTF-8"));
         packet.buf.putByte((byte) 0);
-        packet.buf.putString(str2byte("vt100", "UTF-8"));
+        packet.buf.putValue(str2byte("vt100", "UTF-8"));
         packet.buf.putInt(tcol);
         packet.buf.putInt(trow);
         packet.buf.putInt(twp);
         packet.buf.putInt(thp);
-        packet.buf.putString(terminal_mode);
+        packet.buf.putValue(terminal_mode);
         session.pre_write(packet);
         
         packet = new Packet();
         packet.reset();
         packet.buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
-        packet.buf.putInt(recipient);
-        packet.buf.putString(str2byte("shell", "UTF-8"));        
+        packet.buf.putInt(0);
+        packet.buf.putValue(str2byte("shell", "UTF-8"));        
         packet.buf.putByte((byte) 0);
         session.pre_write(packet);
         connected = true;
@@ -112,7 +115,7 @@ class Channel extends UtilC{
                 }
                 packet.reset();
                 packet.buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
-                packet.buf.putInt(recipient);
+                packet.buf.putInt(0);
                 packet.buf.putInt(i);
                 packet.buf.skip_put(i);                
                 session.write(packet, i);

@@ -69,7 +69,7 @@ class ECDH256 extends UtilC{
             ecdh = new KeyExchangeECDH();
             ecdh.init(key_size);
             Q_C = ecdh.getQ();
-            buf.putString(Q_C);
+            buf.putValue(Q_C);
         } catch (Exception e) {
             System.out.println("ex_90");
             if (e instanceof Throwable)                
@@ -88,8 +88,8 @@ class ECDH256 extends UtilC{
         Buffer cb = new Buffer(I_C);
         cb.set_get(17);
         for (int i = 0; i < PROPOSAL_MAX; i++) {
-            byte[] sp = sb.getBytes();
-            byte[] cp = cb.getBytes();
+            byte[] sp = sb.getValue();
+            byte[] cp = cb.getValue();
             int j = 0;
             int k = 0;
             label_break:
@@ -174,7 +174,7 @@ class ECDH256 extends UtilC{
             signature.update(H);
             byte[] tmp_RSA;
             Buffer buf_RSA = new Buffer(sig_of_H);
-            if (new String(buf_RSA.getBytes()).equals("ssh-rsa")) {
+            if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
                 int j_RSA = buf_RSA.getInt();
                 int i_RSA = buf_RSA.get_get();
                 tmp_RSA = new byte[j_RSA];
@@ -198,24 +198,24 @@ class ECDH256 extends UtilC{
                     System.err.println("type: must be 31 " + j);
                     return false;
                 }
-                K_S = _buf.getBytes();
-                byte[] Q_S = _buf.getBytes();
+                K_S = _buf.getValue();
+                byte[] Q_S = _buf.getValue();
                 byte[][] r_s = fromPoint(Q_S);
                 if (!ecdh.validate(r_s[0], r_s[1]))
                     return false;
                 K = ecdh.getSecret(r_s[0], r_s[1]);
                 K = normalize(K);
-                byte[] sig_of_H = _buf.getBytes();
+                byte[] sig_of_H = _buf.getValue();
                 buf.reset();
-                buf.putString(V_C);
-                buf.putString(V_S);
-                buf.putString(I_C);
-                buf.putString(I_S);
-                buf.putString(K_S);
-                buf.putString(Q_C);
-                buf.putString(Q_S);
-                buf.putMPInt(K);
-                byte[] foo = buf.getBytesAll();
+                buf.putValue(V_C);
+                buf.putValue(V_S);
+                buf.putValue(I_C);
+                buf.putValue(I_S);
+                buf.putValue(K_S);
+                buf.putValue(Q_C);
+                buf.putValue(Q_S);
+                buf.putValue(K);
+                byte[] foo = buf.getValueAllLen();
                 sha512.update(foo, 0, foo.length);
                 H = sha512.digest();
                 i = 0;
@@ -409,7 +409,7 @@ class ECDH521 extends UtilC{
             ecdh = new KeyExchangeECDH();
             ecdh.init(key_size);
             Q_C = ecdh.getQ();
-            buf.putString(Q_C);
+            buf.putValue(Q_C);
         } catch (Exception e) {
             System.out.println("ex_90");
             if (e instanceof Throwable)                
@@ -428,8 +428,8 @@ class ECDH521 extends UtilC{
         Buffer cb = new Buffer(I_C);
         cb.set_get(17);
         for (int i = 0; i < PROPOSAL_MAX; i++) {
-            byte[] sp = sb.getBytes();
-            byte[] cp = cb.getBytes();
+            byte[] sp = sb.getValue();
+            byte[] cp = cb.getValue();
             int j = 0;
             int k = 0;
             label_break:
@@ -512,7 +512,7 @@ class ECDH521 extends UtilC{
             signature.update(H);
             byte[] tmp_RSA;
             Buffer buf_RSA = new Buffer(sig_of_H);
-            if (new String(buf_RSA.getBytes()).equals("ssh-rsa")) {
+            if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
                 int j_RSA = buf_RSA.getInt();
                 int i_RSA = buf_RSA.get_get();
                 tmp_RSA = new byte[j_RSA];
@@ -536,24 +536,24 @@ class ECDH521 extends UtilC{
                     System.err.println("type: must be 31 " + j);
                     return false;
                 }
-                K_S = _buf.getBytes();
-                byte[] Q_S = _buf.getBytes();
+                K_S = _buf.getValue();
+                byte[] Q_S = _buf.getValue();
                 byte[][] r_s = fromPoint(Q_S);
                 if (!ecdh.validate(r_s[0], r_s[1]))
                     return false;
                 K = ecdh.getSecret(r_s[0], r_s[1]);
                 K = normalize(K);
-                byte[] sig_of_H = _buf.getBytes();
+                byte[] sig_of_H = _buf.getValue();
                 buf.reset();
-                buf.putString(V_C);
-                buf.putString(V_S);
-                buf.putString(I_C);
-                buf.putString(I_S);
-                buf.putString(K_S);
-                buf.putString(Q_C);
-                buf.putString(Q_S);
-                buf.putMPInt(K);
-                byte[] foo = buf.getBytesAll();
+                buf.putValue(V_C);
+                buf.putValue(V_S);
+                buf.putValue(I_C);
+                buf.putValue(I_S);
+                buf.putValue(K_S);
+                buf.putValue(Q_C);
+                buf.putValue(Q_S);
+                buf.putValue(K);
+                byte[] foo = buf.getValueAllLen();
                 sha512.update(foo, 0, foo.length);
                 H = sha512.digest();
                 i = 0;

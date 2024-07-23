@@ -10,38 +10,26 @@ class Buffer {
         i_put = 0;
         i_get = 0;
     }
+    public void putInt(int val) {
+        buffer[i_put++] = (byte)(val >>> 24);
+        buffer[i_put++] = (byte)(val >>> 16);
+        buffer[i_put++] = (byte)(val >>> 8);
+        buffer[i_put++] = (byte)val;
+    }
     public void putByte(byte foo) {
         buffer[i_put++] = foo;
     }
-    public void putBytes(byte[] foo, int begin, int len) {
-        System.arraycopy(foo, begin, buffer, i_put, len);
-        i_put += len;
+    public void putBytes(byte[] a) {
+        for ( int i=0;i<a.length;i++ )
+            buffer[i_put++] = a[i];
     }
-    public void putString(byte[] foo) {
+    public void putValue(byte[] foo) {
         putInt(foo.length);
-        putBytes(foo, 0, foo.length);
-    }
-    public void putInt(int val) {
-        final byte[] foo = new byte[4];
-        foo[0] = (byte)(val >>> 24);
-        foo[1] = (byte)(val >>> 16);
-        foo[2] = (byte)(val >>> 8);
-        foo[3] = (byte)(val);
-        System.arraycopy(foo, 0, buffer, i_put, 4);
-        i_put += 4;
+        putBytes(foo);
     }
     void skip_put(int n) {
         i_put += n;
     }   
-    public void putMPInt(byte[] foo) {
-        if ((foo[0] & 0x80) == 0) {
-            putInt(foo.length);
-        } else {
-            putInt(foo.length + 2);
-            putByte((byte) 0);
-        }
-        putBytes(foo, 0, foo.length);
-    }
     public int getLength(){
         return i_put - i_get;
     }
@@ -72,14 +60,14 @@ class Buffer {
     public int getInt(){
         return getB() << 24 | getB() << 16 | getB() << 8 | getB(); 
     }
-    public byte[] getBytes() {
+    public byte[] getValue() {
         int len = getInt();
         byte[] foo = new byte[len];
         System.arraycopy(buffer, i_get, foo, 0, len);
         i_get += len;
         return foo;        
     }
-    public byte[] getBytesAll(){
+    public byte[] getValueAllLen(){
         int len = getLength(); // getLength
         byte[] foo = new byte[len];
         System.arraycopy(buffer, i_get, foo, 0, len);
