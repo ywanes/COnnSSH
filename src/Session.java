@@ -68,18 +68,20 @@ class Session extends UtilC{
     private int c2scipher_size = 8;
 
     Session(String host, String username, int port, String password) throws Exception {        
+        Channel c = new Channel(this);
         _packet = new Packet();
         this.host=host;
         this.username = username;
         this.port = port;
         setPassword(password);
-        connect();   
+        connect();           
         new Thread(){
             public void run(){
                 working();
             }
         }.start();
-        new Channel(this);
+        
+        c.liga();
     }
     
     public void connect() throws Exception {        
@@ -704,8 +706,10 @@ class Channel extends UtilC{
     }    
     
     Channel(Session _session) {
-        try {
-            session2 = _session;
+        session2 = _session;
+    }
+    public void liga(){
+        try {            
             session2.channel = this;
             connect2();
             working2();
