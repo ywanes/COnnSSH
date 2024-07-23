@@ -39,8 +39,7 @@ class Session extends UtilC{
     private byte[] MACc2s;
     private byte[] MACs2c;
     private int seqi = 0;
-    private int seqo = 0;
-    String[] guess = null;
+    private int seqo = 0;    
     private javax.crypto.Cipher s2ccipher;
     private javax.crypto.Cipher c2scipher;
     private javax.crypto.Mac s2cmac;
@@ -50,16 +49,8 @@ class Session extends UtilC{
     private java.net.Socket socket;
     private int timeout = 0;    
     private boolean isAuthed = false;
-    java.io.InputStream in = System.in;
-    java.io.OutputStream out = System.out;
-    private boolean in_dontclose = false;
-    private boolean out_dontclose = false;
     Packet _packet;
-    private int serverAliveCountMax = 1;
     private long kex_start_time = 0L;
-    public Channel channel=null;    
-    String host = null;
-    int port = 22;
     String username = null;
     byte[] password = null;
     private boolean in_kex = false;
@@ -67,24 +58,39 @@ class Session extends UtilC{
     private int s2ccipher_size = 8;
     private int c2scipher_size = 8;
 
-    Session(String host, String username, int port, String password) throws Exception {        
-        Channel c = new Channel(this);
-        _packet = new Packet();
-        this.host=host;
-        this.username = username;
-        this.port = port;
-        setPassword(password);
-        connect();           
+    java.io.InputStream in = null;
+    java.io.OutputStream out = null;
+    private long rwsize2 = 0;
+    public boolean channel_opened=false;
+    private int rmpsize = 0;
+
+    public static int count_line_return=-1;
+    public static boolean can_print(int len){
+        if ( count_line_return == -1 )
+            return true;
+        count_line_return++;        
+        if ( count_line_return == 1 )
+            return false;
+        if ( count_line_return == 2 && len == 1 )
+            return false;  
+        return true;
+    }    
+    
+    Session(String host, String username, int port, String password) throws Exception {                
+        connect_stream(host, username, port, password);           
         new Thread(){
             public void run(){
-                working();
+                working_stream();
             }
-        }.start();
-        
-        c.liga();
+        }.start();        
+        connect();
+        working();
     }
     
-    public void connect() throws Exception {        
+    public void connect_stream(String host, String username, int port, String _password) throws Exception{
+        this.username = username;
+        this.password = str2byte(_password, "UTF-8");
+        _packet = new Packet();
         try {
             int i, j;
             try{
@@ -97,7 +103,7 @@ class Session extends UtilC{
             byte[] foo = new byte[V_C.length + 1];
             System.arraycopy(V_C, 0, foo, 0, V_C.length);
             foo[foo.length - 1] = (byte)'\n';            
-            put(foo, 0, foo.length);
+            put_stream(foo, 0, foo.length);
             while (true) {
                 i = 0;
                 j = 0;
@@ -198,7 +204,7 @@ class Session extends UtilC{
         }
     }
 
-    public void working(){
+    public void working_stream(){
         Packet packet = new Packet();
         int stimeout = 0;        
         try {
@@ -208,11 +214,11 @@ class Session extends UtilC{
                     stimeout = 0;
                 } catch (java.io.InterruptedIOException ee) {
                     // nao ha problemas aqui
-                    if (!in_kex && stimeout < serverAliveCountMax) {
+                    if (!in_kex && stimeout < 1) {
                         sendKeepAliveMsg();
                         stimeout++;
                         continue;
-                    } else if (in_kex && stimeout < serverAliveCountMax) {
+                    } else if (in_kex && stimeout < 1) {
                         stimeout++;
                         continue;
                     }
@@ -226,7 +232,7 @@ class Session extends UtilC{
                         packet.buf.getByte();
                         packet.buf.getInt();
                         byte[] a = packet.buf.getValue();
-                        if (channel == null || a.length == 0)
+                        if (a.length == 0)
                             break;
                         try {
                             // ponto critico retorno out
@@ -234,8 +240,8 @@ class Session extends UtilC{
                             // analisando o send, dá para observar que ele manda o dado
                             // ainda não sei porque ele nao me responde corretamente.
                             ///////////                                    
-                            if ( channel.can_print2(a.length) )
-                                channel.put2(a, 0, a.length);
+                            if ( can_print(a.length) )
+                                put(a, 0, a.length);
                         } catch (Exception e) {
                             throw new Exception("Error Session 287 " + e);                                    
                         }
@@ -247,12 +253,9 @@ class Session extends UtilC{
                         packet.buf.getInt();
                         packet.buf.getInt();
                         int rps = packet.buf.getInt();
-                        if (channel != null) {
-                            //channel.set_recipient(0);                                        
-                            channel.channel_opened2=true;
-                            channel.set_rwsize2(0);
-                            channel.set_rmpsize2(rps);
-                        }
+                        channel_opened=true;
+                        set_rwsize(0);
+                        set_rmpsize(rps);                        
                         break;
                     case SSH_MSG_GLOBAL_REQUEST:
                         packet.buf.getInt();
@@ -287,7 +290,7 @@ class Session extends UtilC{
         System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
         if (!in_kex)
             send_kexinit();
-        guess = ECDH.guess(I_S, I_C);
+        String[] guess = ECDH.guess(I_S, I_C);
         if (guess == null)
             throw new Exception("Algorithm negotiation fail");
         if (!isAuthed && (guess[ECDH.PROPOSAL_ENC_ALGS_CTOS].equals("none") || (guess[ECDH.PROPOSAL_ENC_ALGS_STOC].equals("none"))))
@@ -438,8 +441,7 @@ class Session extends UtilC{
                 buf.getInt();
                 buf.getShort();
                 buf.getInt();
-                if (channel != null)
-                    channel.add_rwsize2(buf.getInt());
+                add_rwsize(buf.getInt());
             } else {
                 //////////////
                 isAuthed = true;
@@ -584,15 +586,15 @@ class Session extends UtilC{
             if (in_kex)
                 sleep(10);
             int s = 0;
-            if (channel.get_rwsize2() > 0) {
-                long len = channel.get_rwsize2();
+            if (get_rwsize() > 0) {
+                long len = get_rwsize();
                 if (len > length)
                     len = length;
                 if (len != length)
                     s = packet.shift((int) len, c2scipher_size, 20);
                 byte command = packet.buf.getCommand();
                 length -= len;
-                channel.rwsize_substract2(len);
+                rwsize_substract(len);
                 pos_write(packet);
                 if (length == 0)
                     return;
@@ -600,8 +602,8 @@ class Session extends UtilC{
             }
             if (in_kex)
                 continue;
-            if (channel.get_rwsize2() >= length) {
-                channel.rwsize_substract2(length);
+            if (get_rwsize() >= length) {
+                rwsize_substract(length);
                 break;
             }
         }
@@ -609,12 +611,8 @@ class Session extends UtilC{
     }
     private void pos_write(Packet packet) throws Exception {
         encode(packet);
-        put(packet);
+        put_stream(packet);
         seqo++;
-    }
-    public void setPassword(String password) {
-        if (password != null)
-            this.password = str2byte(password, "UTF-8");
     }
     public int getTimeout() {
         return timeout;
@@ -645,12 +643,12 @@ class Session extends UtilC{
         buf.putByte((byte) 1);
         pre_write(packet);
     }
-    public void put(Packet p) throws java.io.IOException, java.net.SocketException {
+    public void put_stream(Packet p) throws java.io.IOException, java.net.SocketException {
         //////////// System.out.write(p.buffer.buffer, 0, p.buffer.get_put());
         out.write(p.buf.buffer, 0, p.buf.get_put());
         out.flush();
     }
-    void put(byte[] array, int begin, int length) throws java.io.IOException {
+    void put_stream(byte[] array, int begin, int length) throws java.io.IOException {
         out.write(array, begin, length);
         out.flush();
     }
@@ -669,56 +667,21 @@ class Session extends UtilC{
     }
     void out_close(){
         try {
-            if (out != null && !out_dontclose) 
+            if (out != null) 
                 out.close();
             out = null;
         } catch (Exception ee) {}
     }
     public void close() {
         try {
-            if ( in != null && !in_dontclose) 
+            if ( in != null) 
                 in.close(); 
             in = null;
         } catch (Exception ee) {}
         out_close();
     }
-}
-
-
-class Channel extends UtilC{
-    private java.io.InputStream in2 = System.in;
-    private java.io.OutputStream out2 = System.out;
-    private long rwsize2 = 0;
-    public boolean channel_opened2=false;
-    private int rmpsize2 = 0;
-    private Session session2;
-
-    public static int count_line_return2=-1;
-    public static boolean can_print2(int len){
-        if ( count_line_return2 == -1 )
-            return true;
-        count_line_return2++;        
-        if ( count_line_return2 == 1 )
-            return false;
-        if ( count_line_return2 == 2 && len == 1 )
-            return false;  
-        return true;
-    }    
     
-    Channel(Session _session) {
-        session2 = _session;
-    }
-    public void liga(){
-        try {            
-            session2.channel = this;
-            connect2();
-            working2();
-        } catch (Exception e) {
-            System.err.println(e.toString());
-            System.exit(1);
-        }
-    }    
-    public void connect2() throws Exception {
+    public void connect() throws Exception {
         Packet packet = new Packet(new Buffer(new byte[100]));
         packet.reset();
         packet.buf.putByte((byte) 90);
@@ -726,17 +689,17 @@ class Channel extends UtilC{
         packet.buf.putInt(0);
         packet.buf.putInt(0x100000);
         packet.buf.putInt(0x4000);
-        session2.pre_write(packet);
+        pre_write(packet);
         
         for ( int i=0;i<3000;i++ ){
-            if ( !channel_opened2 ){
+            if ( !channel_opened ){
                 sleep(10);
                 continue;
             }
             break;
         }
         
-        if ( !channel_opened2 )
+        if ( !channel_opened )
             throw new Exception("channel is not opened.");
         byte[] terminal_mode = (byte[]) str2byte("", "UTF-8");
         int tcol = 80;
@@ -756,7 +719,7 @@ class Channel extends UtilC{
         packet.buf.putInt(twp);
         packet.buf.putInt(thp);
         packet.buf.putValue(terminal_mode);
-        session2.pre_write(packet);
+        pre_write(packet);
         
         packet = new Packet();
         packet.reset();
@@ -764,19 +727,19 @@ class Channel extends UtilC{
         packet.buf.putInt(0);
         packet.buf.putValue(str2byte("shell", "UTF-8"));        
         packet.buf.putByte((byte) 0);
-        session2.pre_write(packet);
+        pre_write(packet);
     }
-    public void working2(){
+    public void working(){
         ///////////
         // ponto critico!!
-        Packet packet = new Packet(new Buffer(new byte[rmpsize2]));
+        Packet packet = new Packet(new Buffer(new byte[rmpsize]));
         try {
             while (true){
-                int i = in2.read(packet.buf.buffer, 14, packet.buf.buffer.length -14 -ECDH.nn);
+                int i = System.in.read(packet.buf.buffer, 14, packet.buf.buffer.length -14 -ECDH.nn);
                 //System.out.write("[IN]".getBytes());
                 //System.out.write(buf.buffer, 0, i);
                 //System.out.write("[OUT]".getBytes());                
-                count_line_return2=0;
+                count_line_return=0;
                 if (i == 0)
                     continue;
                 if (i == -1)
@@ -786,30 +749,32 @@ class Channel extends UtilC{
                 packet.buf.putInt(0);
                 packet.buf.putInt(i);
                 packet.buf.skip_put(i);                
-                session2.write(packet, i);
+                write(packet, i);
             }
         } catch (Exception e) {
             System.out.println("ex_20");
         }        
     }
-    public void set_rwsize2(long a) {
+    public void set_rwsize(long a) {
         rwsize2 = a;
     }
-    public void add_rwsize2(long a) {
+    public void add_rwsize(long a) {
         rwsize2 += a;
     }
-    public long get_rwsize2() {
+    public long get_rwsize() {
         return rwsize2;
     }
-    public void rwsize_substract2(long a) {
+    public void rwsize_substract(long a) {
         rwsize2 -= a;
     }
-    public void set_rmpsize2(int a) {
-        this.rmpsize2 = a;
+    public void set_rmpsize(int a) {
+        this.rmpsize = a;
     }
-    void put2(byte[] array, int begin, int length) throws Exception {
-        out2.write(array, begin, length);
-        out2.flush();
-    }
+    void put(byte[] array, int begin, int length) throws Exception {
+        System.out.write(array, begin, length);
+        System.out.flush();
+    }    
 }
+
+
 
