@@ -1,9 +1,3 @@
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InterruptedIOException;
-import java.io.OutputStream;
-import java.net.Socket;
-
 class Session extends UtilC{
     static final int SSH_MSG_DISCONNECT = 1;
     static final int SSH_MSG_IGNORE = 2;
@@ -53,11 +47,11 @@ class Session extends UtilC{
     private javax.crypto.Mac c2smac;
     private byte[] s2cmac_result1;
     private byte[] s2cmac_result2;
-    private Socket socket;
+    private java.net.Socket socket;
     private int timeout = 0;    
     private boolean isAuthed = false;
-    InputStream in = System.in;
-    OutputStream out = System.out;
+    java.io.InputStream in = System.in;
+    java.io.OutputStream out = System.out;
     private boolean in_dontclose = false;
     private boolean out_dontclose = false;
     Packet _packet;
@@ -92,7 +86,7 @@ class Session extends UtilC{
         try {
             int i, j;
             try{
-                socket = new Socket(host, port);
+                socket = new java.net.Socket(host, port);
                 in = socket.getInputStream();
                 out = socket.getOutputStream();
             }catch (Exception e) {
@@ -210,7 +204,7 @@ class Session extends UtilC{
                 try {
                     packet.buf = read(packet.buf);
                     stimeout = 0;
-                } catch (InterruptedIOException ee) {
+                } catch (java.io.InterruptedIOException ee) {
                     // nao ha problemas aqui
                     if (!in_kex && stimeout < serverAliveCountMax) {
                         sendKeepAliveMsg();
@@ -271,7 +265,7 @@ class Session extends UtilC{
                     case SSH_MSG_CHANNEL_EOF:
                         System.exit(0);
                     default:
-                        throw new IOException("msgType " + msgType+" not found. - Only 3 msgType implementations");
+                        throw new java.io.IOException("msgType " + msgType+" not found. - Only 3 msgType implementations");
                 }
             }
         } catch (Exception e) {
@@ -413,7 +407,7 @@ class Session extends UtilC{
                 getByte(s2cmac_result2, 0, s2cmac_result2.length, 3);
                 if (!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)) {
                     if (need > PACKET_MAX_SIZE)
-                        throw new IOException("MAC Error");
+                        throw new java.io.IOException("MAC Error");
                     continue;
                 }
             }
@@ -649,23 +643,23 @@ class Session extends UtilC{
         buf.putByte((byte) 1);
         pre_write(packet);
     }
-    public void put(Packet p) throws IOException, java.net.SocketException {
+    public void put(Packet p) throws java.io.IOException, java.net.SocketException {
         //////////// System.out.write(p.buffer.buffer, 0, p.buffer.get_put());
         out.write(p.buf.buffer, 0, p.buf.get_put());
         out.flush();
     }
-    void put(byte[] array, int begin, int length) throws IOException {
+    void put(byte[] array, int begin, int length) throws java.io.IOException {
         out.write(array, begin, length);
         out.flush();
     }
-    int getByte() throws IOException {
+    int getByte() throws java.io.IOException {
         return in.read();
     }
-    void getByte(byte[] array, int begin, int length, int identity) throws IOException {
+    void getByte(byte[] array, int begin, int length, int identity) throws java.io.IOException {
         do {
             int completed = in.read(array, begin, length);            
             if (completed < 0)
-                throw new IOException("End of IO Stream Read - identity: " + identity);
+                throw new java.io.IOException("End of IO Stream Read - identity: " + identity);
             begin += completed;
             length -= completed;
         }
