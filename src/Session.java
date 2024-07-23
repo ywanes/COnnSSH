@@ -47,7 +47,6 @@ class Session extends UtilC{
     private byte[] s2cmac_result1;
     private byte[] s2cmac_result2;
     private java.net.Socket socket;
-    private int timeout = 0;    
     private boolean isAuthed = false;
     Packet _packet;
     private long kex_start_time = 0L;
@@ -196,8 +195,6 @@ class Session extends UtilC{
                 throw new Exception("Stop - USERAUTH_PASSWD_CHANGEREQ");
             if (command == SSH_MSG_USERAUTH_FAILURE)
                 throw new Exception("UserAuth Fail!");
-            if (socket != null && timeout > 0)
-                socket.setSoTimeout(timeout);
             isAuthed = true;
         }catch(Exception e){
             throw new Exception("Error Session 224 " + e.toString());
@@ -206,22 +203,11 @@ class Session extends UtilC{
 
     public void working_stream(){
         Packet packet = new Packet();
-        int stimeout = 0;        
         try {
             while (true) {
                 try {
                     packet.buf = read(packet.buf);
-                    stimeout = 0;
                 } catch (java.io.InterruptedIOException ee) {
-                    // nao ha problemas aqui
-                    if (!in_kex && stimeout < 1) {
-                        sendKeepAliveMsg();
-                        stimeout++;
-                        continue;
-                    } else if (in_kex && stimeout < 1) {
-                        stimeout++;
-                        continue;
-                    }
                     throw new Exception("Error Session 261 " + ee);
                 }
                 int msgType = packet.buf.getCommand() & 0xff;                
@@ -561,7 +547,7 @@ class Session extends UtilC{
         }
     }
     public void pre_write(Packet packet) throws Exception {
-        long t = getTimeout();
+        long t = 0;
         while (in_kex) {
             if (t > 0L && (System.currentTimeMillis() - kex_start_time) > t && !in_prompt)
                 throw new Exception("timeout in waiting for rekeying process.");
@@ -613,25 +599,6 @@ class Session extends UtilC{
         encode(packet);
         put_stream(packet);
         seqo++;
-    }
-    public int getTimeout() {
-        return timeout;
-    }
-    public void setTimeout(int timeout) throws Exception {
-        if (socket == null) {
-            if (timeout < 0) {
-                throw new Exception("invalid timeout value");
-            }
-            this.timeout = timeout;
-            return;
-        }
-        try {
-            socket.setSoTimeout(timeout);
-            this.timeout = timeout;
-        } catch (Exception e) {
-            System.out.println("ex_156");
-            throw new Exception(e.toString());
-        }
     }
     private static final byte[] keepalivemsg = str2byte("", "UTF-8");
     public void sendKeepAliveMsg() throws Exception {
