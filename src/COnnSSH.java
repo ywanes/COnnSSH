@@ -65,7 +65,7 @@ public class COnnSSH {
         String s="Error unknow";
         while(limit-->0){
             try{
-                new Channel(new Session(host, user, port, password));
+                new Session(host, user, port, password);
                 return;
             }catch(Exception e){
                 s=e.toString();

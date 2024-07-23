@@ -85,6 +85,7 @@ class Session extends UtilC{
                 working();
             }
         }.start();
+        new Channel(this);
     }
     
     public void connect() throws Exception {        
@@ -237,8 +238,8 @@ class Session extends UtilC{
                             // analisando o send, dá para observar que ele manda o dado
                             // ainda não sei porque ele nao me responde corretamente.
                             ///////////                                    
-                            if ( channel.can_print(a.length) )
-                                channel.put(a, 0, a.length);
+                            if ( channel.can_print2(a.length) )
+                                channel.put2(a, 0, a.length);
                         } catch (Exception e) {
                             throw new Exception("Error Session 287 " + e);                                    
                         }
@@ -252,9 +253,9 @@ class Session extends UtilC{
                         int rps = packet.buf.getInt();
                         if (channel != null) {
                             //channel.set_recipient(0);                                        
-                            channel.channel_opened=true;
-                            channel.set_rwsize(0);
-                            channel.set_rmpsize(rps);
+                            channel.channel_opened2=true;
+                            channel.set_rwsize2(0);
+                            channel.set_rmpsize2(rps);
                         }
                         break;
                     case SSH_MSG_GLOBAL_REQUEST:
@@ -442,7 +443,7 @@ class Session extends UtilC{
                 buf.getShort();
                 buf.getInt();
                 if (channel != null)
-                    channel.add_rwsize(buf.getInt());
+                    channel.add_rwsize2(buf.getInt());
             } else {
                 //////////////
                 isAuthed = true;
@@ -587,15 +588,15 @@ class Session extends UtilC{
             if (in_kex)
                 sleep(10);
             int s = 0;
-            if (channel.get_rwsize() > 0) {
-                long len = channel.get_rwsize();
+            if (channel.get_rwsize2() > 0) {
+                long len = channel.get_rwsize2();
                 if (len > length)
                     len = length;
                 if (len != length)
                     s = packet.shift((int) len, c2scipher_size, 20);
                 byte command = packet.buf.getCommand();
                 length -= len;
-                channel.rwsize_substract(len);
+                channel.rwsize_substract2(len);
                 pos_write(packet);
                 if (length == 0)
                     return;
@@ -603,8 +604,8 @@ class Session extends UtilC{
             }
             if (in_kex)
                 continue;
-            if (channel.get_rwsize() >= length) {
-                channel.rwsize_substract(length);
+            if (channel.get_rwsize2() >= length) {
+                channel.rwsize_substract2(length);
                 break;
             }
         }
