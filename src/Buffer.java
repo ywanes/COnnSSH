@@ -30,23 +30,17 @@ class Buffer {
     void skip_put(int n) {
         i_put += n;
     }   
-    public int getLength(){
-        return i_put - i_get;
+    public void set_get(int s) {
+        i_get = s;
     }
     public int get_get() {
         return i_get;
     }
-    public void set_get(int s) {
-        i_get = s;
-    }
-    public int get_put() {
-        return i_put;
-    }
     public void set_put(int s) {
         i_put = s;
     }
-    public void add_put(int s){
-        i_put += s;
+    public int get_put() {
+        return i_put;
     }
     public byte getByte() {
         return buffer[i_get++];
@@ -62,35 +56,30 @@ class Buffer {
     }
     public byte[] getValue() {
         int len = getInt();
-        byte[] foo = new byte[len];
-        System.arraycopy(buffer, i_get, foo, 0, len);
-        i_get += len;
-        return foo;        
+        byte[] a = new byte[len];
+        for ( int i=0;i<len;i++ )
+            a[i] = buffer[i_get++];
+        return a;
     }
     public byte[] getValueAllLen(){
-        int len = getLength(); // getLength
-        byte[] foo = new byte[len];
-        System.arraycopy(buffer, i_get, foo, 0, len);
-        i_get += len;
-        return foo;        
+        int len = getLength();
+        byte[] a = new byte[len];
+        for ( int i=0;i<len;i++ )
+            a[i] = buffer[i_get++];
+        return a;
     }
-    public void reset() {
+    public int getLength(){
+        return i_put - i_get;
+    }    
+    public void reset(){
         i_put = 0;
         i_get = 0;
     }
-    void reset_get() {
+    void reset_get(){
         i_get = 0;
     }
-    byte getCommand() {
+    byte getCommand(){
         return buffer[5];
-    }
-    void resize_buffer(int n) {
-        int i = i_put + n + ECDH.nn;
-        if ( buffer.length <  i){
-            byte[] foo = new byte[i];
-            System.arraycopy(buffer, 0, foo, 0, i_put);
-            buffer = foo;
-        }
     }
 }
 

@@ -54,8 +54,7 @@ class Session extends UtilC{
     private byte[] s2cmac_result1;
     private byte[] s2cmac_result2;
     private Socket socket;
-    private int timeout = 0;
-    private boolean isConnected = false;
+    private int timeout = 0;    
     private boolean isAuthed = false;
     InputStream in = System.in;
     OutputStream out = System.out;
@@ -80,9 +79,12 @@ class Session extends UtilC{
         this.username = username;
         this.port = port;
         setPassword(password);
-        connect();       
-        if (isConnected)
-            threading();
+        connect();   
+        new Thread(){
+            public void run(){
+                working();
+            }
+        }.start();
     }
     
     public void connect() throws Exception {        
@@ -95,7 +97,6 @@ class Session extends UtilC{
             }catch (Exception e) {
                 throw new Exception("Error session connect socket " + e);
             }
-            isConnected = true;
             byte[] foo = new byte[V_C.length + 1];
             System.arraycopy(V_C, 0, foo, 0, V_C.length);
             foo[foo.length - 1] = (byte)'\n';            
@@ -196,110 +197,87 @@ class Session extends UtilC{
                 socket.setSoTimeout(timeout);
             isAuthed = true;
         }catch(Exception e){
-            in_kex = false;
-            try {
-                if (isConnected) {
-                    String message = e.toString();
-                    _packet.reset();
-                    _packet.buf.resize_buffer(1 + 4 * 3 + message.length() + 2 + ECDH.nn);
-                    _packet.buf.putByte((byte)SSH_MSG_DISCONNECT);
-                    _packet.buf.putInt(3);
-                    _packet.buf.putValue(str2byte(message, "UTF-8"));
-                    _packet.buf.putValue(str2byte("en", "UTF-8"));
-                    pre_write(_packet);
-                }
-            } catch (Exception ee) {
-                throw new Exception("Error Session 224 " + e.toString());
-            }
-            isConnected = false;
-            if (e instanceof RuntimeException) 
-                throw new Exception(".Session.connect: " + e);
-            throw new Exception("...Session.connect: " + e);
+            throw new Exception("Error Session 224 " + e.toString());
         }
     }
 
-    public void threading(){
-        new Thread(){
-            public void run(){
-                Packet packet = new Packet();
-                int stimeout = 0;        
+    public void working(){
+        Packet packet = new Packet();
+        int stimeout = 0;        
+        try {
+            while (true) {
                 try {
-                    while (isConnected) {
-                        try {
-                            packet.buf = read(packet.buf);
-                            stimeout = 0;
-                        } catch (InterruptedIOException ee) {
-                            // nao ha problemas aqui
-                            if (!in_kex && stimeout < serverAliveCountMax) {
-                                sendKeepAliveMsg();
-                                stimeout++;
-                                continue;
-                            } else if (in_kex && stimeout < serverAliveCountMax) {
-                                stimeout++;
-                                continue;
-                            }
-                            throw new Exception("Error Session 261 " + ee);
-                        }
-                        int msgType = packet.buf.getCommand() & 0xff;                
-                        switch (msgType) {
-                            case SSH_MSG_CHANNEL_DATA:
-                                packet.buf.getInt();
-                                packet.buf.getByte();
-                                packet.buf.getByte();
-                                packet.buf.getInt();
-                                byte[] a = packet.buf.getValue();
-                                if (channel == null || a.length == 0)
-                                    break;
-                                try {
-                                    // ponto critico retorno out
-                                    // enviando ls ele só retorna ls
-                                    // analisando o send, dá para observar que ele manda o dado
-                                    // ainda não sei porque ele nao me responde corretamente.
-                                    ///////////                                    
-                                    if ( channel.can_print(a.length) )
-                                        channel.put(a, 0, a.length);
-                                } catch (Exception e) {
-                                    throw new Exception("Error Session 287 " + e);                                    
-                                }
-                                break;
-                            case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
-                                packet.buf.getInt();
-                                packet.buf.getShort();
-                                packet.buf.getInt();
-                                packet.buf.getInt();
-                                packet.buf.getInt();
-                                int rps = packet.buf.getInt();
-                                if (channel != null) {
-                                    //channel.set_recipient(0);                                        
-                                    channel.channel_opened=true;
-                                    channel.set_rwsize(0);
-                                    channel.set_rmpsize(rps);
-                                }
-                                break;
-                            case SSH_MSG_GLOBAL_REQUEST:
-                                packet.buf.getInt();
-                                packet.buf.getShort();
-                                packet.buf.getValue();
-                                if (packet.buf.getByte() != 0) {
-                                    packet.reset();
-                                    packet.buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
-                                    pre_write(packet);
-                                }
-                                break;
-                            case SSH_MSG_CHANNEL_EOF:
-                                System.exit(0);
-                            default:
-                                throw new IOException("msgType " + msgType+" not found. - Only 3 msgType implementations");
-                        }
+                    packet.buf = read(packet.buf);
+                    stimeout = 0;
+                } catch (InterruptedIOException ee) {
+                    // nao ha problemas aqui
+                    if (!in_kex && stimeout < serverAliveCountMax) {
+                        sendKeepAliveMsg();
+                        stimeout++;
+                        continue;
+                    } else if (in_kex && stimeout < serverAliveCountMax) {
+                        stimeout++;
+                        continue;
                     }
-                } catch (Exception e) {
-                    System.out.println("ex_151 " + e.toString());
-                    in_kex = false;
+                    throw new Exception("Error Session 261 " + ee);
                 }
-                System.exit(0);
-                isConnected = false;                    
+                int msgType = packet.buf.getCommand() & 0xff;                
+                switch (msgType) {
+                    case SSH_MSG_CHANNEL_DATA:
+                        packet.buf.getInt();
+                        packet.buf.getByte();
+                        packet.buf.getByte();
+                        packet.buf.getInt();
+                        byte[] a = packet.buf.getValue();
+                        if (channel == null || a.length == 0)
+                            break;
+                        try {
+                            // ponto critico retorno out
+                            // enviando ls ele só retorna ls
+                            // analisando o send, dá para observar que ele manda o dado
+                            // ainda não sei porque ele nao me responde corretamente.
+                            ///////////                                    
+                            if ( channel.can_print(a.length) )
+                                channel.put(a, 0, a.length);
+                        } catch (Exception e) {
+                            throw new Exception("Error Session 287 " + e);                                    
+                        }
+                        break;
+                    case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
+                        packet.buf.getInt();
+                        packet.buf.getShort();
+                        packet.buf.getInt();
+                        packet.buf.getInt();
+                        packet.buf.getInt();
+                        int rps = packet.buf.getInt();
+                        if (channel != null) {
+                            //channel.set_recipient(0);                                        
+                            channel.channel_opened=true;
+                            channel.set_rwsize(0);
+                            channel.set_rmpsize(rps);
+                        }
+                        break;
+                    case SSH_MSG_GLOBAL_REQUEST:
+                        packet.buf.getInt();
+                        packet.buf.getShort();
+                        packet.buf.getValue();
+                        if (packet.buf.getByte() != 0) {
+                            packet.reset();
+                            packet.buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
+                            pre_write(packet);
+                        }
+                        break;
+                    case SSH_MSG_CHANNEL_EOF:
+                        System.exit(0);
+                    default:
+                        throw new IOException("msgType " + msgType+" not found. - Only 3 msgType implementations");
+                }
             }
-        }.start();            
+        } catch (Exception e) {
+            System.out.println("ex_151 " + e.toString());
+            in_kex = false;
+        }
+        System.exit(0);
     }
     
     private ECDH receive_kexinit(Buffer buf) throws Exception {
@@ -405,7 +383,7 @@ class Session extends UtilC{
         while (true) {
             buf.reset();            
             getByte(buf.buffer, buf.get_put(), s2ccipher_size, 1);
-            buf.add_put(s2ccipher_size);
+            buf.skip_put(s2ccipher_size);
             if (s2ccipher != null)
                 s2ccipher.update(buf.buffer, 0, s2ccipher_size, buf.buffer, 0);
             j = ((buf.buffer[0] << 24) & 0xff000000) | ((buf.buffer[1] << 16) & 0x00ff0000) | ((buf.buffer[2] << 8) & 0x0000ff00) | ((buf.buffer[3]) & 0x000000ff);
@@ -417,7 +395,7 @@ class Session extends UtilC{
             }
             if (need > 0) {
                 getByte(buf.buffer, buf.get_put(), need, 2);
-                buf.add_put(need);
+                buf.skip_put(need);
                 if (s2ccipher != null) {
                     s2ccipher.update(buf.buffer, s2ccipher_size, need, buf.buffer, s2ccipher_size);
                 }
@@ -643,9 +621,6 @@ class Session extends UtilC{
         if (password != null)
             this.password = str2byte(password, "UTF-8");
     }
-    public boolean isConnected() {
-        return isConnected;
-    }
     public int getTimeout() {
         return timeout;
     }
@@ -697,7 +672,7 @@ class Session extends UtilC{
         }
         while (length > 0);
     }
-    void out_close() {
+    void out_close(){
         try {
             if (out != null && !out_dontclose) 
                 out.close();
