@@ -584,7 +584,7 @@ class Session extends UtilC{
     }
     void write(Packet packet, int length) throws Exception {
         while (true) {
-            if (channel.get_close() || !channel.isConnected())
+            if (channel.get_close())
                 throw new Exception("channel is broken");
             if (in_kex)
                 sleep(10);

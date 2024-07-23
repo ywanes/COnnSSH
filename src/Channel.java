@@ -5,7 +5,6 @@ class Channel extends UtilC{
     private boolean close = false;
     public boolean channel_opened=false;
     private int rmpsize = 0;
-    private boolean connected = false;
     private Session session;
 
     public static int count_line_return=-1;
@@ -32,8 +31,6 @@ class Channel extends UtilC{
         }
     }    
     public void connect() throws Exception {
-        //if (!session.isConnected())
-            //throw new Exception("session is down");        
         Packet packet = new Packet(new Buffer(new byte[100]));
         packet.reset();
         packet.buf.putByte((byte) 90);
@@ -51,8 +48,6 @@ class Channel extends UtilC{
             break;
         }
         
-        //if (!session.isConnected())
-            //throw new Exception("session is down");
         if ( !channel_opened )
             throw new Exception("channel is not opened.");
         byte[] terminal_mode = (byte[]) str2byte("", "UTF-8");
@@ -82,14 +77,13 @@ class Channel extends UtilC{
         packet.buf.putValue(str2byte("shell", "UTF-8"));        
         packet.buf.putByte((byte) 0);
         session.pre_write(packet);
-        connected = true;        
     }
     public void working(){
         ///////////
         // ponto critico!!
         Packet packet = new Packet(new Buffer(new byte[rmpsize]));
         try {
-            while (isConnected()) {
+            while (true){
                 int i = in.read(packet.buf.buffer, 14, packet.buf.buffer.length -14 -ECDH.nn);
                 //System.out.write("[IN]".getBytes());
                 //System.out.write(buf.buffer, 0, i);
@@ -138,8 +132,9 @@ class Channel extends UtilC{
         out.write(array, begin, length);
         out.flush();
     }
-    public boolean isConnected() {
-        return session != null && connected;
+    public boolean isConnected2() {
+        return true;
+        //return session != null && connected;
     }
 }
 
