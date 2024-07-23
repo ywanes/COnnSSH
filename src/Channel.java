@@ -2,7 +2,6 @@ class Channel extends UtilC{
     private java.io.InputStream in = System.in;
     private java.io.OutputStream out = System.out;
     private long rwsize = 0;
-    private boolean close = false;
     public boolean channel_opened=false;
     private int rmpsize = 0;
     private Session session;
@@ -93,9 +92,6 @@ class Channel extends UtilC{
                     continue;
                 if (i == -1)
                     break;
-                if (close){
-                    break;
-                }
                 packet.reset();
                 packet.buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
                 packet.buf.putInt(0);
@@ -106,12 +102,6 @@ class Channel extends UtilC{
         } catch (Exception e) {
             System.out.println("ex_20");
         }        
-    }
-    public void set_close(boolean a) {
-        close = a;
-    }
-    public boolean get_close() {
-        return close;
     }
     public void set_rwsize(long a) {
         rwsize = a;
@@ -131,10 +121,6 @@ class Channel extends UtilC{
     void put(byte[] array, int begin, int length) throws Exception {
         out.write(array, begin, length);
         out.flush();
-    }
-    public boolean isConnected2() {
-        return true;
-        //return session != null && connected;
     }
 }
 
