@@ -86,7 +86,7 @@ class Session extends UtilC{
         working();
     }
     
-    public void connect_stream(String host, String username, int port, String _password) throws Exception{
+    public void connect_stream(String host, String username, int port, String _password) throws Exception{        
         this.username = username;
         this.password = str2byte(_password, "UTF-8");
         _packet = new Packet();
@@ -397,8 +397,9 @@ class Session extends UtilC{
                 s2cmac.doFinal(s2cmac_result1, 0);
                 getByte(s2cmac_result2, 0, s2cmac_result2.length, 3);
                 if (!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)) {
-                    if (need > PACKET_MAX_SIZE)
+                    if (need > PACKET_MAX_SIZE){
                         throw new java.io.IOException("MAC Error");
+                    }
                     continue;
                 }
             }
@@ -623,14 +624,11 @@ class Session extends UtilC{
         return in.read();
     }
     void getByte(byte[] array, int begin, int length, int identity) throws java.io.IOException {
-        do {
+        while (length > 0){
             int completed = in.read(array, begin, length);            
-            if (completed < 0)
-                throw new java.io.IOException("End of IO Stream Read - identity: " + identity);
             begin += completed;
             length -= completed;
         }
-        while (length > 0);
     }
     void out_close(){
         try {
@@ -742,6 +740,4 @@ class Session extends UtilC{
         System.out.flush();
     }    
 }
-
-
 

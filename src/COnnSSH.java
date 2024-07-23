@@ -69,12 +69,19 @@ public class COnnSSH {
                 return;
             }catch(Exception e){
                 s=e.toString();
-                if ( s.contains("Connection reset") )
+                if ( s.contains("Connection reset") ){
+                    //System.out.println(s+".. reloading...");                    
+                    try { Thread.sleep(20); }catch(Exception ee){}
                     continue;
-                if ( s.contains("verify: false") && limit > 5 )
+                }
+                if ( s.contains("verify: false") && limit > 5 ){
+                    //System.out.println("verify: false.. reloading...");
                     continue;
-                if ( s.contains("UserAuth Fail") )
+                }
+                if ( s.contains("UserAuth Fail") ){
+                    //System.out.println("UserAuth Fail.. reloading...");
                     s="UserAuth Fail!!";
+                }
             }            
             System.err.println(s);
             System.exit(1);
