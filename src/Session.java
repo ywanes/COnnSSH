@@ -313,32 +313,6 @@ class Session{
         write(_buf);
     }
 
-    public void encode(Buf buf) throws Exception {
-        if (c2scipher == null) {
-            buf.padding(8);
-        }else{
-            buf.padding(c2scipher_size);
-            int pad = buf.buffer[4];
-            int put = buf.get_put();
-            byte[] a = new byte[16];
-            if (pad > 16)
-                a = new byte[pad];
-            Buf.random.nextBytes(a);
-            System.arraycopy(a, 0, buf.buffer, put - pad, pad);
-
-            byte[] tmp = new byte[4];
-            tmp[0] = (byte)(seqo >>> 24);
-            tmp[1] = (byte)(seqo >>> 16);
-            tmp[2] = (byte)(seqo >>> 8);
-            tmp[3] = (byte) seqo;
-            c2smac.update(tmp);
-            c2smac.update(buf.buffer, 0, buf.get_put());
-            c2smac.doFinal(buf.buffer, buf.get_put());
-            c2scipher.update(buf.buffer, 0, buf.get_put(), buf.buffer, 0);            
-            buf.skip_put(20);
-        }
-    }
-
     public Buf read(Buf buf) throws Exception {
         int j = 0;
         while (true) {
@@ -472,7 +446,29 @@ class Session{
         return digest;
     }    
     public void write(Buf buf) throws Exception {
-        encode(buf);
+        if (c2scipher == null) {
+            buf.padding(8);
+        }else{
+            buf.padding(c2scipher_size);
+            int pad = buf.buffer[4];
+            int put = buf.get_put();
+            byte[] a = new byte[16];
+            if (pad > 16)
+                a = new byte[pad];
+            Buf.random.nextBytes(a);
+            System.arraycopy(a, 0, buf.buffer, put - pad, pad);
+
+            byte[] tmp = new byte[4];
+            tmp[0] = (byte)(seqo >>> 24);
+            tmp[1] = (byte)(seqo >>> 16);
+            tmp[2] = (byte)(seqo >>> 8);
+            tmp[3] = (byte) seqo;
+            c2smac.update(tmp);
+            c2smac.update(buf.buffer, 0, buf.get_put());
+            c2smac.doFinal(buf.buffer, buf.get_put());
+            c2scipher.update(buf.buffer, 0, buf.get_put(), buf.buffer, 0);            
+            buf.skip_put(20);
+        }
         put_stream(buf);
         seqo++;
     }
