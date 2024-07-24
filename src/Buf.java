@@ -1,12 +1,12 @@
-class Buffer {    
+class Buf {    
     public static java.security.SecureRandom random = new java.security.SecureRandom();
     public byte[] buffer;
     private int i_put;
     private int i_get;
-    public Buffer() {
+    public Buf() {
         this(new byte[1024 * 10 * 2]);
     }
-    public Buffer(byte[] buffer) {
+    public Buf(byte[] buffer) {
         this.buffer = buffer;
         i_put = 0;
         i_get = 0;

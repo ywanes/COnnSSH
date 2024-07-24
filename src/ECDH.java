@@ -50,7 +50,7 @@ class ECDH256{
     byte[] V_C;
     byte[] I_S;
     byte[] I_C;
-    private Buffer buf;
+    private Buf buf;
     private KeyExchangeECDH ecdh;
 
     public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
@@ -60,7 +60,7 @@ class ECDH256{
         this.I_S = I_S;
         this.I_C = I_C;
         sha512 = java.security.MessageDigest.getInstance("SHA-256"); // 256
-        buf = new Buffer();
+        buf = new Buf();
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try {
@@ -81,9 +81,9 @@ class ECDH256{
     }
     protected String[] guess(byte[] I_S, byte[] I_C) {
         String[] guess = new String[PROPOSAL_MAX];
-        Buffer sb = new Buffer(I_S);
+        Buf sb = new Buf(I_S);
         sb.set_get(17);
-        Buffer cb = new Buffer(I_C);
+        Buf cb = new Buf(I_C);
         cb.set_get(17);
         for (int i = 0; i < PROPOSAL_MAX; i++) {
             byte[] sp = sb.getValue();
@@ -171,7 +171,7 @@ class ECDH256{
             signature.initVerify(pubKey2);
             signature.update(H);
             byte[] tmp_RSA;
-            Buffer buf_RSA = new Buffer(sig_of_H);
+            Buf buf_RSA = new Buf(sig_of_H);
             if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
                 int j_RSA = buf_RSA.getInt();
                 int i_RSA = buf_RSA.get_get();
@@ -185,7 +185,7 @@ class ECDH256{
         return result;
     }
 
-    public boolean next(Buffer _buf) throws Exception {
+    public boolean next(Buf _buf) throws Exception {
         int i, j;
         switch (state) {
             case SSH_MSG_KEX_ECDH_REPLY:
@@ -397,7 +397,7 @@ class ECDH521{
     byte[] V_C;
     byte[] I_S;
     byte[] I_C;
-    private Buffer buf;
+    private Buf buf;
     private KeyExchangeECDH ecdh;
 
     public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
@@ -407,7 +407,7 @@ class ECDH521{
         this.I_S = I_S;
         this.I_C = I_C;
         sha512 = java.security.MessageDigest.getInstance("SHA-512"); // 256
-        buf = new Buffer();
+        buf = new Buf();
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try {
@@ -428,9 +428,9 @@ class ECDH521{
     }
     protected String[] guess(byte[] I_S, byte[] I_C) {
         String[] guess = new String[PROPOSAL_MAX];
-        Buffer sb = new Buffer(I_S);
+        Buf sb = new Buf(I_S);
         sb.set_get(17);
-        Buffer cb = new Buffer(I_C);
+        Buf cb = new Buf(I_C);
         cb.set_get(17);
         for (int i = 0; i < PROPOSAL_MAX; i++) {
             byte[] sp = sb.getValue();
@@ -516,7 +516,7 @@ class ECDH521{
             signature.initVerify(pubKey2);
             signature.update(H);
             byte[] tmp_RSA;
-            Buffer buf_RSA = new Buffer(sig_of_H);
+            Buf buf_RSA = new Buf(sig_of_H);
             if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
                 int j_RSA = buf_RSA.getInt();
                 int i_RSA = buf_RSA.get_get();
@@ -530,7 +530,7 @@ class ECDH521{
         return result;
     }
 
-    public boolean next(Buffer _buf) throws Exception {
+    public boolean next(Buf _buf) throws Exception {
         int i, j;
         switch (state) {
             case SSH_MSG_KEX_ECDH_REPLY:

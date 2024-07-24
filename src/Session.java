@@ -55,7 +55,7 @@ class Session{
     private boolean in_prompt = false;    
     private int s2ccipher_size = 8;
     private int c2scipher_size = 8;
-    Buffer _buf;
+    Buf _buf;
     
     java.io.InputStream in = null;
     java.io.OutputStream out = null;
@@ -90,7 +90,7 @@ class Session{
     public void connect_stream(String host, String username, int port, String _password) throws Exception{        
         this.username = username;
         this.password = str2byte(_password, "UTF-8");
-        _buf = new Buffer();
+        _buf = new Buf();
         try {
             int i, j;
             try{
@@ -203,7 +203,7 @@ class Session{
     }
 
     public void working_stream(){
-        Buffer buf=new Buffer();
+        Buf buf=new Buf();
         try {
             while (true) {
                 try {
@@ -267,7 +267,7 @@ class Session{
         System.exit(0);
     }
     
-    private ECDH receive_kexinit(Buffer buf) throws Exception {
+    private ECDH receive_kexinit(Buf buf) throws Exception {
         int j = buf.getInt();
         if (j != buf.getLength()) {
             buf.getByte();
@@ -295,7 +295,7 @@ class Session{
             return;
         in_kex = true;
         kex_start_time = System.currentTimeMillis();
-        Buffer buf = new Buffer();
+        Buf buf = new Buf();
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEXINIT);
         int start_fill = buf.get_put();
@@ -304,7 +304,7 @@ class Session{
         if (len_fill > tmp_fill.length) {
             tmp_fill = new byte[len_fill];
         }
-        Buffer.random.nextBytes(tmp_fill);
+        Buf.random.nextBytes(tmp_fill);
         System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
         buf.skip_put(16);
         buf.putValue(str2byte(ECDH.cipher, "UTF-8"));
@@ -330,7 +330,7 @@ class Session{
         pre_write(_buf);
     }
 
-    public void encode(Buffer buf) throws Exception {
+    public void encode(Buf buf) throws Exception {
         if (c2scipher == null) {
             buf.padding(8);
         }else{
@@ -340,7 +340,7 @@ class Session{
             byte[] a = new byte[16];
             if (pad > 16)
                 a = new byte[pad];
-            Buffer.random.nextBytes(a);
+            Buf.random.nextBytes(a);
             System.arraycopy(a, 0, buf.buffer, put - pad, pad);
 
             byte[] tmp = new byte[4];
@@ -356,7 +356,7 @@ class Session{
         }
     }
 
-    public Buffer read(Buffer buf) throws Exception {
+    public Buf read(Buf buf) throws Exception {
         int j = 0;
         while (true) {
             buf.reset();            
@@ -431,7 +431,7 @@ class Session{
         return buf;
     }
 
-    private void receive_newkeys(Buffer buf, ECDH kex) throws Exception {
+    private void receive_newkeys(Buf buf, ECDH kex) throws Exception {
         in_kex = false;
         byte[] K = kex.getK();
         byte[] H = kex.getH();
@@ -491,7 +491,7 @@ class Session{
         }        
         return digest;
     }    
-    public void pre_write(Buffer buf) throws Exception {
+    public void pre_write(Buf buf) throws Exception {
         long t = 0;
         while (in_kex) {
             if (t > 0L && (System.currentTimeMillis() - kex_start_time) > t && !in_prompt)
@@ -512,7 +512,7 @@ class Session{
         }
         pos_write(buf);
     }
-    void write(Buffer buf, int length) throws Exception {
+    void write(Buf buf, int length) throws Exception {
         while (true) {
             int s = 0;
             if (get_rwsize() > 0) {
@@ -532,21 +532,21 @@ class Session{
         }
         pos_write(buf);
     }
-    private void pos_write(Buffer buf) throws Exception {
+    private void pos_write(Buf buf) throws Exception {
         encode(buf);
         put_stream(buf);
         seqo++;
     }
     private final byte[] keepalivemsg = str2byte("", "UTF-8");
     public void sendKeepAliveMsg() throws Exception {
-        Buffer buf = new Buffer();
+        Buf buf = new Buf();
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
         buf.putValue(keepalivemsg);
         buf.putByte((byte) 1);
         pre_write(buf);
     }
-    public void put_stream(Buffer buf) throws java.io.IOException, java.net.SocketException {
+    public void put_stream(Buf buf) throws java.io.IOException, java.net.SocketException {
         //////////// 
         out.write(buf.buffer, 0, buf.get_put());
         out.flush();
@@ -582,7 +582,7 @@ class Session{
     }
     
     public void connect() throws Exception {
-        Buffer buf=new Buffer(new byte[100]);
+        Buf buf=new Buf(new byte[100]);
         buf.reset_packet();
         buf.putByte((byte) 90);
         buf.putValue(str2byte("session", "UTF-8"));
@@ -607,7 +607,7 @@ class Session{
         int twp = 640;
         int thp = 480;
                 
-        buf=new Buffer();
+        buf=new Buf();
         buf.reset_packet();
         buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
@@ -621,7 +621,7 @@ class Session{
         buf.putValue(terminal_mode);
         pre_write(buf);
 
-        buf=new Buffer();
+        buf=new Buf();
         buf.reset_packet();
         buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
@@ -632,7 +632,7 @@ class Session{
     public void working(){
         ///////////
         // ponto critico!!
-        Buffer buf=new Buffer(new byte[rmpsize]);
+        Buf buf=new Buf(new byte[rmpsize]);
         try {
             while (true){
                 int i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -ECDH.nn);
