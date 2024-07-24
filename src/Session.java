@@ -166,7 +166,7 @@ class Session{
                 throw new Exception("invalid protocol(newkyes): " + _packet.buf.getCommand());
             }
             try {
-                _packet.reset();
+                _packet.buf.reset_packet();
                 _packet.buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
                 _packet.buf.putValue(str2byte("ssh-userauth", "UTF-8"));
                 pre_write(_packet);
@@ -180,7 +180,7 @@ class Session{
             int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60;
             if (password == null)
                 throw new Exception("Error AuthCancel - not found password");
-            _packet.reset();
+            _packet.buf.reset_packet();
             _packet.buf.putByte((byte) SSH_MSG_USERAUTH_REQUEST);
             _packet.buf.putValue(str2byte(username, "UTF-8"));
             _packet.buf.putValue(str2byte("ssh-connection", "UTF-8"));
@@ -249,7 +249,7 @@ class Session{
                         packet.buf.getShort();
                         packet.buf.getValue();
                         if (packet.buf.getByte() != 0) {
-                            packet.reset();
+                            packet.buf.reset_packet();
                             packet.buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
                             pre_write(packet);
                         }
@@ -297,7 +297,7 @@ class Session{
         kex_start_time = System.currentTimeMillis();
         Buffer buf = new Buffer();
         Packet packet = new Packet(buf);
-        packet.reset();
+        packet.buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEXINIT);
         int start_fill = buf.get_put();
         int len_fill = 16;
@@ -305,7 +305,7 @@ class Session{
         if (len_fill > tmp_fill.length) {
             tmp_fill = new byte[len_fill];
         }
-        Packet.random.nextBytes(tmp_fill);
+        Buffer.random.nextBytes(tmp_fill);
         System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
         buf.skip_put(16);
         buf.putValue(str2byte(ECDH.cipher, "UTF-8"));
@@ -326,22 +326,22 @@ class Session{
     }
 
     private void send_newkeys() throws Exception {
-        _packet.reset();
+        _packet.buf.reset_packet();
         _packet.buf.putByte((byte) SSH_MSG_NEWKEYS);
         pre_write(_packet);
     }
 
     public void encode(Packet packet) throws Exception {
         if (c2scipher == null) {
-            packet.padding(8);
+            packet.buf.padding(8);
         }else{
-            packet.padding(c2scipher_size);
+            packet.buf.padding(c2scipher_size);
             int pad = packet.buf.buffer[4];
             int put = packet.buf.get_put();
             byte[] a = new byte[16];
             if (pad > 16)
                 a = new byte[pad];
-            Packet.random.nextBytes(a);
+            Buffer.random.nextBytes(a);
             System.arraycopy(a, 0, packet.buf.buffer, put - pad, pad);
 
             byte[] tmp = new byte[4];
@@ -542,7 +542,7 @@ class Session{
     public void sendKeepAliveMsg() throws Exception {
         Buffer buf = new Buffer();
         Packet packet = new Packet(buf);
-        packet.reset();
+        packet.buf.reset_packet();
         buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
         buf.putValue(keepalivemsg);
         buf.putByte((byte) 1);
@@ -585,7 +585,7 @@ class Session{
     
     public void connect() throws Exception {
         Packet packet = new Packet(new Buffer(new byte[100]));
-        packet.reset();
+        packet.buf.reset_packet();
         packet.buf.putByte((byte) 90);
         packet.buf.putValue(str2byte("session", "UTF-8"));
         packet.buf.putInt(0);
@@ -610,7 +610,7 @@ class Session{
         int thp = 480;
                 
         packet = new Packet();
-        packet.reset();
+        packet.buf.reset_packet();
         packet.buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
         packet.buf.putInt(0);
         packet.buf.putValue(str2byte("pty-req", "UTF-8"));
@@ -624,7 +624,7 @@ class Session{
         pre_write(packet);
         
         packet = new Packet();
-        packet.reset();
+        packet.buf.reset_packet();
         packet.buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
         packet.buf.putInt(0);
         packet.buf.putValue(str2byte("shell", "UTF-8"));        
@@ -646,7 +646,7 @@ class Session{
                     continue;
                 if (i == -1)
                     break;
-                packet.reset();
+                packet.buf.reset_packet();
                 packet.buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
                 packet.buf.putInt(0);
                 packet.buf.putInt(i);

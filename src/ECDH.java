@@ -63,7 +63,7 @@ class ECDH256{
         sha512 = java.security.MessageDigest.getInstance("SHA-256"); // 256
         buf = new Buffer();
         packet = new Packet(buf);
-        packet.reset();
+        packet.buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try {
             ecdh = new KeyExchangeECDH();
@@ -412,7 +412,7 @@ class ECDH521{
         sha512 = java.security.MessageDigest.getInstance("SHA-512"); // 256
         buf = new Buffer();
         packet = new Packet(buf);
-        packet.reset();
+        packet.buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try {
             ecdh = new KeyExchangeECDH();
