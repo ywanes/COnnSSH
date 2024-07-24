@@ -91,6 +91,8 @@ class Session{
         this.username = username;
         this.password = str2byte(_password, "UTF-8");
         _buf = new Buf();
+        byte barra_r=new byte[]{13}[0];
+        byte barra_n=new byte[]{10}[0];
         try {
             int i, j;
             try{
@@ -103,7 +105,7 @@ class Session{
             // colocar \r\n nao resolve o problema no linux
             byte[] a = new byte[V_C.length + 1];
             System.arraycopy(V_C, 0, a, 0, V_C.length);
-            a[a.length - 1] = (byte)'\n';
+            a[a.length - 1] = barra_n;
             
             put_stream(a);
             while (true) {
@@ -114,14 +116,14 @@ class Session{
                     if (j < 0) break;
                     _buf.buffer[i] = (byte) j;
                     i++;
-                    if (j == 10)
+                    if (j == barra_n)                    
                         break;
                 }
                 if (j < 0)
                     throw new Exception("connection is closed by foreign host");
-                if (_buf.buffer[i - 1] == 10) {
+                if (_buf.buffer[i - 1] == barra_n) {
                     i--;
-                    if (i > 0 && _buf.buffer[i - 1] == 13)
+                    if (i > 0 && _buf.buffer[i - 1] == barra_r)
                         i--;
                 }
                 if (i <= 3 || ((i != _buf.buffer.length) && (_buf.buffer[0] != 'S' || _buf.buffer[1] != 'S' || _buf.buffer[2] != 'H' || _buf.buffer[3] != '-')))
