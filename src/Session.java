@@ -334,10 +334,10 @@ class Session{
             tmp[1] = (byte)(seqo >>> 16);
             tmp[2] = (byte)(seqo >>> 8);
             tmp[3] = (byte) seqo;
-            c2smac.update(tmp, 0, 4);
+            c2smac.update(tmp);
             c2smac.update(buf.buffer, 0, buf.get_put());
             c2smac.doFinal(buf.buffer, buf.get_put());
-            c2scipher.update(buf.buffer, 0, buf.get_put(), buf.buffer, 0);
+            c2scipher.update(buf.buffer, 0, buf.get_put(), buf.buffer, 0);            
             buf.skip_put(20);
         }
     }
@@ -478,10 +478,7 @@ class Session{
         return digest;
     }    
     public void pre_write(Buf buf) throws Exception {
-        long t = 0;
         while (wait_kex) {
-            if (t > 0L && (System.currentTimeMillis() - kex_start_time) > t)
-                throw new Exception("timeout in waiting for rekeying process.");
             byte command = buf.getCommand();
             if (command == SSH_MSG_KEXINIT ||
                 command == SSH_MSG_NEWKEYS ||
@@ -500,7 +497,6 @@ class Session{
     }
     void write(Buf buf, int length) throws Exception {
         while (true) {
-            int s = 0;
             if (get_rwsize() > 0) {
                 long len = get_rwsize();
                 if (len > length)
