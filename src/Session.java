@@ -308,16 +308,14 @@ class Session{
         write(_buf);
     }
 
-    public Buf read(Buf buf) throws Exception {
-        int j = 0;
-        while (true) {
+    public Buf read(Buf buf) throws Exception {        
+        while(true){
             buf.reset();            
             getByte(buf.buffer, buf.get_put(), s2ccipher_size, 1);
             buf.skip_put(s2ccipher_size);
             if (s2ccipher != null)
                 s2ccipher.update(buf.buffer, 0, s2ccipher_size, buf.buffer, 0);
-            j = ((buf.buffer[0] << 24) & 0xff000000) | ((buf.buffer[1] << 16) & 0x00ff0000) | ((buf.buffer[2] << 8) & 0x0000ff00) | ((buf.buffer[3]) & 0x000000ff);
-            int need = j + 4 - s2ccipher_size;
+            int need = (((buf.buffer[0] << 24) & 0xff000000) | ((buf.buffer[1] << 16) & 0x00ff0000) | ((buf.buffer[2] << 8) & 0x0000ff00) | ((buf.buffer[3]) & 0x000000ff)) + 4 - s2ccipher_size;
             if ((buf.get_put() + need) > buf.buffer.length) {
                 byte[] a = new byte[buf.get_put() + need];
                 System.arraycopy(buf.buffer, 0, a, 0, buf.get_put());
@@ -572,7 +570,6 @@ class Session{
                 else
                     rwsize_substract(get_rwsize());
                 write(buf);
-                
             }
         } catch (Exception e) {
             System.out.println("ex_20");
