@@ -464,7 +464,6 @@ class Session extends UtilC{
         sha512.update(buf.buffer, 0, buf.get_put());
         MACs2c = format_digest(sha512.digest(), 20);
         try {
-            byte[] tmp;
             s2ccipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
             s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
             s2ccipher_size = 16;
@@ -472,7 +471,6 @@ class Session extends UtilC{
             s2cmac.init(new javax.crypto.spec.SecretKeySpec(MACs2c, "HmacSHA1"));
             s2cmac_result1 = new byte[20];
             s2cmac_result2 = new byte[20];
-            byte[] tmp3;                        
             c2scipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
             c2scipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Ec2s, "AES"), new javax.crypto.spec.IvParameterSpec(IVc2s));
             c2scipher_size = 16;
