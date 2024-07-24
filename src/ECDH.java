@@ -51,7 +51,6 @@ class ECDH256{
     byte[] I_S;
     byte[] I_C;
     private Buffer buf;
-    private Packet packet;
     private KeyExchangeECDH ecdh;
 
     public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
@@ -62,8 +61,7 @@ class ECDH256{
         this.I_C = I_C;
         sha512 = java.security.MessageDigest.getInstance("SHA-256"); // 256
         buf = new Buffer();
-        packet = new Packet(buf);
-        packet.buf.reset_packet();
+        buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try {
             ecdh = new KeyExchangeECDH();
@@ -78,7 +76,7 @@ class ECDH256{
         }
         if (V_S == null)
             return;
-        session.pre_write(packet);
+        session.pre_write(buf);
         state = SSH_MSG_KEX_ECDH_REPLY;
     }
     protected String[] guess(byte[] I_S, byte[] I_C) {
@@ -400,7 +398,6 @@ class ECDH521{
     byte[] I_S;
     byte[] I_C;
     private Buffer buf;
-    private Packet packet;
     private KeyExchangeECDH ecdh;
 
     public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
@@ -411,8 +408,7 @@ class ECDH521{
         this.I_C = I_C;
         sha512 = java.security.MessageDigest.getInstance("SHA-512"); // 256
         buf = new Buffer();
-        packet = new Packet(buf);
-        packet.buf.reset_packet();
+        buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try {
             ecdh = new KeyExchangeECDH();
@@ -427,7 +423,7 @@ class ECDH521{
         }
         if (V_S == null)
             return;
-        session.pre_write(packet);
+        session.pre_write(buf);
         state = SSH_MSG_KEX_ECDH_REPLY;
     }
     protected String[] guess(byte[] I_S, byte[] I_C) {
