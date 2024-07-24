@@ -445,91 +445,37 @@ class Session extends UtilC{
         buf.putBytes(H);
         buf.putByte((byte) 0x41);
         buf.putBytes(session_ids);
+        int j = buf.get_put() - session_ids.length - 1;        
         sha512.update(buf.buffer, 0, buf.get_put());
-        IVc2s = sha512.digest();
-        int j = buf.get_put() - session_ids.length - 1;
+        IVc2s = format_digest(sha512.digest(), 16);
         buf.buffer[j]++;
         sha512.update(buf.buffer, 0, buf.get_put());
-        IVs2c = sha512.digest();
+        IVs2c = format_digest(sha512.digest(), 16);
         buf.buffer[j]++;
         sha512.update(buf.buffer, 0, buf.get_put());
-        Ec2s = sha512.digest();
+        Ec2s = format_digest(sha512.digest(), 32);
         buf.buffer[j]++;
         sha512.update(buf.buffer, 0, buf.get_put());
-        Es2c = sha512.digest();
+        Es2c = format_digest(sha512.digest(), 32);
         buf.buffer[j]++;
         sha512.update(buf.buffer, 0, buf.get_put());
-        MACc2s = sha512.digest();
+        MACc2s = format_digest(sha512.digest(), 20);
         buf.buffer[j]++;
         sha512.update(buf.buffer, 0, buf.get_put());
-        MACs2c = sha512.digest();
+        MACs2c = format_digest(sha512.digest(), 20);
         try {
-            while (32 > Es2c.length) {
-                buf.reset();
-                buf.putValue(K);
-                buf.putBytes(H);
-                buf.putBytes(Es2c);
-                sha512.update(buf.buffer, 0, buf.get_put());
-                byte[] a = sha512.digest();
-                byte[] bar = new byte[Es2c.length + a.length];
-                System.arraycopy(Es2c, 0, bar, 0, Es2c.length);
-                System.arraycopy(a, 0, bar, Es2c.length, a.length);
-                Es2c = bar;
-            }
             byte[] tmp;
-            if (IVs2c.length > 16) {
-                tmp = new byte[16];
-                System.arraycopy(IVs2c, 0, tmp, 0, tmp.length);
-                IVs2c = tmp;
-            }
-            if (Es2c.length > 32) {
-                tmp = new byte[32];
-                System.arraycopy(Es2c, 0, tmp, 0, tmp.length);
-                Es2c = tmp;
-            }
             s2ccipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
             s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
             s2ccipher_size = 16;
-            if (MACs2c.length > 20) {
-                byte[] tmp2 = new byte[20];
-                System.arraycopy(MACs2c, 0, tmp2, 0, 20);
-                MACs2c = tmp2;
-            }
             s2cmac = javax.crypto.Mac.getInstance("HmacSHA1");
             s2cmac.init(new javax.crypto.spec.SecretKeySpec(MACs2c, "HmacSHA1"));
             s2cmac_result1 = new byte[20];
             s2cmac_result2 = new byte[20];
-            while (32 > Ec2s.length) {
-                buf.reset();
-                buf.putValue(K);
-                buf.putBytes(H);
-                buf.putBytes(Ec2s);
-                sha512.update(buf.buffer, 0, buf.get_put());
-                byte[] a = sha512.digest();
-                byte[] bar = new byte[Ec2s.length + a.length];
-                System.arraycopy(Ec2s, 0, bar, 0, Ec2s.length);
-                System.arraycopy(a, 0, bar, Ec2s.length, a.length);
-                Ec2s = bar;
-            }
-            byte[] tmp3;
-            if (IVc2s.length > 16) {
-                tmp3 = new byte[16];
-                System.arraycopy(IVc2s, 0, tmp3, 0, tmp3.length);
-                IVc2s = tmp3;
-            }
-            if (Ec2s.length > 32) {
-                tmp3 = new byte[32];
-                System.arraycopy(Ec2s, 0, tmp3, 0, tmp3.length);
-                Ec2s = tmp3;
-            }
+            byte[] tmp3;                        
             c2scipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
             c2scipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Ec2s, "AES"), new javax.crypto.spec.IvParameterSpec(IVc2s));
             c2scipher_size = 16;
-            if (MACc2s.length > 20) {
-                byte[] tmp4 = new byte[20];
-                System.arraycopy(MACc2s, 0, tmp4, 0, 20);
-                MACc2s = tmp4;
-            }
             c2smac = javax.crypto.Mac.getInstance("HmacSHA1");
             c2smac.init(new javax.crypto.spec.SecretKeySpec(MACc2s, "HmacSHA1"));
         } catch (Exception e) {
@@ -539,6 +485,14 @@ class Session extends UtilC{
             throw new Exception(e.toString());
         }
     }
+    private byte[] format_digest(byte[] digest, int a) {
+        if (digest.length > a) {
+            byte [] tmp = new byte[a];
+            System.arraycopy(digest, 0, tmp, 0, tmp.length);
+            return tmp;
+        }        
+        return digest;
+    }    
     public void pre_write(Packet packet) throws Exception {
         long t = 0;
         while (in_kex) {
