@@ -98,7 +98,7 @@ class Session{
                 socket = new java.net.Socket(host, port);
                 in = socket.getInputStream();
                 out = socket.getOutputStream();
-            }catch (Exception e) {
+            }catch(Exception e){
                 throw new Exception("Error session connect socket " + e);
             }
             // colocar \r\n nao resolve o problema no linux
@@ -106,10 +106,10 @@ class Session{
             System.arraycopy(V_C, 0, a, 0, V_C.length);
             a[a.length - 1] = barra_n;            
             put_stream(a);
-            while (true) {
+            while(true){
                 i = 0;
                 j = 0;
-                while (i < _buf.buffer.length) {
+                while(i < _buf.buffer.length){
                     j = getByte();
                     if (j < 0) break;
                     _buf.buffer[i] = (byte) j;
@@ -126,10 +126,7 @@ class Session{
                 }
                 if (i <= 3 || ((i != _buf.buffer.length) && (_buf.buffer[0] != 'S' || _buf.buffer[1] != 'S' || _buf.buffer[2] != 'H' || _buf.buffer[3] != '-')))
                     continue;
-                if (i == _buf.buffer.length ||
-                    i < 7 ||
-                    (_buf.buffer[4] == '1' && _buf.buffer[6] != '9')
-                )                    
+                if (i == _buf.buffer.length || i < 7 || (_buf.buffer[4] == '1' && _buf.buffer[6] != '9') )                    
                     throw new Exception("invalid server's version string");
                 break;
             }
@@ -140,7 +137,7 @@ class Session{
             if (_buf.getCommand() != SSH_MSG_KEXINIT)
                 throw new Exception("invalid protocol: " + _buf.getCommand());
             ECDH kex = receive_kexinit(_buf);
-            while (true) {
+            while(true){
                 _buf = read(_buf);
                 if (kex.getState() != _buf.getCommand()) 
                     throw new Exception("invalid protocol(kex): " + _buf.getCommand());
@@ -154,7 +151,6 @@ class Session{
             if (_buf.getCommand() != SSH_MSG_NEWKEYS )
                 throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());
             receive_newkeys(_buf, kex);
-                
             try {
                 _buf.reset_packet();
                 _buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
@@ -195,12 +191,12 @@ class Session{
     public void working_stream(){
         Buf buf=new Buf();
         try {
-            while (true) {
-                try {
+            while(true) {
+                try{
                     buf = read(buf);
-                } catch (java.io.InterruptedIOException ee) {
+                }catch (java.io.InterruptedIOException ee){
                     throw new Exception("Error Session 261 " + ee);
-                }                
+                }
                 int msgType = buf.getCommand() & 0xff;                
                 switch (msgType) {
                     case SSH_MSG_CHANNEL_DATA:
@@ -259,10 +255,10 @@ class Session{
     
     private ECDH receive_kexinit(Buf buf) throws Exception {
         int j = buf.getInt();
-        if (j != buf.getLength()) {
+        if (j != buf.getLength()){
             buf.getByte();
             I_S = new byte[buf.get_put() - 5];
-        } else
+        }else
             I_S = new byte[j - 1 - buf.getByte()];
         System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
         ECDH kex = new ECDH();
@@ -330,9 +326,8 @@ class Session{
             if (need > 0) {
                 getByte(buf.buffer, buf.get_put(), need, 2);
                 buf.skip_put(need);
-                if (s2ccipher != null) {
+                if (s2ccipher != null)
                     s2ccipher.update(buf.buffer, s2ccipher_size, need, buf.buffer, s2ccipher_size);
-                }
             }
             if (s2cmac != null) {
                 byte[] tmp = new byte[4];
