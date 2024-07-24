@@ -284,9 +284,8 @@ class Session{
         int start_fill = buf.get_put();
         int len_fill = 16;
         byte[] tmp_fill = new byte[16];
-        if (len_fill > tmp_fill.length) {
+        if (len_fill > tmp_fill.length)
             tmp_fill = new byte[len_fill];
-        }
         Buf.random.nextBytes(tmp_fill);
         System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
         buf.skip_put(16);
@@ -437,14 +436,14 @@ class Session{
             throw new Exception("ex_149 - " + e.toString());
         }
     }
-    private byte[] digest_trunc_len(byte[] digest, int a) {
+    private byte[] digest_trunc_len(byte[] digest, int a){
         if (digest.length > a){
             byte [] tmp = new byte[a];
             System.arraycopy(digest, 0, tmp, 0, tmp.length);
             return tmp;
         }        
         return digest;
-    }    
+    }
     public void write(Buf buf) throws Exception {
         if (c2scipher == null) {
             buf.padding(8);
