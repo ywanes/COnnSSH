@@ -1,4 +1,4 @@
-class Session extends UtilC{
+class Session{
     static final int SSH_MSG_DISCONNECT = 1;
     static final int SSH_MSG_IGNORE = 2;
     static final int SSH_MSG_UNIMPLEMENTED = 3;
@@ -85,6 +85,7 @@ class Session extends UtilC{
         connect();
         working();
     }
+    
     
     public void connect_stream(String host, String username, int port, String _password) throws Exception{        
         this.username = username;
@@ -276,12 +277,12 @@ class Session extends UtilC{
         System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
         if (!in_kex)
             send_kexinit();
-        String[] guess = ECDH.guess(I_S, I_C);
+        ECDH kex = new ECDH();
+        String[] guess = kex.guess(I_S, I_C);
         if (guess == null)
             throw new Exception("Algorithm negotiation fail");
         if (!isAuthed && (guess[ECDH.PROPOSAL_ENC_ALGS_CTOS].equals("none") || (guess[ECDH.PROPOSAL_ENC_ALGS_STOC].equals("none"))))
             throw new Exception("NONE Cipher should not be chosen before authentification is successed.");
-        ECDH kex = new ECDH();
         kex.init(this, V_S, V_C, I_S, I_C);
         return kex;
     }
@@ -519,15 +520,11 @@ class Session extends UtilC{
                 long len = get_rwsize();
                 if (len > length)
                     len = length;
-                if (len != length)
-                    s = packet.shift((int) len, c2scipher_size, 20);
-                byte command = packet.buf.getCommand();
                 length -= len;
                 rwsize_substract(len);
                 pos_write(packet);
                 if (length == 0)
                     return;
-                packet.unshift(command, -1, s, length);
             }
             if (get_rwsize() >= length) {
                 rwsize_substract(length);
@@ -541,7 +538,7 @@ class Session extends UtilC{
         put_stream(packet);
         seqo++;
     }
-    private static final byte[] keepalivemsg = str2byte("", "UTF-8");
+    private final byte[] keepalivemsg = str2byte("", "UTF-8");
     public void sendKeepAliveMsg() throws Exception {
         Buffer buf = new Buffer();
         Packet packet = new Packet(buf);
@@ -679,5 +676,33 @@ class Session extends UtilC{
         System.out.write(array, begin, length);
         System.out.flush();
     }    
+
+    String byte2str(byte[] str) {
+        return byte2str(str, 0, str.length, "UTF-8");
+    }
+    String byte2str(byte[] str, int s, int l, String encoding) {
+        try {
+            return new String(str, s, l, encoding);
+        } catch (java.io.UnsupportedEncodingException e) {
+            System.err.println(".Util UnsupportedEncodingException " + e);
+            return new String(str, s, l);
+        }
+    }
+    byte[] str2byte(String str, String encoding) {
+        if (str == null) return null;
+        try {
+            return str.getBytes(encoding);
+        } catch (java.io.UnsupportedEncodingException e) {
+            System.err.println("..Util UnsupportedEncodingException " + e);
+            return str.getBytes();
+        }
+    }       
+    void sleep(long a){
+        try {
+            Thread.sleep(a);
+        } catch (Exception e) {
+            System.err.println("...Util Error sleep " + e);
+        };        
+    }
 }
 

@@ -32,32 +32,5 @@ class Packet{
         System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, pad);
         buf.skip_put(pad);
     }
-
-    int shift(int len, int bsize, int mac) {
-        int s = len + 5 + 9;
-        int pad = (-s) & (bsize - 1);
-        if (pad < bsize) pad += bsize;
-        s += pad;
-        s += mac;
-        s += 32;
-        if (buf.buffer.length < s + buf.get_put() - 5 - 9 - len) {
-            byte[] a = new byte[s + buf.get_put() - 5 - 9 - len];
-            System.arraycopy(buf.buffer, 0, a, 0, buf.buffer.length);
-            buf.buffer = a;
-        }
-        System.arraycopy(buf.buffer, len + 5 + 9, buf.buffer, s, buf.get_put() - 5 - 9 - len);
-        buf.set_put(10);
-        buf.putInt(len);
-        buf.set_put(len + 5 + 9);
-        return s;
-    }
-    void unshift(byte command, int recipient, int s, int len) {
-        System.arraycopy(buf.buffer, s, buf.buffer, 5 + 9, len);
-        buf.buffer[5] = command;
-        buf.set_put(6);
-        buf.putInt(recipient);
-        buf.putInt(len);
-        buf.set_put(len + 5 + 9);
-    }
 }
 

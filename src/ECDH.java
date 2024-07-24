@@ -21,7 +21,7 @@ class ECDH extends ECDH256{}
 
 
 
-class ECDH256 extends UtilC{
+class ECDH256{
     protected int key_size = 256; // 256
     protected java.security.MessageDigest sha512 = null; // sha256
     public static String cipher = "ecdh-sha2-nistp256"; // ecdh-sha2-nistp256
@@ -81,7 +81,7 @@ class ECDH256 extends UtilC{
         session.pre_write(packet);
         state = SSH_MSG_KEX_ECDH_REPLY;
     }
-    protected static String[] guess(byte[] I_S, byte[] I_C) {
+    protected String[] guess(byte[] I_S, byte[] I_C) {
         String[] guess = new String[PROPOSAL_MAX];
         Buffer sb = new Buffer(I_S);
         sb.set_get(17);
@@ -250,6 +250,15 @@ class ECDH256 extends UtilC{
         return state;
     }
 
+    String byte2str(byte[] str, int s, int l, String encoding) {
+        try {
+            return new String(str, s, l, encoding);
+        } catch (java.io.UnsupportedEncodingException e) {
+            System.err.println(".Util UnsupportedEncodingException " + e);
+            return new String(str, s, l);
+        }
+    }
+    
     class KeyExchangeECDH {
         byte[] Q_array;
         java.security.interfaces.ECPublicKey publicKey;
@@ -361,7 +370,7 @@ class ECDH256 extends UtilC{
 
 
 
-class ECDH521 extends UtilC{
+class ECDH521{
     protected int key_size = 521; // 256
     protected java.security.MessageDigest sha512 = null; // sha256
     public static String cipher = "ecdh-sha2-nistp521"; // ecdh-sha2-nistp256
@@ -421,7 +430,7 @@ class ECDH521 extends UtilC{
         session.pre_write(packet);
         state = SSH_MSG_KEX_ECDH_REPLY;
     }
-    protected static String[] guess(byte[] I_S, byte[] I_C) {
+    protected String[] guess(byte[] I_S, byte[] I_C) {
         String[] guess = new String[PROPOSAL_MAX];
         Buffer sb = new Buffer(I_S);
         sb.set_get(17);
@@ -588,6 +597,15 @@ class ECDH521 extends UtilC{
         return state;
     }
 
+    String byte2str(byte[] str, int s, int l, String encoding) {
+        try {
+            return new String(str, s, l, encoding);
+        } catch (java.io.UnsupportedEncodingException e) {
+            System.err.println(".Util UnsupportedEncodingException " + e);
+            return new String(str, s, l);
+        }
+    }
+    
     class KeyExchangeECDH {
         byte[] Q_array;
         java.security.interfaces.ECPublicKey publicKey;
@@ -649,7 +667,7 @@ class ECDH521 extends UtilC{
             java.security.interfaces.ECPrivateKey prvKey;
             public void init(int key_size) throws Exception {
                 java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
-                ECGenParameterSpec ecsp = new ECGenParameterSpec("secp521r1"); // secp256r1                
+                ECGenParameterSpec ecsp = new ECGenParameterSpec("secp521r1");
                 kpg.initialize(ecsp);
                 java.security.KeyPair kp = kpg.genKeyPair();
                 prvKey = (java.security.interfaces.ECPrivateKey) kp.getPrivate();
