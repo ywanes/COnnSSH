@@ -48,8 +48,6 @@ class ECDH extends Config{
     protected final int RSA = 0;
     protected final int DSS = 1;
     protected final int ECDSA = 2;
-    private int type = 0;
-    private String key_alg_name = "";
     private static final int SSH_MSG_KEX_ECDH_INIT = 30;
     private static final int SSH_MSG_KEX_ECDH_REPLY = 31;
     private int state;
@@ -100,17 +98,15 @@ class ECDH extends Config{
             int k = 0;
             label_break:
                 while (j < cp.length) {
-                    while (j < cp.length && cp[j] != ','){
+                    while (j < cp.length && cp[j] != ',')
                         j++;
-                    }
                     if (k == j) return null;
                     String algorithm = byte2str(cp, k, j - k, "UTF-8");
                     int l = 0;
                     int m = 0;
-                    while (l < sp.length) {
-                        while (l < sp.length && sp[l] != ','){
+                    while (l < sp.length){
+                        while (l < sp.length && sp[l] != ',')
                             l++;
-                        }
                         if (m == l)
                             return null;
                         if (algorithm.equals(byte2str(sp, m, l - m, "UTF-8"))) {
@@ -125,7 +121,7 @@ class ECDH extends Config{
                 }
             if (j == 0) {
                 guess[i] = "";
-            } else if (guess[i] == null) {
+            }else if (guess[i] == null) {
                 return null;
             }
         }
@@ -155,42 +151,37 @@ class ECDH extends Config{
             return true;
         int i, j;
         i = index;
-        boolean result = false;
-        if (alg.equals("ssh-rsa")) {
-            byte[] tmp;
-            byte[] ee;
-            byte[] n;
-            type = RSA;
-            key_alg_name = alg;
-            j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-            tmp = new byte[j];
-            System.arraycopy(K_S, i, tmp, 0, j);
-            i += j;
-            ee = tmp;
-            j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-            tmp = new byte[j];
-            System.arraycopy(K_S, i, tmp, 0, j);
-            n = tmp;
+        if (!alg.equals("ssh-rsa"))
+            throw new Exception("unknown alg");
+        byte[] tmp;
+        byte[] ee;
+        byte[] n;
+        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
+        tmp = new byte[j];
+        System.arraycopy(K_S, i, tmp, 0, j);
+        i += j;
+        ee = tmp;
+        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
+        tmp = new byte[j];
+        System.arraycopy(K_S, i, tmp, 0, j);
+        n = tmp;
 
-            Signature signature = Signature.getInstance("SHA1withRSA");
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            RSAPublicKeySpec rsaPubKeySpec = new RSAPublicKeySpec(new BigInteger(n), new BigInteger(ee));
-            PublicKey pubKey2 = keyFactory.generatePublic(rsaPubKeySpec);
-            signature.initVerify(pubKey2);
-            signature.update(H);
-            byte[] tmp_RSA;
-            Buf buf_RSA = new Buf(sig_of_H);
-            if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
-                int j_RSA = buf_RSA.getInt();
-                int i_RSA = buf_RSA.get_get();
-                tmp_RSA = new byte[j_RSA];
-                System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
-                sig_of_H = tmp_RSA;
-            }
-            result = signature.verify(sig_of_H);
-        } else
-            System.err.println("unknown alg");
-        return result;
+        Signature signature = Signature.getInstance("SHA1withRSA");
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        RSAPublicKeySpec rsaPubKeySpec = new RSAPublicKeySpec(new BigInteger(n), new BigInteger(ee));
+        PublicKey pubKey2 = keyFactory.generatePublic(rsaPubKeySpec);
+        signature.initVerify(pubKey2);
+        signature.update(H);
+        byte[] tmp_RSA;
+        Buf buf_RSA = new Buf(sig_of_H);
+        if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
+            int j_RSA = buf_RSA.getInt();
+            int i_RSA = buf_RSA.get_get();
+            tmp_RSA = new byte[j_RSA];
+            System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
+            sig_of_H = tmp_RSA;
+        }
+        return signature.verify(sig_of_H);
     }
 
     public boolean next(Buf _buf) throws Exception {
@@ -238,9 +229,8 @@ class ECDH extends Config{
 
     static byte[][] fromPoint(byte[] point) {
         int i = 0;
-        while (point[i] != 4){
+        while (point[i] != 4)
             i++;
-        }        
         i++;
         byte[][] tmp = new byte[2][];
         byte[] r_array = new byte[(point.length - i) / 2];
@@ -335,8 +325,6 @@ class ECDH extends Config{
                 ECPoint w = pubKey.getW();
                 r = w.getAffineX().toByteArray();
                 s = w.getAffineY().toByteArray();
-                if (d.length < r.length)
-                    d = insert0(d);
             }
             public byte[] getD() {
                 return d;
@@ -352,15 +340,6 @@ class ECDH extends Config{
             }
             java.security.interfaces.ECPrivateKey getPrivateKey() {
                 return prvKey;
-            }
-            private byte[] insert0(byte[] buf) {
-                byte[] tmp = new byte[buf.length + 1];
-                System.arraycopy(buf, 0, tmp, 1, buf.length);
-                bzero(buf);
-                return tmp;
-            }
-            private void bzero(byte[] buf) {
-                for (int i = 0; i < buf.length; i++) buf[i] = 0;
             }
         }
     }    

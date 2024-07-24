@@ -100,9 +100,11 @@ class Session{
             }catch (Exception e) {
                 throw new Exception("Error session connect socket " + e);
             }
+            // colocar \r\n nao resolve o problema no linux
             byte[] a = new byte[V_C.length + 1];
             System.arraycopy(V_C, 0, a, 0, V_C.length);
-            a[a.length - 1] = (byte)'\n';            
+            a[a.length - 1] = (byte)'\n';
+            
             put_stream(a);
             while (true) {
                 i = 0;
