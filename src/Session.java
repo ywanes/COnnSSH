@@ -58,7 +58,7 @@ class Session{
     
     java.io.InputStream in = null;
     java.io.OutputStream out = null;
-    private long rwsize2 = 0;
+    private long rwsize = 0;
     public boolean channel_opened=false;
     private int rmpsize = 0;
 
@@ -104,8 +104,7 @@ class Session{
             // colocar \r\n nao resolve o problema no linux
             byte[] a = new byte[V_C.length + 1];
             System.arraycopy(V_C, 0, a, 0, V_C.length);
-            a[a.length - 1] = barra_n;
-            
+            a[a.length - 1] = barra_n;            
             put_stream(a);
             while (true) {
                 i = 0;
@@ -143,28 +142,26 @@ class Session{
             ECDH kex = receive_kexinit(_buf);
             while (true) {
                 _buf = read(_buf);
-                if (kex.getState() == _buf.getCommand()) {
-                    boolean result = kex.next(_buf);
-                    if (!result) 
-                        throw new Exception("verify: " + result);
-                }else
+                if (kex.getState() != _buf.getCommand()) 
                     throw new Exception("invalid protocol(kex): " + _buf.getCommand());
+                if (!kex.next(_buf)) 
+                    throw new Exception("verify: false");
                 if (kex.getState() == ECDH.STATE_END)
                     break;
             }
             send_newkeys();
             _buf = read(_buf);
-            if (_buf.getCommand() == SSH_MSG_NEWKEYS){
-                receive_newkeys(_buf, kex);
-            }else
+            if (_buf.getCommand() != SSH_MSG_NEWKEYS )
                 throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());
+            receive_newkeys(_buf, kex);
+                
             try {
                 _buf.reset_packet();
                 _buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
                 _buf.putValue(str2byte("ssh-userauth", "UTF-8"));
                 pre_write(_buf);
-                _buf = read(_buf); // ?
-            } catch (Exception e) {
+                _buf = read(_buf);
+            } catch (Exception e){
                 throw new Exception("Error Session 180 " + e.toString());
             }
             int SSH_MSG_USERAUTH_REQUEST = 50;
@@ -449,7 +446,7 @@ class Session{
         buf.buffer[j]++;
         sha.update(buf.buffer, 0, buf.get_put());
         MACs2c = format_digest(sha.digest(), 20);
-        try {
+        try{
             s2ccipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
             s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
             s2ccipher_size = 16;
@@ -462,22 +459,19 @@ class Session{
             c2scipher_size = 16;
             c2smac = javax.crypto.Mac.getInstance("HmacSHA1");
             c2smac.init(new javax.crypto.spec.SecretKeySpec(MACc2s, "HmacSHA1"));
-        } catch (Exception e) {
-            System.out.println("ex_149");
-            if (e instanceof Exception)
-                throw e;
-            throw new Exception(e.toString());
+        }catch (Exception e){
+            throw new Exception("ex_149 - " + e.toString());
         }
     }
     private byte[] format_digest(byte[] digest, int a) {
-        if (digest.length > a) {
+        if (digest.length > a){
             byte [] tmp = new byte[a];
             System.arraycopy(digest, 0, tmp, 0, tmp.length);
             return tmp;
         }        
         return digest;
     }    
-    public void pre_write(Buf buf) throws Exception {
+    public void pre_write(Buf buf) throws Exception{
         while (wait_kex) {
             byte command = buf.getCommand();
             if (command == SSH_MSG_KEXINIT ||
@@ -492,25 +486,6 @@ class Session{
                 break;
             }
             sleep(10);
-        }
-        pos_write(buf);
-    }
-    void write(Buf buf, int length) throws Exception {
-        while (true) {
-            if (get_rwsize() > 0) {
-                long len = get_rwsize();
-                if (len > length)
-                    len = length;
-                length -= len;
-                rwsize_substract(len);
-                pos_write(buf);
-                if (length == 0)
-                    return;
-            }
-            if (get_rwsize() >= length) {
-                rwsize_substract(length);
-                break;
-            }
         }
         pos_write(buf);
     }
@@ -632,23 +607,28 @@ class Session{
                 buf.putInt(0);
                 buf.putInt(i);
                 buf.skip_put(i);                
-                write(buf, i);
+                if ( get_rwsize() > i )
+                    rwsize_substract(i);
+                else
+                    rwsize_substract(get_rwsize());
+                pos_write(buf);
+                
             }
         } catch (Exception e) {
             System.out.println("ex_20");
         }        
     }
     public void set_rwsize(long a) {
-        rwsize2 = a;
+        rwsize = a;
     }
     public void add_rwsize(long a) {
-        rwsize2 += a;
+        rwsize += a;
     }
     public long get_rwsize() {
-        return rwsize2;
+        return rwsize;
     }
     public void rwsize_substract(long a) {
-        rwsize2 -= a;
+        rwsize -= a;
     }
     public void set_rmpsize(int a) {
         this.rmpsize = a;
