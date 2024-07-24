@@ -635,7 +635,7 @@ class Session{
         Buf buf=new Buf(new byte[rmpsize]);
         try {
             while (true){
-                int i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -ECDH.nn);
+                int i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(ECDH.nn_cipher+64));
                 //System.out.write("[IN]".getBytes());
                 //System.out.write(buf.buffer, 0, i);
                 //System.out.write("[OUT]".getBytes());                
