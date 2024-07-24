@@ -404,22 +404,22 @@ class Session{
         buf.putBytes(session_ids);
         int j = buf.get_put() - session_ids.length - 1;        
         sha.update(buf.buffer, 0, buf.get_put());
-        IVc2s = format_digest(sha.digest(), 16);
+        IVc2s = digest_trunc_len(sha.digest(), 16);
         buf.buffer[j]++;
         sha.update(buf.buffer, 0, buf.get_put());
-        IVs2c = format_digest(sha.digest(), 16);
+        IVs2c = digest_trunc_len(sha.digest(), 16);
         buf.buffer[j]++;
         sha.update(buf.buffer, 0, buf.get_put());
-        Ec2s = format_digest(sha.digest(), 32);
+        Ec2s = digest_trunc_len(sha.digest(), 32);
         buf.buffer[j]++;
         sha.update(buf.buffer, 0, buf.get_put());
-        Es2c = format_digest(sha.digest(), 32);
+        Es2c = digest_trunc_len(sha.digest(), 32);
         buf.buffer[j]++;
         sha.update(buf.buffer, 0, buf.get_put());
-        MACc2s = format_digest(sha.digest(), 20);
+        MACc2s = digest_trunc_len(sha.digest(), 20);
         buf.buffer[j]++;
         sha.update(buf.buffer, 0, buf.get_put());
-        MACs2c = format_digest(sha.digest(), 20);
+        MACs2c = digest_trunc_len(sha.digest(), 20);
         try{
             s2ccipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
             s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
@@ -437,7 +437,7 @@ class Session{
             throw new Exception("ex_149 - " + e.toString());
         }
     }
-    private byte[] format_digest(byte[] digest, int a) {
+    private byte[] digest_trunc_len(byte[] digest, int a) {
         if (digest.length > a){
             byte [] tmp = new byte[a];
             System.arraycopy(digest, 0, tmp, 0, tmp.length);
@@ -525,7 +525,6 @@ class Session{
         buf.putInt(0x100000);
         buf.putInt(0x4000);
         write(buf);
-        
         for ( int i=0;i<3000;i++ ){
             if ( !channel_opened ){
                 sleep(10);
@@ -533,7 +532,6 @@ class Session{
             }
             break;
         }
-        
         if ( !channel_opened )
             throw new Exception("channel is not opened.");
         byte[] terminal_mode = (byte[]) str2byte("", "UTF-8");
@@ -555,7 +553,6 @@ class Session{
         buf.putInt(thp);
         buf.putValue(terminal_mode);
         write(buf);
-        
         
         buf=new Buf();
         buf.reset_packet();
