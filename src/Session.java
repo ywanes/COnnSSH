@@ -159,7 +159,7 @@ class Session{
                 _buf.reset_packet();
                 _buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
                 _buf.putValue(str2byte("ssh-userauth", "UTF-8"));
-                pre_write(_buf);
+                write(_buf);
                 _buf = read(_buf);
             } catch (Exception e){
                 throw new Exception("Error Session 180 " + e.toString());
@@ -177,7 +177,7 @@ class Session{
             _buf.putValue(str2byte("password", "UTF-8"));
             _buf.putByte((byte) 0);
             _buf.putValue(password);
-            pre_write(_buf);
+            write(_buf);
             _buf = read(_buf);
             int command = _buf.getCommand() & 0xff;
             if (command == SSH_MSG_USERAUTH_BANNER)
@@ -241,7 +241,7 @@ class Session{
                         if (buf.getByte() != 0) {
                             buf.reset_packet();
                             buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
-                            pre_write(buf);
+                            write(buf);
                         }
                         break;
                     case SSH_MSG_CHANNEL_EOF:
@@ -304,13 +304,13 @@ class Session{
         buf.putInt(0);
         buf.set_get(5);
         I_C = buf.getValueAllLen();
-        pre_write(buf);
+        write(buf);
     }
 
     private void send_newkeys() throws Exception {
         _buf.reset_packet();
         _buf.putByte((byte) SSH_MSG_NEWKEYS);
-        pre_write(_buf);
+        write(_buf);
     }
 
     public void encode(Buf buf) throws Exception {
@@ -471,25 +471,7 @@ class Session{
         }        
         return digest;
     }    
-    public void pre_write(Buf buf) throws Exception{
-        while (wait_kex) {
-            byte command = buf.getCommand();
-            if (command == SSH_MSG_KEXINIT ||
-                command == SSH_MSG_NEWKEYS ||
-                command == SSH_MSG_KEXDH_INIT ||
-                command == SSH_MSG_KEXDH_REPLY ||
-                command == SSH_MSG_KEX_DH_GEX_GROUP ||
-                command == SSH_MSG_KEX_DH_GEX_INIT ||
-                command == SSH_MSG_KEX_DH_GEX_REPLY ||
-                command == SSH_MSG_KEX_DH_GEX_REQUEST ||
-                command == SSH_MSG_DISCONNECT) {
-                break;
-            }
-            sleep(10);
-        }
-        pos_write(buf);
-    }
-    private void pos_write(Buf buf) throws Exception {
+    public void write(Buf buf) throws Exception {
         encode(buf);
         put_stream(buf);
         seqo++;
@@ -501,7 +483,7 @@ class Session{
         buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
         buf.putValue(keepalivemsg);
         buf.putByte((byte) 1);
-        pre_write(buf);
+        write(buf);
     }
     public void put_stream(Buf buf) throws java.io.IOException, java.net.SocketException {
         //////////// 
@@ -546,7 +528,7 @@ class Session{
         buf.putInt(0);
         buf.putInt(0x100000);
         buf.putInt(0x4000);
-        pre_write(buf);
+        write(buf);
         
         for ( int i=0;i<3000;i++ ){
             if ( !channel_opened ){
@@ -576,7 +558,7 @@ class Session{
         buf.putInt(twp);
         buf.putInt(thp);
         buf.putValue(terminal_mode);
-        pre_write(buf);
+        write(buf);
         
         
         buf=new Buf();
@@ -585,7 +567,7 @@ class Session{
         buf.putInt(0);
         buf.putValue(str2byte("shell", "UTF-8"));        
         buf.putByte((byte) 0);
-        pre_write(buf);
+        write(buf);
     }
     public void working(){
         ///////////
@@ -611,7 +593,7 @@ class Session{
                     rwsize_substract(i);
                 else
                     rwsize_substract(get_rwsize());
-                pos_write(buf);
+                write(buf);
                 
             }
         } catch (Exception e) {

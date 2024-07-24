@@ -82,7 +82,7 @@ class ECDH extends Config{
         }
         if (V_S == null)
             return;
-        session.pre_write(buf);
+        session.write(buf);
         state = SSH_MSG_KEX_ECDH_REPLY;
     }
     protected String[] guess(byte[] I_S, byte[] I_C) {
