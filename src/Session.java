@@ -421,7 +421,7 @@ class Session{
         wait_kex = false;
         byte[] K = kex.getK();
         byte[] H = kex.getH();
-        java.security.MessageDigest sha512 = kex.getHash();
+        java.security.MessageDigest sha = kex.getHash();
         if (session_ids == null) {
             session_ids = new byte[H.length];
             System.arraycopy(H, 0, session_ids, 0, H.length);
@@ -432,23 +432,23 @@ class Session{
         buf.putByte((byte) 0x41);
         buf.putBytes(session_ids);
         int j = buf.get_put() - session_ids.length - 1;        
-        sha512.update(buf.buffer, 0, buf.get_put());
-        IVc2s = format_digest(sha512.digest(), 16);
+        sha.update(buf.buffer, 0, buf.get_put());
+        IVc2s = format_digest(sha.digest(), 16);
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.get_put());
-        IVs2c = format_digest(sha512.digest(), 16);
+        sha.update(buf.buffer, 0, buf.get_put());
+        IVs2c = format_digest(sha.digest(), 16);
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.get_put());
-        Ec2s = format_digest(sha512.digest(), 32);
+        sha.update(buf.buffer, 0, buf.get_put());
+        Ec2s = format_digest(sha.digest(), 32);
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.get_put());
-        Es2c = format_digest(sha512.digest(), 32);
+        sha.update(buf.buffer, 0, buf.get_put());
+        Es2c = format_digest(sha.digest(), 32);
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.get_put());
-        MACc2s = format_digest(sha512.digest(), 20);
+        sha.update(buf.buffer, 0, buf.get_put());
+        MACc2s = format_digest(sha.digest(), 20);
         buf.buffer[j]++;
-        sha512.update(buf.buffer, 0, buf.get_put());
-        MACs2c = format_digest(sha512.digest(), 20);
+        sha.update(buf.buffer, 0, buf.get_put());
+        MACs2c = format_digest(sha.digest(), 20);
         try {
             s2ccipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
             s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
@@ -629,7 +629,7 @@ class Session{
                 count_line_return=0;
                 if (i == 0)
                     continue;
-                if (i == -1)
+                if (i == -1)// nao tem problema aqui
                     break;
                 buf.reset_packet();
                 buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);

@@ -12,21 +12,21 @@ import java.security.spec.RSAPublicKeySpec;
 import javax.crypto.KeyAgreement;
 
 
-// ConfigECDH256 and ConfigECDH521 -> OK
+// ConfigECDH256 and ConfigECDH512 -> OK
 //class Config extends ConfigECDH256{}
-class Config extends ConfigECDH521{}
+class Config extends ConfigECDH512{}
 
 
 class ConfigECDH256{
-    public static int key_size = 256;    
     String digest = "SHA-256";
+    public static int key_size = 256;    
     public static int nn_cipher=32;
     boolean skip_verify=true;
 }
 
-class ConfigECDH521{
-    public static int key_size = 521;    
+class ConfigECDH512{
     String digest = "SHA-512";
+    public static int key_size = 521;    
     public static int nn_cipher=64;
     boolean skip_verify=false;
 }
