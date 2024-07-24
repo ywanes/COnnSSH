@@ -51,8 +51,7 @@ class Session{
     private long kex_start_time = 0L;
     String username = null;
     byte[] password = null;
-    private boolean in_kex = false;
-    private boolean in_prompt = false;    
+    private boolean wait_kex = false;
     private int s2ccipher_size = 8;
     private int c2scipher_size = 8;
     Buf _buf;
@@ -139,36 +138,26 @@ class Session{
             System.arraycopy(_buf.buffer, 0, V_S, 0, i);
             send_kexinit();
             _buf = read(_buf);
-            if (_buf.getCommand() != SSH_MSG_KEXINIT) {
-                in_kex = false;
+            if (_buf.getCommand() != SSH_MSG_KEXINIT)
                 throw new Exception("invalid protocol: " + _buf.getCommand());
-            }
             ECDH kex = receive_kexinit(_buf);
             while (true) {
                 _buf = read(_buf);
                 if (kex.getState() == _buf.getCommand()) {
-                    kex_start_time = System.currentTimeMillis();
                     boolean result = kex.next(_buf);
-                    if (!result) {
-                        in_kex = false;
+                    if (!result) 
                         throw new Exception("verify: " + result);
-                    }
-                } else {
-                    in_kex = false;
+                }else
                     throw new Exception("invalid protocol(kex): " + _buf.getCommand());
-                }
                 if (kex.getState() == ECDH.STATE_END)
                     break;
             }
-            in_prompt = false;
             send_newkeys();
             _buf = read(_buf);
-            if (_buf.getCommand() == SSH_MSG_NEWKEYS) {
+            if (_buf.getCommand() == SSH_MSG_NEWKEYS){
                 receive_newkeys(_buf, kex);
-            } else {
-                in_kex = false;
+            }else
                 throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());
-            }
             try {
                 _buf.reset_packet();
                 _buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
@@ -214,7 +203,7 @@ class Session{
                     buf = read(buf);
                 } catch (java.io.InterruptedIOException ee) {
                     throw new Exception("Error Session 261 " + ee);
-                }
+                }                
                 int msgType = buf.getCommand() & 0xff;                
                 switch (msgType) {
                     case SSH_MSG_CHANNEL_DATA:
@@ -261,12 +250,12 @@ class Session{
                     case SSH_MSG_CHANNEL_EOF:
                         System.exit(0);
                     default:
-                        throw new java.io.IOException("msgType " + msgType+" not found. - Only 3 msgType implementations");
+                        throw new Exception("msgType " + msgType+" not found. - Only 3 msgType implementations");
                 }
             }
         } catch (Exception e) {
             System.out.println("ex_151 " + e.toString());
-            in_kex = false;
+            System.exit(1);
         }
         System.exit(0);
     }
@@ -279,8 +268,6 @@ class Session{
         } else
             I_S = new byte[j - 1 - buf.getByte()];
         System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
-        if (!in_kex)
-            send_kexinit();
         ECDH kex = new ECDH();
         String[] guess = kex.guess(I_S, I_C);
         if (guess == null)
@@ -290,14 +277,9 @@ class Session{
         kex.init(this, V_S, V_C, I_S, I_C);
         return kex;
     }
-    public void rekey() throws Exception {
-        send_kexinit();
-    }
-
+    
     private void send_kexinit() throws Exception {
-        if (in_kex)
-            return;
-        in_kex = true;
+        wait_kex = true;
         kex_start_time = System.currentTimeMillis();
         Buf buf = new Buf();
         buf.reset_packet();
@@ -436,7 +418,7 @@ class Session{
     }
 
     private void receive_newkeys(Buf buf, ECDH kex) throws Exception {
-        in_kex = false;
+        wait_kex = false;
         byte[] K = kex.getK();
         byte[] H = kex.getH();
         java.security.MessageDigest sha512 = kex.getHash();
@@ -497,8 +479,8 @@ class Session{
     }    
     public void pre_write(Buf buf) throws Exception {
         long t = 0;
-        while (in_kex) {
-            if (t > 0L && (System.currentTimeMillis() - kex_start_time) > t && !in_prompt)
+        while (wait_kex) {
+            if (t > 0L && (System.currentTimeMillis() - kex_start_time) > t)
                 throw new Exception("timeout in waiting for rekeying process.");
             byte command = buf.getCommand();
             if (command == SSH_MSG_KEXINIT ||
@@ -606,7 +588,7 @@ class Session{
         if ( !channel_opened )
             throw new Exception("channel is not opened.");
         byte[] terminal_mode = (byte[]) str2byte("", "UTF-8");
-        int tcol = 80;
+        int tcol = 10000;//80;
         int trow = 24;
         int twp = 640;
         int thp = 480;
@@ -624,7 +606,8 @@ class Session{
         buf.putInt(thp);
         buf.putValue(terminal_mode);
         pre_write(buf);
-
+        
+        
         buf=new Buf();
         buf.reset_packet();
         buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
