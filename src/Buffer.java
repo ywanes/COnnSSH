@@ -16,16 +16,16 @@ class Buffer {
         buffer[i_put++] = (byte)(val >>> 8);
         buffer[i_put++] = (byte)val;
     }
-    public void putByte(byte foo) {
-        buffer[i_put++] = foo;
+    public void putByte(byte a) {
+        buffer[i_put++] = a;
     }
     public void putBytes(byte[] a) {
         for ( int i=0;i<a.length;i++ )
             buffer[i_put++] = a[i];
     }
-    public void putValue(byte[] foo) {
-        putInt(foo.length);
-        putBytes(foo);
+    public void putValue(byte[] a) {
+        putInt(a.length);
+        putBytes(a);
     }
     void skip_put(int n) {
         i_put += n;

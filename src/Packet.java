@@ -41,9 +41,9 @@ class Packet{
         s += mac;
         s += 32;
         if (buf.buffer.length < s + buf.get_put() - 5 - 9 - len) {
-            byte[] foo = new byte[s + buf.get_put() - 5 - 9 - len];
-            System.arraycopy(buf.buffer, 0, foo, 0, buf.buffer.length);
-            buf.buffer = foo;
+            byte[] a = new byte[s + buf.get_put() - 5 - 9 - len];
+            System.arraycopy(buf.buffer, 0, a, 0, buf.buffer.length);
+            buf.buffer = a;
         }
         System.arraycopy(buf.buffer, len + 5 + 9, buf.buffer, s, buf.get_put() - 5 - 9 - len);
         buf.set_put(10);

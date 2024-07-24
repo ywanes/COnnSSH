@@ -99,10 +99,10 @@ class Session extends UtilC{
             }catch (Exception e) {
                 throw new Exception("Error session connect socket " + e);
             }
-            byte[] foo = new byte[V_C.length + 1];
-            System.arraycopy(V_C, 0, foo, 0, V_C.length);
-            foo[foo.length - 1] = (byte)'\n';            
-            put_stream(foo, 0, foo.length);
+            byte[] a = new byte[V_C.length + 1];
+            System.arraycopy(V_C, 0, a, 0, V_C.length);
+            a[a.length - 1] = (byte)'\n';            
+            put_stream(a);
             while (true) {
                 i = 0;
                 j = 0;
@@ -331,21 +331,18 @@ class Session extends UtilC{
     }
 
     public void encode(Packet packet) throws Exception {
-        if (c2scipher != null) {
+        if (c2scipher == null) {
+            packet.padding(8);
+        }else{
             packet.padding(c2scipher_size);
             int pad = packet.buf.buffer[4];
-            byte[] foo_fill = packet.buf.buffer;
-            int start_fill = packet.buf.get_put() - pad;
-            int len_fill = pad;
-            byte[] tmp_fill = new byte[16];
-            if (len_fill > tmp_fill.length)
-                tmp_fill = new byte[len_fill];
-            Packet.random.nextBytes(tmp_fill);
-            System.arraycopy(tmp_fill, 0, foo_fill, start_fill, len_fill);
-        } else {
-            packet.padding(8);
-        }
-        if (c2smac != null) {
+            int put = packet.buf.get_put();
+            byte[] a = new byte[16];
+            if (pad > 16)
+                a = new byte[pad];
+            Packet.random.nextBytes(a);
+            System.arraycopy(a, 0, packet.buf.buffer, put - pad, pad);
+
             byte[] tmp = new byte[4];
             tmp[0] = (byte)(seqo >>> 24);
             tmp[1] = (byte)(seqo >>> 16);
@@ -354,12 +351,7 @@ class Session extends UtilC{
             c2smac.update(tmp, 0, 4);
             c2smac.update(packet.buf.buffer, 0, packet.buf.get_put());
             c2smac.doFinal(packet.buf.buffer, packet.buf.get_put());
-        }
-        if (c2scipher != null) {
-            byte[] buf = packet.buf.buffer;
-            c2scipher.update(buf, 0, packet.buf.get_put(), buf, 0);
-        }
-        if (c2smac != null) {
+            c2scipher.update(packet.buf.buffer, 0, packet.buf.get_put(), packet.buf.buffer, 0);
             packet.buf.skip_put(20);
         }
     }
@@ -375,9 +367,9 @@ class Session extends UtilC{
             j = ((buf.buffer[0] << 24) & 0xff000000) | ((buf.buffer[1] << 16) & 0x00ff0000) | ((buf.buffer[2] << 8) & 0x0000ff00) | ((buf.buffer[3]) & 0x000000ff);
             int need = j + 4 - s2ccipher_size;
             if ((buf.get_put() + need) > buf.buffer.length) {
-                byte[] foo = new byte[buf.get_put() + need];
-                System.arraycopy(buf.buffer, 0, foo, 0, buf.get_put());
-                buf.buffer = foo;
+                byte[] a = new byte[buf.get_put() + need];
+                System.arraycopy(buf.buffer, 0, a, 0, buf.get_put());
+                buf.buffer = a;
             }
             if (need > 0) {
                 getByte(buf.buffer, buf.get_put(), need, 2);
@@ -392,7 +384,7 @@ class Session extends UtilC{
                 tmp[1] = (byte)(seqi >>> 16);
                 tmp[2] = (byte)(seqi >>> 8);
                 tmp[3] = (byte) seqi;
-                s2cmac.update(tmp, 0, 4);
+                s2cmac.update(tmp);
                 s2cmac.update(buf.buffer, 0, buf.get_put());
                 s2cmac.doFinal(s2cmac_result1, 0);
                 getByte(s2cmac_result2, 0, s2cmac_result2.length, 3);
@@ -478,10 +470,10 @@ class Session extends UtilC{
                 buf.putBytes(H);
                 buf.putBytes(Es2c);
                 sha512.update(buf.buffer, 0, buf.get_put());
-                byte[] foo = sha512.digest();
-                byte[] bar = new byte[Es2c.length + foo.length];
+                byte[] a = sha512.digest();
+                byte[] bar = new byte[Es2c.length + a.length];
                 System.arraycopy(Es2c, 0, bar, 0, Es2c.length);
-                System.arraycopy(foo, 0, bar, Es2c.length, foo.length);
+                System.arraycopy(a, 0, bar, Es2c.length, a.length);
                 Es2c = bar;
             }
             byte[] tmp;
@@ -513,10 +505,10 @@ class Session extends UtilC{
                 buf.putBytes(H);
                 buf.putBytes(Ec2s);
                 sha512.update(buf.buffer, 0, buf.get_put());
-                byte[] foo = sha512.digest();
-                byte[] bar = new byte[Ec2s.length + foo.length];
+                byte[] a = sha512.digest();
+                byte[] bar = new byte[Ec2s.length + a.length];
                 System.arraycopy(Ec2s, 0, bar, 0, Ec2s.length);
-                System.arraycopy(foo, 0, bar, Ec2s.length, foo.length);
+                System.arraycopy(a, 0, bar, Ec2s.length, a.length);
                 Ec2s = bar;
             }
             byte[] tmp3;
@@ -570,8 +562,6 @@ class Session extends UtilC{
     }
     void write(Packet packet, int length) throws Exception {
         while (true) {
-            if (in_kex)
-                sleep(10);
             int s = 0;
             if (get_rwsize() > 0) {
                 long len = get_rwsize();
@@ -587,8 +577,6 @@ class Session extends UtilC{
                     return;
                 packet.unshift(command, -1, s, length);
             }
-            if (in_kex)
-                continue;
             if (get_rwsize() >= length) {
                 rwsize_substract(length);
                 break;
@@ -616,8 +604,8 @@ class Session extends UtilC{
         out.write(p.buf.buffer, 0, p.buf.get_put());
         out.flush();
     }
-    void put_stream(byte[] array, int begin, int length) throws java.io.IOException {
-        out.write(array, begin, length);
+    void put_stream(byte[] array) throws java.io.IOException {
+        out.write(array, 0, array.length);
         out.flush();
     }
     int getByte() throws java.io.IOException {

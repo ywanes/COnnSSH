@@ -215,8 +215,8 @@ class ECDH256 extends UtilC{
                 buf.putValue(Q_C);
                 buf.putValue(Q_S);
                 buf.putValue(K);
-                byte[] foo = buf.getValueAllLen();
-                sha512.update(foo, 0, foo.length);
+                byte[] a = buf.getValueAllLen();
+                sha512.update(a);
                 H = sha512.digest();
                 i = 0;
                 j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) |
@@ -553,8 +553,8 @@ class ECDH521 extends UtilC{
                 buf.putValue(Q_C);
                 buf.putValue(Q_S);
                 buf.putValue(K);
-                byte[] foo = buf.getValueAllLen();
-                sha512.update(foo, 0, foo.length);
+                byte[] a = buf.getValueAllLen();
+                sha512.update(a);
                 H = sha512.digest();
                 i = 0;
                 j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) |
