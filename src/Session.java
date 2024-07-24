@@ -472,15 +472,6 @@ class Session{
         put_stream(buf);
         seqo++;
     }
-    private final byte[] keepalivemsg = str2byte("", "UTF-8");
-    public void sendKeepAliveMsg() throws Exception {
-        Buf buf = new Buf();
-        buf.reset_packet();
-        buf.putByte((byte) SSH_MSG_GLOBAL_REQUEST);
-        buf.putValue(keepalivemsg);
-        buf.putByte((byte) 1);
-        write(buf);
-    }
     public void put_stream(Buf buf) throws java.io.IOException, java.net.SocketException {
         //////////// 
         out.write(buf.buffer, 0, buf.get_put());
