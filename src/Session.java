@@ -38,7 +38,6 @@ class Session{
     private byte[] Es2c;
     private byte[] MACc2s;
     private byte[] MACs2c;
-    private int seqi = 0;
     private int seqo = 0;    
     private javax.crypto.Cipher s2ccipher;
     private javax.crypto.Cipher c2scipher;
@@ -47,7 +46,6 @@ class Session{
     private byte[] s2cmac_result1;
     private byte[] s2cmac_result2;
     private java.net.Socket socket;
-    private boolean isAuthed = false;
     private long kex_start_time = 0L;
     String username = null;
     byte[] password = null;
@@ -182,7 +180,6 @@ class Session{
                 throw new Exception("Stop - USERAUTH_PASSWD_CHANGEREQ");
             if (command == SSH_MSG_USERAUTH_FAILURE)
                 throw new Exception("UserAuth Fail!");
-            isAuthed = true;
         }catch(Exception e){
             throw new Exception("Error Session 224 " + e.toString());
         }
@@ -265,8 +262,6 @@ class Session{
         String[] guess = kex.guess(I_S, I_C);
         if (guess == null)
             throw new Exception("Algorithm negotiation fail");
-        if (!isAuthed && (guess[ECDH.PROPOSAL_ENC_ALGS_CTOS].equals("none") || (guess[ECDH.PROPOSAL_ENC_ALGS_STOC].equals("none"))))
-            throw new Exception("NONE Cipher should not be chosen before authentification is successed.");
         kex.init(this, V_S, V_C, I_S, I_C);
         return kex;
     }
@@ -328,32 +323,13 @@ class Session{
                     s2ccipher.update(buf.buffer, s2ccipher_size, need, buf.buffer, s2ccipher_size);
             }
             if (s2cmac != null) {
-                byte[] tmp = new byte[4];
-                tmp[0] = (byte)(seqi >>> 24);
-                tmp[1] = (byte)(seqi >>> 16);
-                tmp[2] = (byte)(seqi >>> 8);
-                tmp[3] = (byte) seqi;
-                s2cmac.update(tmp);
                 s2cmac.update(buf.buffer, 0, buf.get_put());
                 s2cmac.doFinal(s2cmac_result1, 0);
                 getByte(s2cmac_result2, 0, s2cmac_result2.length, 3);
-                if (!java.util.Arrays.equals(s2cmac_result1, s2cmac_result2)) {
-                    if (need > PACKET_MAX_SIZE){
-                        throw new java.io.IOException("MAC Error");
-                    }
-                    continue;
-                }
-            }
-            seqi++;
+            }            
             int type = buf.getCommand() & 0xff;
             if (type == SSH_MSG_DISCONNECT) {
-                buf.reset_get();
-                buf.getInt();
-                buf.getShort();
-                int reason_code = buf.getInt();
-                byte[] text = buf.getValue();
-                byte[] language_tag = buf.getValue();
-                throw new Exception("SSH_MSG_DISCONNECT" + reason_code + " " + byte2str(text) + " " + byte2str(language_tag));
+                System.exit(0);
             } else if (type == SSH_MSG_IGNORE) {
             } else if (type == SSH_MSG_UNIMPLEMENTED) {
                 buf.reset_get();
@@ -371,8 +347,6 @@ class Session{
                 buf.getInt();
                 add_rwsize(buf.getInt());
             } else {
-                //////////////
-                isAuthed = true;
                 break;
             }
         }
