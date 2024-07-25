@@ -121,8 +121,6 @@ class Session{
             System.arraycopy(_buf.buffer, 0, V_S, 0, i);
             send_kexinit();
             _buf = read(_buf);
-            if (_buf.getCommand() != SSH_MSG_KEXINIT)
-                throw new Exception("invalid protocol: " + _buf.getCommand());
             ECDH kex = receive_kexinit(_buf);
             while(true){
                 _buf = read(_buf);
@@ -130,10 +128,12 @@ class Session{
                     throw new Exception("invalid protocol(kex): " + _buf.getCommand());
                 if (!kex.next(_buf)) 
                     throw new Exception("verify: false");
-                if (kex.getState() == ECDH.STATE_END)
+                if (kex.getState() == 0)
                     break;
             }
-            send_newkeys();
+            _buf.reset_packet();
+            _buf.putByte((byte) SSH_MSG_NEWKEYS);
+            write(_buf);
             _buf = read(_buf);
             if (_buf.getCommand() != SSH_MSG_NEWKEYS )
                 throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());
@@ -232,23 +232,7 @@ class Session{
         }
         System.exit(0);
     }
-    
-    private ECDH receive_kexinit(Buf buf) throws Exception {
-        int j = buf.getInt();
-        if (j != buf.getLength()){
-            buf.getByte();
-            I_S = new byte[buf.get_put() - 5];
-        }else
-            I_S = new byte[j - 1 - buf.getByte()];
-        System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
-        ECDH kex = new ECDH();
-        String[] guess = kex.guess(I_S, I_C);
-        if (guess == null)
-            throw new Exception("Algorithm negotiation fail");
-        kex.init(this, V_S, V_C, I_S, I_C);
-        return kex;
-    }
-    
+
     private void send_kexinit() throws Exception {
         wait_kex = true;
         Buf buf = new Buf();
@@ -278,11 +262,21 @@ class Session{
         I_C = buf.getValueAllLen();
         write(buf);
     }
-
-    private void send_newkeys() throws Exception {
-        _buf.reset_packet();
-        _buf.putByte((byte) SSH_MSG_NEWKEYS);
-        write(_buf);
+    
+    private ECDH receive_kexinit(Buf buf) throws Exception {
+        int j = buf.getInt();
+        if (j != buf.getLength()){
+            buf.getByte();
+            I_S = new byte[buf.get_put() - 5];
+        }else
+            I_S = new byte[j - 1 - buf.getByte()];
+        System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
+        ECDH kex = new ECDH();
+        String[] guess = kex.guess(I_S, I_C);
+        if (guess == null)
+            throw new Exception("Algorithm negotiation fail");
+        kex.init(this, V_S, V_C, I_S, I_C);
+        return kex;
     }
 
     public Buf read(Buf buf) throws Exception {        
@@ -385,13 +379,12 @@ class Session{
             throw new Exception("ex_149 - " + e.toString());
         }
     }
-    private byte[] digest_trunc_len(byte[] digest, int a){
-        if (digest.length > a){
-            byte [] tmp = new byte[a];
-            System.arraycopy(digest, 0, tmp, 0, tmp.length);
-            return tmp;
-        }        
-        return digest;
+    private byte[] digest_trunc_len(byte[] digest, int len){
+        if (digest.length <= len)
+            return digest;
+        byte [] a = new byte[len];
+        System.arraycopy(digest, 0, a, 0, a.length);
+        return a;
     }
     public void write(Buf buf) throws Exception {
         if (c2scipher == null) {
@@ -405,7 +398,6 @@ class Session{
                 a = new byte[pad];
             Buf.random.nextBytes(a);
             System.arraycopy(a, 0, buf.buffer, put - pad, pad);
-
             a = new byte[4];
             a[0] = (byte)(seqo >>> 24);
             a[1] = (byte)(seqo >>> 16);
@@ -439,22 +431,7 @@ class Session{
             length -= completed;
         }
     }
-    void out_close(){
-        try {
-            if (out != null) 
-                out.close();
-            out = null;
-        } catch (Exception ee) {}
-    }
-    public void close() {
-        try {
-            if ( in != null) 
-                in.close(); 
-            in = null;
-        } catch (Exception ee) {}
-        out_close();
-    }
-    
+
     public void connect() throws Exception {
         Buf buf=new Buf(new byte[100]);
         buf.reset_packet();
@@ -464,12 +441,11 @@ class Session{
         buf.putInt(0x100000);
         buf.putInt(0x4000);
         write(buf);
-        for ( int i=0;i<3000;i++ ){
-            if ( !channel_opened ){
-                sleep(10);
-                continue;
-            }
-            break;
+        int limit=3000;
+        while(limit-->0){
+            if ( channel_opened )
+                break;
+            try { Thread.sleep(10); } catch (Exception e) {};        
         }
         if ( !channel_opened )
             throw new Exception("channel is not opened.");
@@ -506,16 +482,14 @@ class Session{
         // ponto critico!!
         Buf buf=new Buf(new byte[rmpsize]);
         try {
-            while (true){
-                int i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(ECDH.nn_cipher+64));
+            int i=0;
+            while ( (i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(ECDH.nn_cipher+64))) >= 0 ){
                 //System.out.write("[IN]".getBytes());
                 //System.out.write(buf.buffer, 0, i);
                 //System.out.write("[OUT]".getBytes());                
                 count_line_return=0;
                 if (i == 0)
                     continue;
-                if (i == -1)// nao tem problema aqui
-                    break;
                 buf.reset_packet();
                 buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
                 buf.putInt(0);
@@ -550,18 +524,6 @@ class Session{
         System.out.write(array, begin, length);
         System.out.flush();
     }    
-
-    String byte2str(byte[] str) {
-        return byte2str(str, 0, str.length, "UTF-8");
-    }
-    String byte2str(byte[] str, int s, int l, String encoding) {
-        try {
-            return new String(str, s, l, encoding);
-        } catch (java.io.UnsupportedEncodingException e) {
-            System.err.println(".Util UnsupportedEncodingException " + e);
-            return new String(str, s, l);
-        }
-    }
     byte[] str2byte(String str, String encoding) {
         if (str == null) return null;
         try {
@@ -571,11 +533,4 @@ class Session{
             return str.getBytes();
         }
     }       
-    void sleep(long a){
-        try {
-            Thread.sleep(a);
-        } catch (Exception e) {
-            System.err.println("...Util Error sleep " + e);
-        };        
-    }
 }
