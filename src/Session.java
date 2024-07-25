@@ -46,7 +46,6 @@ class Session{
     private byte[] s2cmac_result1;
     private byte[] s2cmac_result2;
     private java.net.Socket socket;
-    private long kex_start_time = 0L;
     String username = null;
     byte[] password = null;
     private boolean wait_kex = false;
@@ -268,7 +267,6 @@ class Session{
     
     private void send_kexinit() throws Exception {
         wait_kex = true;
-        kex_start_time = System.currentTimeMillis();
         Buf buf = new Buf();
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEXINIT);
@@ -424,12 +422,12 @@ class Session{
             Buf.random.nextBytes(a);
             System.arraycopy(a, 0, buf.buffer, put - pad, pad);
 
-            byte[] tmp = new byte[4];
-            tmp[0] = (byte)(seqo >>> 24);
-            tmp[1] = (byte)(seqo >>> 16);
-            tmp[2] = (byte)(seqo >>> 8);
-            tmp[3] = (byte) seqo;
-            c2smac.update(tmp);
+            a = new byte[4];
+            a[0] = (byte)(seqo >>> 24);
+            a[1] = (byte)(seqo >>> 16);
+            a[2] = (byte)(seqo >>> 8);
+            a[3] = (byte) seqo;
+            c2smac.update(a);
             c2smac.update(buf.buffer, 0, buf.get_put());
             c2smac.doFinal(buf.buffer, buf.get_put());
             c2scipher.update(buf.buffer, 0, buf.get_put(), buf.buffer, 0);            
@@ -597,4 +595,3 @@ class Session{
         };        
     }
 }
-
