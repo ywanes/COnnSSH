@@ -72,16 +72,13 @@ class Session{
     }    
     
     Session(String host, String username, int port, String password) throws Exception {                
-        connect_stream(host, username, port, password);           
-        new Thread(){
-            public void run(){
-                working_stream();
-            }
-        }.start();        
+        connect_stream(host, username, port, password);                   
+        new Thread(){public void run(){
+            working_stream();
+        }}.start();                
         connect();
         working();
     }
-    
     
     public void connect_stream(String host, String username, int port, String _password) throws Exception{        
         this.username = username;
@@ -108,23 +105,16 @@ class Session{
                 j = 0;
                 while(i < _buf.buffer.length){
                     j = getByte();
-                    if (j < 0) break;
-                    _buf.buffer[i] = (byte) j;
-                    i++;
-                    if (j == barra_n)                    
+                    if (j < 0) 
                         break;
-                }
-                if (j < 0)
-                    throw new Exception("connection is closed by foreign host");
-                if (_buf.buffer[i - 1] == barra_n) {
-                    i--;
-                    if (i > 0 && _buf.buffer[i - 1] == barra_r)
+                    _buf.buffer[i++] = (byte) j;
+                    if (j == barra_n){
                         i--;
+                        if (i > 0 && _buf.buffer[i - 1] == barra_r)
+                            i--;
+                        break;
+                    }
                 }
-                if (i <= 3 || ((i != _buf.buffer.length) && (_buf.buffer[0] != 'S' || _buf.buffer[1] != 'S' || _buf.buffer[2] != 'H' || _buf.buffer[3] != '-')))
-                    continue;
-                if (i == _buf.buffer.length || i < 7 || (_buf.buffer[4] == '1' && _buf.buffer[6] != '9') )                    
-                    throw new Exception("invalid server's version string");
                 break;
             }
             V_S = new byte[i];
@@ -148,21 +138,15 @@ class Session{
             if (_buf.getCommand() != SSH_MSG_NEWKEYS )
                 throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());
             receive_newkeys(_buf, kex);
-            try {
-                _buf.reset_packet();
-                _buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
-                _buf.putValue(str2byte("ssh-userauth", "UTF-8"));
-                write(_buf);
-                _buf = read(_buf);
-            } catch (Exception e){
-                throw new Exception("Error Session 180 " + e.toString());
-            }
+            _buf.reset_packet();
+            _buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
+            _buf.putValue(str2byte("ssh-userauth", "UTF-8"));
+            write(_buf);
+            _buf = read(_buf);
             int SSH_MSG_USERAUTH_REQUEST = 50;
             int SSH_MSG_USERAUTH_FAILURE = 51;
             int SSH_MSG_USERAUTH_BANNER = 53;
             int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60;
-            if (password == null)
-                throw new Exception("Error AuthCancel - not found password");
             _buf.reset_packet();
             _buf.putByte((byte) SSH_MSG_USERAUTH_REQUEST);
             _buf.putValue(str2byte(username, "UTF-8"));
