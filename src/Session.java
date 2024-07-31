@@ -483,10 +483,11 @@ class Session{
         Buf buf=new Buf(new byte[rmpsize]);
         try {
             int i=0;
-            while ( (i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(ECDH.nn_cipher+64))) >= 0 ){
-                //System.out.write("[IN]".getBytes());
-                //System.out.write(buf.buffer, 0, i);
-                //System.out.write("[OUT]".getBytes());                
+            while ( (i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(ECDH.nn_cipher+64))) >= 0 ){            
+                // input send
+                //System.out.write("[".getBytes());
+                //System.out.write(buf.buffer, 14, i);
+                //System.out.write("]".getBytes());                
                 count_line_return=0;
                 if (i == 0)
                     continue;
