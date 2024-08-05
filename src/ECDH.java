@@ -127,13 +127,13 @@ class ECDH extends Config{
     java.security.MessageDigest getHash() {
         return sha;
     }
-    protected byte[] normalize(byte[] secret) {
-        if (secret.length > 1 && secret[0] == 0 && (secret[1] & 0x80) == 0) {
+    protected byte[] normalize(byte[] secret){
+        while(secret.length > 1 && secret[0] == 0 && (secret[1] & 0x80) == 0){
             byte[] tmp = new byte[secret.length - 1];
             System.arraycopy(secret, 1, tmp, 0, tmp.length);
-            return normalize(tmp);
-        } else
-            return secret;
+            secret=tmp;
+        }
+        return secret;
     }
     // verificação opcional de segurança!
     protected boolean verify(byte[] K_S, byte[] sig_of_H) throws Exception {
@@ -179,11 +179,10 @@ class ECDH extends Config{
     }
 
     public boolean next(Buf _buf) throws Exception {
-        int j;
         if ( state == SSH_MSG_KEX_ECDH_REPLY ){
             _buf.getInt();
             _buf.getByte();
-            j = _buf.getByte();
+            int j = _buf.getByte();
             if (j != 31) {
                 System.err.println("type: must be 31 " + j);
                 return false;
