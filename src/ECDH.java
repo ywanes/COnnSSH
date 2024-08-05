@@ -65,8 +65,8 @@ class ECDH extends Config{
         buf = new Buf();
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
-        try {
-            ecdh = new DiffieHellmanECDH(_ecsp, key_size);
+        try{
+            ecdh = new DiffieHellmanECDH(_ecsp);
             Q_C = ecdh.getQ();
             buf.putValue(Q_C);
         } catch (Exception e) {
@@ -180,14 +180,22 @@ class ECDH extends Config{
 
 class DiffieHellmanECDH {
     byte[] Q_array;
-    java.security.interfaces.ECPublicKey publicKey;
-    private KeyAgreement myKeyAgree;
-    DiffieHellmanECDH(String ecsp, int size) throws Exception {
-        ECDSA ecdsa = new ECDSA(ecsp, size);
-        publicKey = ecdsa.getPublicKey();
-        Q_array = toPoint(ecdsa.getR(), ecdsa.getS());
+    java.security.interfaces.ECPrivateKey privateKey = null;
+    java.security.interfaces.ECPublicKey publicKey = null;
+    private KeyAgreement myKeyAgree = null;
+    DiffieHellmanECDH(String ecsp) throws Exception {
+        java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
+        ECGenParameterSpec _ecsp = new ECGenParameterSpec(ecsp);
+        kpg.initialize(_ecsp);
+        java.security.KeyPair kp = kpg.genKeyPair();
+        privateKey = (java.security.interfaces.ECPrivateKey) kp.getPrivate();
+        publicKey = (java.security.interfaces.ECPublicKey) kp.getPublic();        
+        ECPoint w = publicKey.getW();
+        byte[] r = w.getAffineX().toByteArray();
+        byte[] s = w.getAffineY().toByteArray();
+        Q_array = toPoint(r, s);
         myKeyAgree = KeyAgreement.getInstance("ECDH");
-        myKeyAgree.init(ecdsa.getPrivateKey());
+        myKeyAgree.init(privateKey);
     }
     public byte[] getQ() throws Exception {
         return Q_array;
@@ -228,34 +236,3 @@ class DiffieHellmanECDH {
         return tmp;
     }        
 }   
-
-class ECDSA {
-    byte[] r;
-    byte[] s;
-    java.security.interfaces.ECPublicKey pubKey;
-    java.security.interfaces.ECPrivateKey prvKey;
-    String _ecsp=null;
-    public ECDSA(String _ecsp, int key_size) throws Exception{
-        java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
-        ECGenParameterSpec ecsp = new ECGenParameterSpec(_ecsp);
-        kpg.initialize(ecsp);
-        java.security.KeyPair kp = kpg.genKeyPair();
-        prvKey = (java.security.interfaces.ECPrivateKey) kp.getPrivate();
-        pubKey = (java.security.interfaces.ECPublicKey) kp.getPublic();
-        ECPoint w = pubKey.getW();
-        r = w.getAffineX().toByteArray();
-        s = w.getAffineY().toByteArray();
-    }
-    public byte[] getR() {
-        return r;
-    }
-    public byte[] getS() {
-        return s;
-    }
-    java.security.interfaces.ECPublicKey getPublicKey() {
-        return pubKey;
-    }
-    java.security.interfaces.ECPrivateKey getPrivateKey() {
-        return prvKey;
-    }
-}
