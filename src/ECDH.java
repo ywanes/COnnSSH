@@ -8,14 +8,14 @@ class ConfigECDH256{
     String digest = "SHA-256";
     public static int key_size = 256;    
     public static int nn_cipher=32;
-    boolean skip_verify=true;
+    boolean need_verification=false;
 }
 
 class ConfigECDH512{
     String digest = "SHA-512";
     public static int key_size = 521;    
     public static int nn_cipher=64;
-    boolean skip_verify=false;
+    boolean need_verification=true;
 }
 
 class ECDH extends Config{    
@@ -139,35 +139,36 @@ class ECDH extends Config{
             ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);        
         if (!new String(K_S, i, j, "UTF-8").equals("ssh-rsa"))
             throw new Exception("unknown alg");
-        if ( skip_verify )
-            return true;
-        i += j;
-        byte[] tmp;
-        byte[] ee;
-        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-        tmp = new byte[j];
-        System.arraycopy(K_S, i, tmp, 0, j);
-        i += j;
-        ee = tmp;
-        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-        tmp = new byte[j];
-        System.arraycopy(K_S, i, tmp, 0, j);
-        java.security.Signature signature = java.security.Signature.getInstance("SHA1withRSA");
-        java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("RSA");
-        java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(new BigInteger(tmp), new BigInteger(ee));
-        java.security.PublicKey _pubKey = keyFactory.generatePublic(rsaPubKeySpec);
-        signature.initVerify(_pubKey);
-        signature.update(H);
-        byte[] tmp_RSA;
-        Buf buf_RSA = new Buf(sig_of_H);
-        if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
-            int j_RSA = buf_RSA.getInt();
-            int i_RSA = buf_RSA.get_get();
-            tmp_RSA = new byte[j_RSA];
-            System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
-            sig_of_H = tmp_RSA;
+        if ( need_verification ){            
+            i += j;
+            byte[] tmp;
+            byte[] ee;
+            j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
+            tmp = new byte[j];
+            System.arraycopy(K_S, i, tmp, 0, j);
+            i += j;
+            ee = tmp;
+            j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
+            tmp = new byte[j];
+            System.arraycopy(K_S, i, tmp, 0, j);
+            java.security.Signature signature = java.security.Signature.getInstance("SHA1withRSA");
+            java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("RSA");
+            java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(new BigInteger(tmp), new BigInteger(ee));
+            java.security.PublicKey _publicKey = keyFactory.generatePublic(rsaPubKeySpec);
+            signature.initVerify(_publicKey);
+            signature.update(H);        
+            Buf buf_RSA = new Buf(sig_of_H);
+            if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
+                byte[] tmp_RSA;
+                int j_RSA = buf_RSA.getInt();
+                int i_RSA = buf_RSA.get_get();
+                tmp_RSA = new byte[j_RSA];
+                System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
+                sig_of_H = tmp_RSA;
+            }
+            return signature.verify(sig_of_H);  
         }
-        return signature.verify(sig_of_H);        
+        return true;
     }
     byte[] getK() {
         return K;
