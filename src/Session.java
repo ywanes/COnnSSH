@@ -275,7 +275,9 @@ class Session{
         String[] guess = kex.guess(I_S, I_C);
         if (guess == null)
             throw new Exception("Algorithm negotiation fail");
-        kex.init(this, V_S, V_C, I_S, I_C);
+        Buf _buf=kex.init(V_S, V_C, I_S, I_C);
+        if ( _buf != null )
+            write(_buf);
         return kex;
     }
 

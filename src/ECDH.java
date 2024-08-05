@@ -38,7 +38,6 @@ class ECDH extends Config{
     String _ecsp = "secp" + key_size + "r1";
 
     static final int PROPOSAL_MAX = 10;
-    protected Session session = null;
     protected byte[] K = null;
     protected byte[] H = null;
     protected byte[] K_S = null;
@@ -56,8 +55,7 @@ class ECDH extends Config{
     private Buf buf;
     private DiffieHellmanECDH ecdh;
 
-    public void init(Session session, byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
-        this.session = session;
+    public Buf init(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
         this.V_S = V_S;
         this.V_C = V_C;
         this.I_S = I_S;
@@ -75,9 +73,9 @@ class ECDH extends Config{
             throw new Exception("Error ECDH " + e.toString());
         }
         if (V_S == null)
-            return;
-        session.write(buf);
+            return null;        
         state = SSH_MSG_KEX_ECDH_REPLY;
+        return buf;
     }
     protected String[] guess(byte[] I_S, byte[] I_C) {
         String[] guess = new String[PROPOSAL_MAX];
