@@ -137,10 +137,17 @@ class ECDH extends Config{
             }
             K_S = _buf.getValue();
             byte[] Q_S = _buf.getValue();
-            byte[][] r_s = fromPoint2(Q_S);
-            if (!ecdh.validate(r_s[0], r_s[1]))
+            int i = 0;
+            while (Q_S[i] != 4)
+                i++;
+            i++;
+            byte[] r_array = new byte[(Q_S.length - i) / 2];
+            byte[] s_array = new byte[(Q_S.length - i) / 2];
+            System.arraycopy(Q_S, i, r_array, 0, r_array.length);
+            System.arraycopy(Q_S, i + r_array.length, s_array, 0, s_array.length);
+            if (!ecdh.validate(r_array, s_array))
                 return false;
-            K = ecdh.getSecret(r_s[0], r_s[1]);
+            K = ecdh.getSecret(r_array, s_array);
             while(K.length > 1 && K[0] == 0 && (K[1] & 0x80) == 0){
                 byte[] tmp = new byte[K.length - 1];
                 System.arraycopy(K, 1, tmp, 0, tmp.length);
@@ -163,21 +170,6 @@ class ECDH extends Config{
             return verify(K_S, sig_of_H);
         }
         return false;
-    }
-
-    static byte[][] fromPoint2(byte[] point) {
-        int i = 0;
-        while (point[i] != 4)
-            i++;
-        i++;
-        byte[][] tmp = new byte[2][];
-        byte[] r_array = new byte[(point.length - i) / 2];
-        byte[] s_array = new byte[(point.length - i) / 2];
-        System.arraycopy(point, i, r_array, 0, r_array.length);
-        System.arraycopy(point, i + r_array.length, s_array, 0, s_array.length);
-        tmp[0] = r_array;
-        tmp[1] = s_array;
-        return tmp;
     }
 
     public int getState() {
