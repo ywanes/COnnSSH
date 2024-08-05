@@ -1,32 +1,35 @@
 class Session{
-    static final int SSH_MSG_DISCONNECT = 1;
-    static final int SSH_MSG_IGNORE = 2;
-    static final int SSH_MSG_UNIMPLEMENTED = 3;
-    static final int SSH_MSG_DEBUG = 4;
-    static final int SSH_MSG_SERVICE_REQUEST = 5;
-    static final int SSH_MSG_KEXINIT = 20;
-    static final int SSH_MSG_NEWKEYS = 21;
-    static final int SSH_MSG_KEXDH_INIT = 30;
-    static final int SSH_MSG_KEXDH_REPLY = 31;
-    static final int SSH_MSG_KEX_DH_GEX_GROUP = 31;
-    static final int SSH_MSG_KEX_DH_GEX_INIT = 32;
-    static final int SSH_MSG_KEX_DH_GEX_REPLY = 33;
-    static final int SSH_MSG_KEX_DH_GEX_REQUEST = 34;
-    static final int SSH_MSG_GLOBAL_REQUEST = 80;
-    static final int SSH_MSG_REQUEST_SUCCESS = 81;
-    static final int SSH_MSG_REQUEST_FAILURE = 82;
-    static final int SSH_MSG_CHANNEL_OPEN = 90;
-    static final int SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91;
-    static final int SSH_MSG_CHANNEL_OPEN_FAILURE = 92;
-    static final int SSH_MSG_CHANNEL_WINDOW_ADJUST = 93;
-    static final int SSH_MSG_CHANNEL_DATA = 94;
-    static final int SSH_MSG_CHANNEL_EXTENDED_DATA = 95;
-    static final int SSH_MSG_CHANNEL_EOF = 96;
-    static final int SSH_MSG_CHANNEL_CLOSE = 97;
-    static final int SSH_MSG_CHANNEL_REQUEST = 98;
-    static final int SSH_MSG_CHANNEL_SUCCESS = 99;
-    static final int SSH_MSG_CHANNEL_FAILURE = 100;
-    private static final int PACKET_MAX_SIZE = 256 * 1024;
+    final int SSH_MSG_DISCONNECT = 1;
+    final int SSH_MSG_IGNORE = 2;
+    final int SSH_MSG_UNIMPLEMENTED = 3;
+    final int SSH_MSG_DEBUG = 4;
+    final int SSH_MSG_SERVICE_REQUEST = 5;
+    final int SSH_MSG_KEXINIT = 20;
+    final int SSH_MSG_NEWKEYS = 21;
+    final int SSH_MSG_KEXDH_INIT = 30;
+    final int SSH_MSG_KEXDH_REPLY = 31;
+    final int SSH_MSG_KEX_DH_GEX_GROUP = 31;
+    final int SSH_MSG_KEX_DH_GEX_INIT = 32;
+    final int SSH_MSG_KEX_DH_GEX_REPLY = 33;
+    final int SSH_MSG_KEX_DH_GEX_REQUEST = 34;
+    final int SSH_MSG_USERAUTH_REQUEST = 50;
+    final int SSH_MSG_USERAUTH_FAILURE = 51;
+    final int SSH_MSG_USERAUTH_BANNER = 53;
+    final int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60;
+    final int SSH_MSG_GLOBAL_REQUEST = 80;
+    final int SSH_MSG_REQUEST_SUCCESS = 81;
+    final int SSH_MSG_REQUEST_FAILURE = 82;
+    final int SSH_MSG_CHANNEL_OPEN = 90;
+    final int SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91;
+    final int SSH_MSG_CHANNEL_OPEN_FAILURE = 92;
+    final int SSH_MSG_CHANNEL_WINDOW_ADJUST = 93;
+    final int SSH_MSG_CHANNEL_DATA = 94;
+    final int SSH_MSG_CHANNEL_EXTENDED_DATA = 95;
+    final int SSH_MSG_CHANNEL_EOF = 96;
+    final int SSH_MSG_CHANNEL_CLOSE = 97;
+    final int SSH_MSG_CHANNEL_REQUEST = 98;
+    final int SSH_MSG_CHANNEL_SUCCESS = 99;
+    final int SSH_MSG_CHANNEL_FAILURE = 100;
     private byte[] V_S;
     private byte[] V_C = str2byte("SSH-2.0-CUSTOM", "UTF-8");
     private byte[] I_C;
@@ -46,15 +49,16 @@ class Session{
     private byte[] s2cmac_result1;
     private byte[] s2cmac_result2;
     private java.net.Socket socket;    
-    private boolean wait_kex = false;
     private int s2ccipher_size = 8;
     private int c2scipher_size = 8;
     Buf _buf;
+    byte barra_r=new byte[]{13}[0];
+    byte barra_n=new byte[]{10}[0];
     
     java.io.InputStream in = null;
     java.io.OutputStream out = null;
     private long rwsize = 0;
-    public boolean channel_opened=false;
+    private boolean channel_opened=false;
     private int rmpsize = 0;
 
     public static int count_line_return=-1;
@@ -80,8 +84,6 @@ class Session{
     
     public void connect_stream(String host, String username, int port, String password) throws Exception{                
         _buf = new Buf();
-        byte barra_r=new byte[]{13}[0];
-        byte barra_n=new byte[]{10}[0];
         try {
             int i, j;
             try{
@@ -135,14 +137,10 @@ class Session{
                 throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());
             receive_newkeys(_buf, kex);
             _buf.reset_packet();
-            _buf.putByte((byte) Session.SSH_MSG_SERVICE_REQUEST);
+            _buf.putByte((byte) SSH_MSG_SERVICE_REQUEST);
             _buf.putValue(str2byte("ssh-userauth", "UTF-8"));
             write(_buf);
             _buf = read(_buf);
-            int SSH_MSG_USERAUTH_REQUEST = 50;
-            int SSH_MSG_USERAUTH_FAILURE = 51;
-            int SSH_MSG_USERAUTH_BANNER = 53;
-            int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60;
             _buf.reset_packet();
             _buf.putByte((byte) SSH_MSG_USERAUTH_REQUEST);
             _buf.putValue(str2byte(username, "UTF-8"));
@@ -230,7 +228,6 @@ class Session{
     }
 
     private void send_kexinit() throws Exception {
-        wait_kex = true;
         Buf buf = new Buf();
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEXINIT);
@@ -325,7 +322,6 @@ class Session{
     }
 
     private void receive_newkeys(Buf buf, ECDH kex) throws Exception {
-        wait_kex = false;
         byte[] K = kex.getK();
         byte[] H = kex.getH();
         java.security.MessageDigest sha = kex.getHash();
@@ -447,7 +443,7 @@ class Session{
         int thp = 480;
                 
         buf.reset_packet();
-        buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+        buf.putByte((byte) SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
         buf.putValue(str2byte("pty-req", "UTF-8"));
         buf.putByte((byte) 0);
@@ -460,7 +456,7 @@ class Session{
         write(buf);
         
         buf.reset_packet();
-        buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
+        buf.putByte((byte) SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
         buf.putValue(str2byte("shell", "UTF-8"));        
         buf.putByte((byte) 0);
@@ -481,7 +477,7 @@ class Session{
                 if (i == 0)
                     continue;
                 buf.reset_packet();
-                buf.putByte((byte)Session.SSH_MSG_CHANNEL_DATA);
+                buf.putByte((byte)SSH_MSG_CHANNEL_DATA);
                 buf.putInt(0);
                 buf.putInt(i);
                 buf.skip_put(i);                

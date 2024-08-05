@@ -52,7 +52,7 @@ class ECDH extends Config{
     byte[] V_C;
     byte[] I_S;
     byte[] I_C;
-    public Buf buf=null;
+    Buf buf=null;
     private DiffieHellmanECDH ecdh;
 
     ECDH(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
