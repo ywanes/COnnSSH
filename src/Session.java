@@ -271,13 +271,9 @@ class Session{
         }else
             I_S = new byte[j - 1 - buf.getByte()];
         System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
-        ECDH kex = new ECDH();
-        String[] guess = kex.guess(I_S, I_C);
-        if (guess == null)
-            throw new Exception("Algorithm negotiation fail");
-        Buf _buf=kex.init(V_S, V_C, I_S, I_C);
-        if ( _buf != null )
-            write(_buf);
+        ECDH kex = new ECDH(V_S, V_C, I_S, I_C);
+        if ( kex.buf != null )
+            write(kex.buf);
         return kex;
     }
 

@@ -52,10 +52,12 @@ class ECDH extends Config{
     byte[] V_C;
     byte[] I_S;
     byte[] I_C;
-    private Buf buf;
+    public Buf buf=null;
     private DiffieHellmanECDH ecdh;
 
-    public Buf init(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
+    ECDH(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
+        if ( guess(I_S, I_C) == null )
+            throw new Exception("Algorithm negotiation fail");        
         this.V_S = V_S;
         this.V_C = V_C;
         this.I_S = I_S;
@@ -73,9 +75,8 @@ class ECDH extends Config{
             throw new Exception("Error ECDH " + e.toString());
         }
         if (V_S == null)
-            return null;        
+            buf=null;        
         state = SSH_MSG_KEX_ECDH_REPLY;
-        return buf;
     }
     protected String[] guess(byte[] I_S, byte[] I_C) {
         String[] guess = new String[PROPOSAL_MAX];
