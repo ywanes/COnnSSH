@@ -55,6 +55,8 @@ class ECDH extends Config{
     byte[] I_C;
     Buf buf=null;
     private DiffieHellmanECDH ecdh;
+    public BigInteger two = BigInteger.ONE.add(BigInteger.ONE);
+    public BigInteger three = two.add(BigInteger.ONE);
 
     ECDH(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
         this.V_S = V_S;
@@ -67,7 +69,7 @@ class ECDH extends Config{
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try{
             ecdh = new DiffieHellmanECDH(_ecsp);
-            Q_C = ecdh.getQ();
+            Q_C = ecdh.Q_array;
             buf.putValue(Q_C);
         } catch (Exception e) {
             throw new Exception("Error ECDH " + e.toString());
@@ -146,7 +148,20 @@ class ECDH extends Config{
             byte[] s_array = new byte[(Q_S.length - i) / 2];
             System.arraycopy(Q_S, i, r_array, 0, r_array.length);
             System.arraycopy(Q_S, i + r_array.length, s_array, 0, s_array.length);
-            if (!ecdh.validate(r_array, s_array))
+            BigInteger x = new BigInteger(1, r_array);
+            BigInteger y = new BigInteger(1, s_array);
+            ECPoint w = new ECPoint(x, y);
+            if ( w.equals(ECPoint.POINT_INFINITY) )
+                return false;
+            ECParameterSpec params = ecdh.publicKey.getParams();
+            EllipticCurve curve = params.getCurve();
+            BigInteger p = ((ECFieldFp) curve.getField()).getP();
+            BigInteger p_sub1 = p.subtract(BigInteger.ONE);
+            if ( x.compareTo(p_sub1) > 0 || y.compareTo(p_sub1) > 0 )
+                return false;
+            BigInteger tmp3 = x.multiply(curve.getA()).add(curve.getB()).add(x.modPow(three, p)).mod(p);
+            BigInteger tmp4 = y.modPow(two, p);
+            if ( !tmp3.equals(tmp4) )
                 return false;
             K = ecdh.getSecret(r_array, s_array);
             while(K.length > 1 && K[0] == 0 && (K[1] & 0x80) == 0){
@@ -193,12 +208,12 @@ class DiffieHellmanECDH {
         ECPoint w = publicKey.getW();
         byte[] r = w.getAffineX().toByteArray();
         byte[] s = w.getAffineY().toByteArray();
-        Q_array = toPoint(r, s);
+        Q_array = new byte[1 + r.length + s.length];
+        Q_array[0] = 0x04;
+        System.arraycopy(r, 0, Q_array, 1, r.length);
+        System.arraycopy(s, 0, Q_array, 1 + r.length, s.length);            
         myKeyAgree = KeyAgreement.getInstance("ECDH");
         myKeyAgree.init(privateKey);
-    }
-    public byte[] getQ() throws Exception {
-        return Q_array;
     }
     public byte[] getSecret(byte[] r, byte[] s) throws Exception {
         KeyFactory kf = KeyFactory.getInstance("EC");
@@ -208,31 +223,4 @@ class DiffieHellmanECDH {
         myKeyAgree.doPhase(theirPublicKey, true);
         return myKeyAgree.generateSecret();
     }
-    private BigInteger two = BigInteger.ONE.add(BigInteger.ONE);
-    private BigInteger three = two.add(BigInteger.ONE);
-    public boolean validate(byte[] r, byte[] s) throws Exception {
-        BigInteger x = new BigInteger(1, r);
-        BigInteger y = new BigInteger(1, s);
-        ECPoint w = new ECPoint(x, y);
-        if ( w.equals(ECPoint.POINT_INFINITY) )
-            return false;
-        ECParameterSpec params = publicKey.getParams();
-        EllipticCurve curve = params.getCurve();
-        BigInteger p = ((ECFieldFp) curve.getField()).getP();
-        BigInteger p_sub1 = p.subtract(BigInteger.ONE);
-        if ( x.compareTo(p_sub1) > 0 || y.compareTo(p_sub1) > 0 )
-            return false;
-        BigInteger tmp = x.multiply(curve.getA()).add(curve.getB()).add(x.modPow(three, p)).mod(p);
-        BigInteger tmp2 = y.modPow(two, p);
-        if ( !tmp.equals(tmp2) )
-            return false;
-        return true;
-    }
-    private byte[] toPoint(byte[] r_array, byte[] s_array) {
-        byte[] tmp = new byte[1 + r_array.length + s_array.length];
-        tmp[0] = 0x04;
-        System.arraycopy(r_array, 0, tmp, 1, r_array.length);
-        System.arraycopy(s_array, 0, tmp, 1 + r_array.length, s_array.length);
-        return tmp;
-    }        
 }   
