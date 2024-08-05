@@ -1,4 +1,5 @@
 import java.math.BigInteger;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.Signature;
@@ -88,7 +89,7 @@ class ECDH extends Config{
         int i = 0;
         int j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) |
             ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-        String alg = byte2str(K_S, i, j, "UTF-8");
+        String alg = new String(K_S, i, j, "UTF-8");
         i += j;
         
         if ( skip_verify )
@@ -175,38 +176,26 @@ class ECDH extends Config{
     public int getState() {
         return state;
     }
-
-    String byte2str(byte[] str, int s, int l, String encoding) {
-        try {
-            return new String(str, s, l, encoding);
-        } catch (java.io.UnsupportedEncodingException e) {
-            System.err.println(".Util UnsupportedEncodingException " + e);
-            return new String(str, s, l);
-        }
-    }
 }
 
 class DiffieHellmanECDH {
     byte[] Q_array;
     java.security.interfaces.ECPublicKey publicKey;
     private KeyAgreement myKeyAgree;
-    String _ecsp=null;
-    DiffieHellmanECDH(String _ecsp, int size) throws Exception {
-        this._ecsp=_ecsp;
+    DiffieHellmanECDH(String ecsp, int size) throws Exception {
+        ECDSA ecdsa = new ECDSA(ecsp, size);
+        publicKey = ecdsa.getPublicKey();
+        Q_array = toPoint(ecdsa.getR(), ecdsa.getS());
         myKeyAgree = KeyAgreement.getInstance("ECDH");
-        ECDSA kpair = new ECDSA(_ecsp);
-        kpair.init(size);
-        publicKey = kpair.getPublicKey();
-        Q_array = toPoint(kpair.getR(), kpair.getS());
-        myKeyAgree.init(kpair.getPrivateKey());
+        myKeyAgree.init(ecdsa.getPrivateKey());
     }
     public byte[] getQ() throws Exception {
         return Q_array;
     }
     public byte[] getSecret(byte[] r, byte[] s) throws Exception {
         KeyFactory kf = KeyFactory.getInstance("EC");
-        ECPoint w = new ECPoint(new BigInteger(1, r), new BigInteger(1, s));
-        ECPublicKeySpec spec = new ECPublicKeySpec(w, publicKey.getParams());
+        ECPoint point = new ECPoint(new BigInteger(1, r), new BigInteger(1, s));
+        ECPublicKeySpec spec = new ECPublicKeySpec(point, publicKey.getParams());
         PublicKey theirPublicKey = kf.generatePublic(spec);
         myKeyAgree.doPhase(theirPublicKey, true);
         return myKeyAgree.generateSecret();
@@ -217,17 +206,17 @@ class DiffieHellmanECDH {
         BigInteger x = new BigInteger(1, r);
         BigInteger y = new BigInteger(1, s);
         ECPoint w = new ECPoint(x, y);
-        if (w.equals(ECPoint.POINT_INFINITY))
+        if ( w.equals(ECPoint.POINT_INFINITY) )
             return false;
         ECParameterSpec params = publicKey.getParams();
         EllipticCurve curve = params.getCurve();
         BigInteger p = ((ECFieldFp) curve.getField()).getP();
         BigInteger p_sub1 = p.subtract(BigInteger.ONE);
-        if (!(x.compareTo(p_sub1) <= 0 && y.compareTo(p_sub1) <= 0))
+        if ( x.compareTo(p_sub1) > 0 || y.compareTo(p_sub1) > 0 )
             return false;
         BigInteger tmp = x.multiply(curve.getA()).add(curve.getB()).add(x.modPow(three, p)).mod(p);
-        BigInteger y_2 = y.modPow(two, p);
-        if (!(y_2.equals(tmp)))
+        BigInteger tmp2 = y.modPow(two, p);
+        if ( !tmp.equals(tmp2) )
             return false;
         return true;
     }
@@ -246,10 +235,7 @@ class ECDSA {
     java.security.interfaces.ECPublicKey pubKey;
     java.security.interfaces.ECPrivateKey prvKey;
     String _ecsp=null;
-    public ECDSA(String _ecsp) {
-        this._ecsp = _ecsp;
-    }
-    public void init(int key_size) throws Exception {
+    public ECDSA(String _ecsp, int key_size) throws Exception{
         java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
         ECGenParameterSpec ecsp = new ECGenParameterSpec(_ecsp);
         kpg.initialize(ecsp);
