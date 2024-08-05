@@ -1,21 +1,8 @@
 import java.math.BigInteger;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.Signature;
-import java.security.spec.ECFieldFp;
-import java.security.spec.ECGenParameterSpec;
-import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
-import java.security.spec.EllipticCurve;
-import java.security.spec.RSAPublicKeySpec;
-import javax.crypto.KeyAgreement;
-
 
 // ConfigECDH256 and ConfigECDH512 -> OK
 //class Config extends ConfigECDH256{}
 class Config extends ConfigECDH512{}
-
 
 class ConfigECDH256{
     String digest = "SHA-256";
@@ -37,12 +24,9 @@ class ECDH extends Config{
     java.security.MessageDigest sha = null;        
     String _ecsp = "secp" + key_size + "r1";
 
-    protected byte[] K = null;
-    protected byte[] H = null;
-    protected byte[] K_S = null;
-    protected final int RSA = 0;
-    protected final int DSS = 1;
-    protected final int ECDSA = 2;
+    private byte[] K = null;
+    private byte[] H = null;
+    private byte[] K_S = null;
     private static final int SSH_MSG_KEX_ECDH_INIT = 30;
     private static final int SSH_MSG_KEX_ECDH_REPLY = 31;
     private int state;    
@@ -50,11 +34,11 @@ class ECDH extends Config{
     byte[] V_C;
     byte[] I_S;
     byte[] I_C;
-    Buf buf=null;
-    byte[] Q_array;
+    byte[] Q_C;
+    Buf buf=null;    
     java.security.interfaces.ECPrivateKey privateKey = null;
     java.security.interfaces.ECPublicKey publicKey = null;
-    KeyAgreement myKeyAgree = null;    
+    javax.crypto.KeyAgreement myKeyAgree = null;    
     public BigInteger two = BigInteger.ONE.add(BigInteger.ONE);
     public BigInteger three = two.add(BigInteger.ONE);
 
@@ -69,74 +53,25 @@ class ECDH extends Config{
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try{           
             java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
-            ECGenParameterSpec ecsp = new ECGenParameterSpec(_ecsp);
+            java.security.spec.ECGenParameterSpec ecsp = new java.security.spec.ECGenParameterSpec(_ecsp);
             kpg.initialize(ecsp);
             java.security.KeyPair kp = kpg.genKeyPair();
             privateKey = (java.security.interfaces.ECPrivateKey) kp.getPrivate();
             publicKey = (java.security.interfaces.ECPublicKey) kp.getPublic();        
-            ECPoint w = publicKey.getW();
+            java.security.spec.ECPoint w = publicKey.getW();
             byte[] r = w.getAffineX().toByteArray();
             byte[] s = w.getAffineY().toByteArray();
-            Q_array = new byte[1 + r.length + s.length];
-            Q_array[0] = 0x04;
-            System.arraycopy(r, 0, Q_array, 1, r.length);
-            System.arraycopy(s, 0, Q_array, 1 + r.length, s.length);            
-            myKeyAgree = KeyAgreement.getInstance("ECDH");
+            Q_C = new byte[1 + r.length + s.length];
+            Q_C[0] = 0x04;
+            System.arraycopy(r, 0, Q_C, 1, r.length);
+            System.arraycopy(s, 0, Q_C, 1 + r.length, s.length);            
+            myKeyAgree = javax.crypto.KeyAgreement.getInstance("ECDH");
             myKeyAgree.init(privateKey);            
-            buf.putValue(Q_array);
+            buf.putValue(Q_C);
         } catch (Exception e) {
             throw new Exception("Error ECDH " + e.toString());
         }
         state = SSH_MSG_KEX_ECDH_REPLY;
-    }
-
-    byte[] getK() {
-        return K;
-    }
-    byte[] getH() {
-        return H;
-    }
-    java.security.MessageDigest getHash() {
-        return sha;
-    }
-    // verificação opcional de segurança!
-    protected boolean verify(byte[] K_S, byte[] sig_of_H) throws Exception {
-        int i = 0;
-        int j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) |
-            ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);        
-        if (!new String(K_S, i, j, "UTF-8").equals("ssh-rsa"))
-            throw new Exception("unknown alg");
-        if ( skip_verify )
-            return true;
-        i += j;
-        byte[] tmp;
-        byte[] ee;
-        byte[] n;
-        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-        tmp = new byte[j];
-        System.arraycopy(K_S, i, tmp, 0, j);
-        i += j;
-        ee = tmp;
-        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-        tmp = new byte[j];
-        System.arraycopy(K_S, i, tmp, 0, j);
-        n = tmp;
-        Signature signature = Signature.getInstance("SHA1withRSA");
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        RSAPublicKeySpec rsaPubKeySpec = new RSAPublicKeySpec(new BigInteger(n), new BigInteger(ee));
-        PublicKey _pubKey = keyFactory.generatePublic(rsaPubKeySpec);
-        signature.initVerify(_pubKey);
-        signature.update(H);
-        byte[] tmp_RSA;
-        Buf buf_RSA = new Buf(sig_of_H);
-        if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
-            int j_RSA = buf_RSA.getInt();
-            int i_RSA = buf_RSA.get_get();
-            tmp_RSA = new byte[j_RSA];
-            System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
-            sig_of_H = tmp_RSA;
-        }
-        return signature.verify(sig_of_H);
     }
 
     public boolean next(Buf _buf) throws Exception {
@@ -161,12 +96,12 @@ class ECDH extends Config{
         System.arraycopy(Q_S, i + r_array.length, s_array, 0, s_array.length);
         BigInteger x = new BigInteger(1, r_array);
         BigInteger y = new BigInteger(1, s_array);
-        ECPoint w = new ECPoint(x, y);
-        if ( w.equals(ECPoint.POINT_INFINITY) )
+        java.security.spec.ECPoint w = new java.security.spec.ECPoint(x, y);
+        if ( w.equals(java.security.spec.ECPoint.POINT_INFINITY) )
             return false;
-        ECParameterSpec params = publicKey.getParams();
-        EllipticCurve curve = params.getCurve();
-        BigInteger p = ((ECFieldFp) curve.getField()).getP();
+        java.security.spec.ECParameterSpec params = publicKey.getParams();
+        java.security.spec.EllipticCurve curve = params.getCurve();
+        BigInteger p = ((java.security.spec.ECFieldFp) curve.getField()).getP();
         BigInteger p_sub1 = p.subtract(BigInteger.ONE);
         if ( x.compareTo(p_sub1) > 0 || y.compareTo(p_sub1) > 0 )
             return false;
@@ -174,10 +109,10 @@ class ECDH extends Config{
         BigInteger tmp4 = y.modPow(two, p);
         if ( !tmp3.equals(tmp4) )
             return false;
-        KeyFactory kf = KeyFactory.getInstance("EC");
-        ECPoint point = new ECPoint(new BigInteger(1, r_array), new BigInteger(1, s_array));
-        ECPublicKeySpec spec = new ECPublicKeySpec(point, publicKey.getParams());
-        PublicKey theirPublicKey = kf.generatePublic(spec);
+        java.security.KeyFactory kf = java.security.KeyFactory.getInstance("EC");
+        java.security.spec.ECPoint point = new java.security.spec.ECPoint(new BigInteger(1, r_array), new BigInteger(1, s_array));
+        java.security.spec.ECPublicKeySpec spec = new java.security.spec.ECPublicKeySpec(point, publicKey.getParams());
+        java.security.PublicKey theirPublicKey = kf.generatePublic(spec);
         myKeyAgree.doPhase(theirPublicKey, true);
         K = myKeyAgree.generateSecret();
         while(K.length > 1 && K[0] == 0 && (K[1] & 0x80) == 0){
@@ -192,19 +127,58 @@ class ECDH extends Config{
         buf.putValue(I_C);
         buf.putValue(I_S);
         buf.putValue(K_S);
-        buf.putValue(Q_array);
+        buf.putValue(Q_C);
         buf.putValue(Q_S);
         buf.putValue(K);
         byte[] a = buf.getValueAllLen();
         sha.update(a);
         H = sha.digest();
-        state = 0;
-        return verify(K_S, sig_of_H);
+        state = 0;        
+        i = 0;
+        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) |
+            ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);        
+        if (!new String(K_S, i, j, "UTF-8").equals("ssh-rsa"))
+            throw new Exception("unknown alg");
+        if ( skip_verify )
+            return true;
+        i += j;
+        byte[] tmp;
+        byte[] ee;
+        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
+        tmp = new byte[j];
+        System.arraycopy(K_S, i, tmp, 0, j);
+        i += j;
+        ee = tmp;
+        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
+        tmp = new byte[j];
+        System.arraycopy(K_S, i, tmp, 0, j);
+        java.security.Signature signature = java.security.Signature.getInstance("SHA1withRSA");
+        java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("RSA");
+        java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(new BigInteger(tmp), new BigInteger(ee));
+        java.security.PublicKey _pubKey = keyFactory.generatePublic(rsaPubKeySpec);
+        signature.initVerify(_pubKey);
+        signature.update(H);
+        byte[] tmp_RSA;
+        Buf buf_RSA = new Buf(sig_of_H);
+        if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
+            int j_RSA = buf_RSA.getInt();
+            int i_RSA = buf_RSA.get_get();
+            tmp_RSA = new byte[j_RSA];
+            System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
+            sig_of_H = tmp_RSA;
+        }
+        return signature.verify(sig_of_H);        
     }
-
+    byte[] getK() {
+        return K;
+    }
+    byte[] getH() {
+        return H;
+    }
+    java.security.MessageDigest getHash() {
+        return sha;
+    }
     public int getState() {
         return state;
     }
-}
-
-   
+}  
