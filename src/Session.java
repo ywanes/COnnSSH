@@ -45,9 +45,7 @@ class Session{
     private javax.crypto.Mac c2smac;
     private byte[] s2cmac_result1;
     private byte[] s2cmac_result2;
-    private java.net.Socket socket;
-    String username = null;
-    byte[] password = null;
+    private java.net.Socket socket;    
     private boolean wait_kex = false;
     private int s2ccipher_size = 8;
     private int c2scipher_size = 8;
@@ -80,9 +78,7 @@ class Session{
         working();
     }
     
-    public void connect_stream(String host, String username, int port, String _password) throws Exception{        
-        this.username = username;
-        this.password = str2byte(_password, "UTF-8");
+    public void connect_stream(String host, String username, int port, String password) throws Exception{                
         _buf = new Buf();
         byte barra_r=new byte[]{13}[0];
         byte barra_n=new byte[]{10}[0];
@@ -153,7 +149,7 @@ class Session{
             _buf.putValue(str2byte("ssh-connection", "UTF-8"));
             _buf.putValue(str2byte("password", "UTF-8"));
             _buf.putByte((byte) 0);
-            _buf.putValue(password);
+            _buf.putValue(str2byte(password, "UTF-8"));
             write(_buf);
             _buf = read(_buf);
             int command = _buf.getCommand() & 0xff;
