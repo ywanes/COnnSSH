@@ -163,7 +163,12 @@ class ECDH extends Config{
             BigInteger tmp4 = y.modPow(two, p);
             if ( !tmp3.equals(tmp4) )
                 return false;
-            K = ecdh.getSecret(r_array, s_array);
+            KeyFactory kf = KeyFactory.getInstance("EC");
+            ECPoint point = new ECPoint(new BigInteger(1, r_array), new BigInteger(1, s_array));
+            ECPublicKeySpec spec = new ECPublicKeySpec(point, ecdh.publicKey.getParams());
+            PublicKey theirPublicKey = kf.generatePublic(spec);
+            ecdh.myKeyAgree.doPhase(theirPublicKey, true);
+            K = ecdh.myKeyAgree.generateSecret();
             while(K.length > 1 && K[0] == 0 && (K[1] & 0x80) == 0){
                 byte[] tmp = new byte[K.length - 1];
                 System.arraycopy(K, 1, tmp, 0, tmp.length);
@@ -197,7 +202,7 @@ class DiffieHellmanECDH {
     byte[] Q_array;
     java.security.interfaces.ECPrivateKey privateKey = null;
     java.security.interfaces.ECPublicKey publicKey = null;
-    private KeyAgreement myKeyAgree = null;
+    KeyAgreement myKeyAgree = null;
     DiffieHellmanECDH(String ecsp) throws Exception {
         java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
         ECGenParameterSpec _ecsp = new ECGenParameterSpec(ecsp);
@@ -214,13 +219,5 @@ class DiffieHellmanECDH {
         System.arraycopy(s, 0, Q_array, 1 + r.length, s.length);            
         myKeyAgree = KeyAgreement.getInstance("ECDH");
         myKeyAgree.init(privateKey);
-    }
-    public byte[] getSecret(byte[] r, byte[] s) throws Exception {
-        KeyFactory kf = KeyFactory.getInstance("EC");
-        ECPoint point = new ECPoint(new BigInteger(1, r), new BigInteger(1, s));
-        ECPublicKeySpec spec = new ECPublicKeySpec(point, publicKey.getParams());
-        PublicKey theirPublicKey = kf.generatePublic(spec);
-        myKeyAgree.doPhase(theirPublicKey, true);
-        return myKeyAgree.generateSecret();
     }
 }   
