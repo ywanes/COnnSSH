@@ -56,8 +56,6 @@ class ECDH extends Config{
     private DiffieHellmanECDH ecdh;
 
     ECDH(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
-        if ( guess(I_S, I_C) == null )
-            throw new Exception("Algorithm negotiation fail");        
         this.V_S = V_S;
         this.V_C = V_C;
         this.I_S = I_S;
@@ -74,48 +72,6 @@ class ECDH extends Config{
             throw new Exception("Error ECDH " + e.toString());
         }
         state = SSH_MSG_KEX_ECDH_REPLY;
-    }
-    protected String[] guess(byte[] I_S, byte[] I_C) {
-        String[] guess = new String[PROPOSAL_MAX];
-        Buf sb = new Buf(I_S);
-        sb.set_get(17);
-        Buf cb = new Buf(I_C);
-        cb.set_get(17);
-        for (int i = 0; i < PROPOSAL_MAX; i++) {
-            byte[] sp = sb.getValue();
-            byte[] cp = cb.getValue();
-            int j = 0;
-            int k = 0;
-            label_break:
-                while (j < cp.length) {
-                    while (j < cp.length && cp[j] != ',')
-                        j++;
-                    if (k == j) return null;
-                    String algorithm = byte2str(cp, k, j - k, "UTF-8");
-                    int l = 0;
-                    int m = 0;
-                    while (l < sp.length){
-                        while (l < sp.length && sp[l] != ',')
-                            l++;
-                        if (m == l)
-                            return null;
-                        if (algorithm.equals(byte2str(sp, m, l - m, "UTF-8"))) {
-                            guess[i] = algorithm;
-                            break label_break;
-                        }
-                        l++;
-                        m = l;
-                    }
-                    j++;
-                    k = j;
-                }
-            if (j == 0) {
-                guess[i] = "";
-            }else if (guess[i] == null) {
-                return null;
-            }
-        }
-        return guess;
     }
 
     byte[] getK() {
