@@ -47,14 +47,17 @@ class ECDH extends Config{
     protected final int ECDSA = 2;
     private static final int SSH_MSG_KEX_ECDH_INIT = 30;
     private static final int SSH_MSG_KEX_ECDH_REPLY = 31;
-    private int state;
-    byte[] Q_C;
+    private int state;    
     byte[] V_S;
     byte[] V_C;
     byte[] I_S;
     byte[] I_C;
     Buf buf=null;
-    private DiffieHellmanECDH ecdh;
+    //private DiffieHellmanECDH ecdh;
+    byte[] Q_array;
+    java.security.interfaces.ECPrivateKey privateKey = null;
+    java.security.interfaces.ECPublicKey publicKey = null;
+    KeyAgreement myKeyAgree = null;    
     public BigInteger two = BigInteger.ONE.add(BigInteger.ONE);
     public BigInteger three = two.add(BigInteger.ONE);
 
@@ -68,9 +71,47 @@ class ECDH extends Config{
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try{
-            ecdh = new DiffieHellmanECDH(_ecsp);
-            Q_C = ecdh.Q_array;
-            buf.putValue(Q_C);
+            //ecdh = new DiffieHellmanECDH(_ecsp);
+            /*
+            byte[] Q_array;
+            java.security.interfaces.ECPrivateKey privateKey = null;
+            java.security.interfaces.ECPublicKey publicKey = null;
+            KeyAgreement myKeyAgree = null;
+            DiffieHellmanECDH(String ecsp) throws Exception {
+                java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
+                ECGenParameterSpec _ecsp = new ECGenParameterSpec(ecsp);
+                kpg.initialize(_ecsp);
+                java.security.KeyPair kp = kpg.genKeyPair();
+                privateKey = (java.security.interfaces.ECPrivateKey) kp.getPrivate();
+                publicKey = (java.security.interfaces.ECPublicKey) kp.getPublic();        
+                ECPoint w = publicKey.getW();
+                byte[] r = w.getAffineX().toByteArray();
+                byte[] s = w.getAffineY().toByteArray();
+                Q_array = new byte[1 + r.length + s.length];
+                Q_array[0] = 0x04;
+                System.arraycopy(r, 0, Q_array, 1, r.length);
+                System.arraycopy(s, 0, Q_array, 1 + r.length, s.length);            
+                myKeyAgree = KeyAgreement.getInstance("ECDH");
+                myKeyAgree.init(privateKey);
+            }
+            
+            */
+            java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
+            ECGenParameterSpec ecsp = new ECGenParameterSpec(_ecsp);
+            kpg.initialize(ecsp);
+            java.security.KeyPair kp = kpg.genKeyPair();
+            privateKey = (java.security.interfaces.ECPrivateKey) kp.getPrivate();
+            publicKey = (java.security.interfaces.ECPublicKey) kp.getPublic();        
+            ECPoint w = publicKey.getW();
+            byte[] r = w.getAffineX().toByteArray();
+            byte[] s = w.getAffineY().toByteArray();
+            Q_array = new byte[1 + r.length + s.length];
+            Q_array[0] = 0x04;
+            System.arraycopy(r, 0, Q_array, 1, r.length);
+            System.arraycopy(s, 0, Q_array, 1 + r.length, s.length);            
+            myKeyAgree = KeyAgreement.getInstance("ECDH");
+            myKeyAgree.init(privateKey);            
+            buf.putValue(Q_array);
         } catch (Exception e) {
             throw new Exception("Error ECDH " + e.toString());
         }
@@ -153,7 +194,7 @@ class ECDH extends Config{
             ECPoint w = new ECPoint(x, y);
             if ( w.equals(ECPoint.POINT_INFINITY) )
                 return false;
-            ECParameterSpec params = ecdh.publicKey.getParams();
+            ECParameterSpec params = publicKey.getParams();
             EllipticCurve curve = params.getCurve();
             BigInteger p = ((ECFieldFp) curve.getField()).getP();
             BigInteger p_sub1 = p.subtract(BigInteger.ONE);
@@ -165,10 +206,10 @@ class ECDH extends Config{
                 return false;
             KeyFactory kf = KeyFactory.getInstance("EC");
             ECPoint point = new ECPoint(new BigInteger(1, r_array), new BigInteger(1, s_array));
-            ECPublicKeySpec spec = new ECPublicKeySpec(point, ecdh.publicKey.getParams());
+            ECPublicKeySpec spec = new ECPublicKeySpec(point, publicKey.getParams());
             PublicKey theirPublicKey = kf.generatePublic(spec);
-            ecdh.myKeyAgree.doPhase(theirPublicKey, true);
-            K = ecdh.myKeyAgree.generateSecret();
+            myKeyAgree.doPhase(theirPublicKey, true);
+            K = myKeyAgree.generateSecret();
             while(K.length > 1 && K[0] == 0 && (K[1] & 0x80) == 0){
                 byte[] tmp = new byte[K.length - 1];
                 System.arraycopy(K, 1, tmp, 0, tmp.length);
@@ -181,7 +222,7 @@ class ECDH extends Config{
             buf.putValue(I_C);
             buf.putValue(I_S);
             buf.putValue(K_S);
-            buf.putValue(Q_C);
+            buf.putValue(Q_array);
             buf.putValue(Q_S);
             buf.putValue(K);
             byte[] a = buf.getValueAllLen();
@@ -198,26 +239,4 @@ class ECDH extends Config{
     }
 }
 
-class DiffieHellmanECDH {
-    byte[] Q_array;
-    java.security.interfaces.ECPrivateKey privateKey = null;
-    java.security.interfaces.ECPublicKey publicKey = null;
-    KeyAgreement myKeyAgree = null;
-    DiffieHellmanECDH(String ecsp) throws Exception {
-        java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
-        ECGenParameterSpec _ecsp = new ECGenParameterSpec(ecsp);
-        kpg.initialize(_ecsp);
-        java.security.KeyPair kp = kpg.genKeyPair();
-        privateKey = (java.security.interfaces.ECPrivateKey) kp.getPrivate();
-        publicKey = (java.security.interfaces.ECPublicKey) kp.getPublic();        
-        ECPoint w = publicKey.getW();
-        byte[] r = w.getAffineX().toByteArray();
-        byte[] s = w.getAffineY().toByteArray();
-        Q_array = new byte[1 + r.length + s.length];
-        Q_array[0] = 0x04;
-        System.arraycopy(r, 0, Q_array, 1, r.length);
-        System.arraycopy(s, 0, Q_array, 1 + r.length, s.length);            
-        myKeyAgree = KeyAgreement.getInstance("ECDH");
-        myKeyAgree.init(privateKey);
-    }
-}   
+   
