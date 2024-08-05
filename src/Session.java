@@ -100,7 +100,6 @@ class Session{
             put_stream(a);
             while(true){
                 i = 0;
-                j = 0;
                 while(i < _buf.buffer.length){
                     j = getByte();
                     if (j < 0) 
@@ -171,54 +170,55 @@ class Session{
                 }catch (java.io.InterruptedIOException ee){
                     throw new Exception("Error Session 261 " + ee);
                 }
-                int msgType = buf.getCommand() & 0xff;                
-                switch (msgType) {
-                    case SSH_MSG_CHANNEL_DATA:
-                        buf.getInt();
-                        buf.getByte();
-                        buf.getByte();
-                        buf.getInt();
-                        byte[] a = buf.getValue();
-                        if (a.length == 0)
-                            break;
-                        try {
-                            // ponto critico retorno out
-                            // enviando ls ele só retorna ls
-                            // analisando o send, dá para observar que ele manda o dado
-                            // ainda não sei porque ele nao me responde corretamente.
-                            ///////////                                    
-                            if ( can_print(a.length) )
-                                put(a, 0, a.length);
-                        } catch (Exception e) {
-                            throw new Exception("Error Session 287 " + e);                                    
-                        }
-                        break;
-                    case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getInt();
-                        buf.getInt();
-                        buf.getInt();
-                        int rps = buf.getInt();
-                        channel_opened=true;
-                        set_rwsize(0);
-                        set_rmpsize(rps);                        
-                        break;
-                    case SSH_MSG_GLOBAL_REQUEST:
-                        buf.getInt();
-                        buf.getShort();
-                        buf.getValue();
-                        if (buf.getByte() != 0) {
-                            buf.reset_packet();
-                            buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
-                            write(buf);
-                        }
-                        break;
-                    case SSH_MSG_CHANNEL_EOF:
+                int msgType = buf.getCommand() & 0xff;        
+                if ( msgType == SSH_MSG_CHANNEL_DATA){
+                    buf.getInt();
+                    buf.getByte();
+                    buf.getByte();
+                    buf.getInt();
+                    byte[] a = buf.getValue();
+                    if (a.length == 0)
                         System.exit(0);
-                    default:
-                        throw new Exception("msgType " + msgType+" not found. - Only 3 msgType implementations");
+                    try {
+                        // ponto critico retorno out
+                        // enviando ls ele só retorna ls
+                        // analisando o send, dá para observar que ele manda o dado
+                        // ainda não sei porque ele nao me responde corretamente.
+                        ///////////                                    
+                        if ( can_print(a.length) )
+                            put(a, 0, a.length);
+                    } catch (Exception e) {
+                        throw new Exception("Error Session 287 " + e);                                    
+                    }
+                    continue;
                 }
+                if ( msgType == SSH_MSG_CHANNEL_OPEN_CONFIRMATION){
+                    buf.getInt();
+                    buf.getShort();
+                    buf.getInt();
+                    buf.getInt();
+                    buf.getInt();
+                    int rps = buf.getInt();
+                    channel_opened=true;
+                    set_rwsize(0);
+                    set_rmpsize(rps);                        
+                    continue;
+                }
+                if ( msgType == SSH_MSG_GLOBAL_REQUEST ){
+                    buf.getInt();
+                    buf.getShort();
+                    buf.getValue();
+                    if (buf.getByte() != 0) {
+                        buf.reset_packet();
+                        buf.putByte((byte) SSH_MSG_REQUEST_FAILURE);
+                        write(buf);
+                    }
+                    continue;
+                }
+                if ( msgType == SSH_MSG_CHANNEL_EOF ){
+                    System.exit(0);
+                }
+                throw new Exception("msgType " + msgType+" not found. - Only 4 msgType implementations");
             }
         } catch (Exception e) {
             System.out.println("ex_151 " + e.toString());
