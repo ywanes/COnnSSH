@@ -136,11 +136,15 @@ class ECDH extends Config{
             return secret;
     }
     // verificação opcional de segurança!
-    protected boolean verify(String alg, byte[] K_S, int index, byte[] sig_of_H) throws Exception {
+    protected boolean verify(byte[] K_S, byte[] sig_of_H) throws Exception {
+        int i = 0;
+        int j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) |
+            ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
+        String alg = byte2str(K_S, i, j, "UTF-8");
+        i += j;
+        
         if ( skip_verify )
             return true;
-        int i, j;
-        i = index;
         if (!alg.equals("ssh-rsa"))
             throw new Exception("unknown alg");
         byte[] tmp;
@@ -159,8 +163,8 @@ class ECDH extends Config{
         Signature signature = Signature.getInstance("SHA1withRSA");
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         RSAPublicKeySpec rsaPubKeySpec = new RSAPublicKeySpec(new BigInteger(n), new BigInteger(ee));
-        PublicKey pubKey2 = keyFactory.generatePublic(rsaPubKeySpec);
-        signature.initVerify(pubKey2);
+        PublicKey _pubKey = keyFactory.generatePublic(rsaPubKeySpec);
+        signature.initVerify(_pubKey);
         signature.update(H);
         byte[] tmp_RSA;
         Buf buf_RSA = new Buf(sig_of_H);
@@ -175,44 +179,37 @@ class ECDH extends Config{
     }
 
     public boolean next(Buf _buf) throws Exception {
-        int i, j;
-        switch (state) {
-            case SSH_MSG_KEX_ECDH_REPLY:
-                _buf.getInt();
-                _buf.getByte();
-                j = _buf.getByte();
-                if (j != 31) {
-                    System.err.println("type: must be 31 " + j);
-                    return false;
-                }
-                K_S = _buf.getValue();
-                byte[] Q_S = _buf.getValue();
-                byte[][] r_s = fromPoint(Q_S);
-                if (!ecdh.validate(r_s[0], r_s[1]))
-                    return false;
-                K = ecdh.getSecret(r_s[0], r_s[1]);
-                K = normalize(K);
-                byte[] sig_of_H = _buf.getValue();
-                buf.reset();
-                buf.putValue(V_C);
-                buf.putValue(V_S);
-                buf.putValue(I_C);
-                buf.putValue(I_S);
-                buf.putValue(K_S);
-                buf.putValue(Q_C);
-                buf.putValue(Q_S);
-                buf.putValue(K);
-                byte[] a = buf.getValueAllLen();
-                sha.update(a);
-                H = sha.digest();
-                i = 0;
-                j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) |
-                    ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-                String alg = byte2str(K_S, i, j, "UTF-8");
-                i += j;
-                boolean result = verify(alg, K_S, i, sig_of_H);
-                state = 0;
-                return result;
+        int j;
+        if ( state == SSH_MSG_KEX_ECDH_REPLY ){
+            _buf.getInt();
+            _buf.getByte();
+            j = _buf.getByte();
+            if (j != 31) {
+                System.err.println("type: must be 31 " + j);
+                return false;
+            }
+            K_S = _buf.getValue();
+            byte[] Q_S = _buf.getValue();
+            byte[][] r_s = fromPoint(Q_S);
+            if (!ecdh.validate(r_s[0], r_s[1]))
+                return false;
+            K = ecdh.getSecret(r_s[0], r_s[1]);
+            K = normalize(K);
+            byte[] sig_of_H = _buf.getValue();
+            buf.reset();
+            buf.putValue(V_C);
+            buf.putValue(V_S);
+            buf.putValue(I_C);
+            buf.putValue(I_S);
+            buf.putValue(K_S);
+            buf.putValue(Q_C);
+            buf.putValue(Q_S);
+            buf.putValue(K);
+            byte[] a = buf.getValueAllLen();
+            sha.update(a);
+            H = sha.digest();
+            state = 0;
+            return verify(K_S, sig_of_H);
         }
         return false;
     }
