@@ -439,21 +439,17 @@ class Session{
         buf.putInt(0x100000);
         buf.putInt(0x4000);
         write(buf);
+        
         int limit=3000;
-        while(limit-->0){
-            if ( channel_opened )
-                break;
+        while(limit-->0 && !channel_opened )
             try { Thread.sleep(10); } catch (Exception e) {};        
-        }
         if ( !channel_opened )
-            throw new Exception("channel is not opened.");
-        byte[] terminal_mode = (byte[]) str2byte("", "UTF-8");
+            throw new Exception("channel is not opened.");        
         int tcol = 10000;//80;
         int trow = 24;
         int twp = 640;
         int thp = 480;
                 
-        buf=new Buf();
         buf.reset_packet();
         buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
@@ -464,10 +460,9 @@ class Session{
         buf.putInt(trow);
         buf.putInt(twp);
         buf.putInt(thp);
-        buf.putValue(terminal_mode);
+        buf.putValue(str2byte("", "UTF-8"));
         write(buf);
         
-        buf=new Buf();
         buf.reset_packet();
         buf.putByte((byte) Session.SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);

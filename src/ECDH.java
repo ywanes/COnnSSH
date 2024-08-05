@@ -67,15 +67,12 @@ class ECDH extends Config{
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
         try {
-            ecdh = new DiffieHellmanECDH(_ecsp);
-            ecdh.init(key_size);
+            ecdh = new DiffieHellmanECDH(_ecsp, key_size);
             Q_C = ecdh.getQ();
             buf.putValue(Q_C);
         } catch (Exception e) {
             throw new Exception("Error ECDH " + e.toString());
         }
-        if (V_S == null)
-            buf=null;        
         state = SSH_MSG_KEX_ECDH_REPLY;
     }
     protected String[] guess(byte[] I_S, byte[] I_C) {
@@ -254,10 +251,8 @@ class DiffieHellmanECDH {
     java.security.interfaces.ECPublicKey publicKey;
     private KeyAgreement myKeyAgree;
     String _ecsp=null;
-    DiffieHellmanECDH(String _ecsp){
+    DiffieHellmanECDH(String _ecsp, int size) throws Exception {
         this._ecsp=_ecsp;
-    }
-    public void init(int size) throws Exception {
         myKeyAgree = KeyAgreement.getInstance("ECDH");
         ECDSA kpair = new ECDSA(_ecsp);
         kpair.init(size);
