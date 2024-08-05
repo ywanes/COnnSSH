@@ -83,14 +83,6 @@ class ECDH extends Config{
     java.security.MessageDigest getHash() {
         return sha;
     }
-    protected byte[] normalize(byte[] secret){
-        while(secret.length > 1 && secret[0] == 0 && (secret[1] & 0x80) == 0){
-            byte[] tmp = new byte[secret.length - 1];
-            System.arraycopy(secret, 1, tmp, 0, tmp.length);
-            secret=tmp;
-        }
-        return secret;
-    }
     // verificação opcional de segurança!
     protected boolean verify(byte[] K_S, byte[] sig_of_H) throws Exception {
         int i = 0;
@@ -145,11 +137,15 @@ class ECDH extends Config{
             }
             K_S = _buf.getValue();
             byte[] Q_S = _buf.getValue();
-            byte[][] r_s = fromPoint(Q_S);
+            byte[][] r_s = fromPoint2(Q_S);
             if (!ecdh.validate(r_s[0], r_s[1]))
                 return false;
             K = ecdh.getSecret(r_s[0], r_s[1]);
-            K = normalize(K);
+            while(K.length > 1 && K[0] == 0 && (K[1] & 0x80) == 0){
+                byte[] tmp = new byte[K.length - 1];
+                System.arraycopy(K, 1, tmp, 0, tmp.length);
+                K=tmp;
+            }            
             byte[] sig_of_H = _buf.getValue();
             buf.reset();
             buf.putValue(V_C);
@@ -169,7 +165,7 @@ class ECDH extends Config{
         return false;
     }
 
-    static byte[][] fromPoint(byte[] point) {
+    static byte[][] fromPoint2(byte[] point) {
         int i = 0;
         while (point[i] != 4)
             i++;
