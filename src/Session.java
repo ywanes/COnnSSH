@@ -31,7 +31,7 @@ class Session{
     final int SSH_MSG_CHANNEL_SUCCESS = 99;
     final int SSH_MSG_CHANNEL_FAILURE = 100;
     private byte[] V_S;
-    private byte[] V_C = str2byte("SSH-2.0-CUSTOM", "UTF-8");
+    private byte[] V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
     private byte[] I_C;
     private byte[] I_S;
     private byte[] session_ids;
@@ -137,16 +137,16 @@ class Session{
             receive_newkeys(_buf, kex);
             _buf.reset_packet();
             _buf.putByte((byte) SSH_MSG_SERVICE_REQUEST);
-            _buf.putValue(str2byte("ssh-userauth", "UTF-8"));
+            _buf.putValue("ssh-userauth".getBytes("UTF-8"));
             write(_buf);
             _buf = read(_buf);
             _buf.reset_packet();
             _buf.putByte((byte) SSH_MSG_USERAUTH_REQUEST);
-            _buf.putValue(str2byte(username, "UTF-8"));
-            _buf.putValue(str2byte("ssh-connection", "UTF-8"));
-            _buf.putValue(str2byte("password", "UTF-8"));
+            _buf.putValue(username.getBytes("UTF-8"));
+            _buf.putValue("ssh-connection".getBytes("UTF-8"));
+            _buf.putValue("password".getBytes("UTF-8"));
             _buf.putByte((byte) 0);
-            _buf.putValue(str2byte(password, "UTF-8"));
+            _buf.putValue(password.getBytes("UTF-8"));
             write(_buf);
             _buf = read(_buf);
             int command = _buf.getCommand() & 0xff;
@@ -232,23 +232,20 @@ class Session{
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_KEXINIT);
         int start_fill = buf.get_put();
-        int len_fill = 16;
-        byte[] tmp_fill = new byte[16];
-        if (len_fill > tmp_fill.length)
-            tmp_fill = new byte[len_fill];
-        Buf.random.nextBytes(tmp_fill);
-        System.arraycopy(tmp_fill, 0, buf.buffer, start_fill, len_fill);
+        byte[] a = new byte[16];
+        Buf.random.nextBytes(a);
+        System.arraycopy(a, 0, buf.buffer, start_fill, a.length);
         buf.skip_put(16);
-        buf.putValue(str2byte(ECDH.cipher, "UTF-8"));
-        buf.putValue(str2byte(ECDH.groupCipher, "UTF-8"));
-        buf.putValue(str2byte("aes256-ctr", "UTF-8"));
-        buf.putValue(str2byte("aes256-ctr", "UTF-8"));
-        buf.putValue(str2byte("hmac-sha1", "UTF-8"));
-        buf.putValue(str2byte("hmac-sha1", "UTF-8"));
-        buf.putValue(str2byte("none", "UTF-8"));
-        buf.putValue(str2byte("none", "UTF-8"));
-        buf.putValue(str2byte("", "UTF-8"));
-        buf.putValue(str2byte("", "UTF-8"));
+        buf.putValue(ECDH.cipher.getBytes("UTF-8"));
+        buf.putValue(ECDH.groupCipher.getBytes("UTF-8"));
+        buf.putValue("aes256-ctr".getBytes("UTF-8"));
+        buf.putValue("aes256-ctr".getBytes("UTF-8"));
+        buf.putValue("hmac-sha1".getBytes("UTF-8"));
+        buf.putValue("hmac-sha1".getBytes("UTF-8"));
+        buf.putValue("none".getBytes("UTF-8"));
+        buf.putValue("none".getBytes("UTF-8"));
+        buf.putValue("".getBytes("UTF-8"));
+        buf.putValue("".getBytes("UTF-8"));
         buf.putByte((byte) 0);
         buf.putInt(0);
         buf.set_get(5);
@@ -426,7 +423,7 @@ class Session{
         Buf buf=new Buf(new byte[100]);
         buf.reset_packet();
         buf.putByte((byte) 90);
-        buf.putValue(str2byte("session", "UTF-8"));
+        buf.putValue("session".getBytes("UTF-8"));
         buf.putInt(0);
         buf.putInt(0x100000);
         buf.putInt(0x4000);
@@ -445,20 +442,20 @@ class Session{
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
-        buf.putValue(str2byte("pty-req", "UTF-8"));
+        buf.putValue("pty-req".getBytes("UTF-8"));
         buf.putByte((byte) 0);
-        buf.putValue(str2byte("vt100", "UTF-8"));
+        buf.putValue("vt100".getBytes("UTF-8"));
         buf.putInt(tcol);
         buf.putInt(trow);
         buf.putInt(twp);
         buf.putInt(thp);
-        buf.putValue(str2byte("", "UTF-8"));
+        buf.putValue("".getBytes("UTF-8"));
         write(buf);
         
         buf.reset_packet();
         buf.putByte((byte) SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
-        buf.putValue(str2byte("shell", "UTF-8"));        
+        buf.putValue("shell".getBytes("UTF-8"));
         buf.putByte((byte) 0);
         write(buf);
     }
@@ -509,14 +506,5 @@ class Session{
     void put(byte[] array, int begin, int length) throws Exception {
         System.out.write(array, begin, length);
         System.out.flush();
-    }    
-    byte[] str2byte(String str, String encoding) {
-        if (str == null) return null;
-        try {
-            return str.getBytes(encoding);
-        } catch (java.io.UnsupportedEncodingException e) {
-            System.err.println("..Util UnsupportedEncodingException " + e);
-            return str.getBytes();
-        }
-    }       
+    }         
 }

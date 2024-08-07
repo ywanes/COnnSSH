@@ -15,7 +15,7 @@ class ConfigECDH512{
     String digest = "SHA-512";
     public static int key_size = 521;    
     public static int nn_cipher=64;
-    boolean need_verification=true;
+    boolean can_verification=true;
 }
 
 class ECDH extends Config{    
@@ -102,13 +102,6 @@ class ECDH extends Config{
         java.security.spec.ECParameterSpec params = publicKey.getParams();
         java.security.spec.EllipticCurve curve = params.getCurve();
         BigInteger p = ((java.security.spec.ECFieldFp) curve.getField()).getP();
-        BigInteger p_sub1 = p.subtract(BigInteger.ONE);
-        if ( x.compareTo(p_sub1) > 0 || y.compareTo(p_sub1) > 0 )
-            return false;
-        BigInteger tmp3 = x.multiply(curve.getA()).add(curve.getB()).add(x.modPow(three, p)).mod(p);
-        BigInteger tmp4 = y.modPow(two, p);
-        if ( !tmp3.equals(tmp4) )
-            return false;
         java.security.KeyFactory kf = java.security.KeyFactory.getInstance("EC");
         java.security.spec.ECPoint point = new java.security.spec.ECPoint(new BigInteger(1, r_array), new BigInteger(1, s_array));
         java.security.spec.ECPublicKeySpec spec = new java.security.spec.ECPublicKeySpec(point, publicKey.getParams());
@@ -139,7 +132,7 @@ class ECDH extends Config{
             ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);        
         if (!new String(K_S, i, j, "UTF-8").equals("ssh-rsa"))
             throw new Exception("unknown alg");
-        if ( need_verification ){            
+        if ( can_verification ){            
             i += j;
             byte[] tmp;
             byte[] ee;
