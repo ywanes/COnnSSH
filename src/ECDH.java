@@ -80,10 +80,6 @@ class ECDH extends Config{
         _buf.getInt();
         _buf.getByte();
         int j = _buf.getByte();
-        if (j != 31) {
-            System.err.println("type: must be 31 " + j);
-            return false;
-        }
         K_S = _buf.getValue();
         byte[] Q_S = _buf.getValue();
         int i = 0;
