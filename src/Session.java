@@ -34,27 +34,17 @@ class Session{
     private byte[] V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
     private byte[] I_C;
     private byte[] I_S;
-    private byte[] session_ids;
-    private byte[] IVc2s;
-    private byte[] IVs2c;
-    private byte[] Ec2s;
-    private byte[] Es2c;
-    private byte[] MACc2s;
-    private byte[] MACs2c;
-    private int seqo = 0;    
-    private javax.crypto.Cipher s2ccipher;
-    private javax.crypto.Cipher c2scipher;
-    private javax.crypto.Mac s2cmac;
-    private javax.crypto.Mac c2smac;
-    private byte[] s2cmac_result1;
-    private byte[] s2cmac_result2;
+    private byte[] session_ids;    
+    private javax.crypto.Cipher reader_cipher;
+    private javax.crypto.Mac reader_mac;    
+    private javax.crypto.Cipher writer_cipher;
+    private javax.crypto.Mac writer_mac;
+    private int writer_seq = 0;    
     private java.net.Socket socket;    
-    private int s2ccipher_size = 8;
-    private int c2scipher_size = 8;
+    private int reader_cipher_size = 8;
     Buf _buf;
     byte barra_r=new byte[]{13}[0];
     byte barra_n=new byte[]{10}[0];
-    
     java.io.InputStream in = null;
     java.io.OutputStream out = null;
     private long rwsize = 0;
@@ -94,10 +84,9 @@ class Session{
                 throw new Exception("Error session connect socket " + e);
             }
             // colocar \r\n nao resolve o problema no linux
-            byte[] a = new byte[V_C.length + 1];
-            System.arraycopy(V_C, 0, a, 0, V_C.length);
-            a[a.length - 1] = barra_n;            
-            put_stream(a);
+            put_stream(V_C);
+            put_stream(new byte[]{barra_n});
+            
             while(true){
                 i = 0;
                 while(i < _buf.buffer.length){
@@ -267,14 +256,67 @@ class Session{
         return kex;
     }
 
+    private void receive_newkeys(Buf buf, ECDH kex) throws Exception {
+        try{
+            byte[] K = kex.getK();
+            byte[] H = kex.getH();
+            java.security.MessageDigest sha = kex.getHash();
+            if (session_ids == null) {
+                session_ids = new byte[H.length];
+                System.arraycopy(H, 0, session_ids, 0, H.length);
+            }
+            buf.reset();
+            buf.putValue(K);
+            buf.putBytes(H);
+            buf.putByte((byte) 0x41);
+            buf.putBytes(session_ids);
+            int j = buf.get_put() - session_ids.length - 1;        
+            sha.update(buf.buffer, 0, buf.get_put());
+            byte[] _writer_cipher_IV = digest_trunc_len(sha.digest(), 16);
+            buf.buffer[j]++;
+            sha.update(buf.buffer, 0, buf.get_put());
+            byte[] _reader_cipher_IV = digest_trunc_len(sha.digest(), 16);
+            buf.buffer[j]++;
+            sha.update(buf.buffer, 0, buf.get_put());
+            byte[] _writer_cipher = digest_trunc_len(sha.digest(), 32);
+            buf.buffer[j]++;
+            sha.update(buf.buffer, 0, buf.get_put());
+            byte[] _reader_cipher = digest_trunc_len(sha.digest(), 32);
+            buf.buffer[j]++;
+            sha.update(buf.buffer, 0, buf.get_put());
+            byte[] _writer_mac = digest_trunc_len(sha.digest(), 20);
+            buf.buffer[j]++;
+            sha.update(buf.buffer, 0, buf.get_put());
+            byte[] _reader_mac = digest_trunc_len(sha.digest(), 20);
+            writer_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+            writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_writer_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_writer_cipher_IV));
+            writer_mac = javax.crypto.Mac.getInstance("HmacSHA1");
+            writer_mac.init(new javax.crypto.spec.SecretKeySpec(_writer_mac, "HmacSHA1"));
+            reader_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+            reader_cipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_reader_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_reader_cipher_IV));
+            reader_cipher_size = 16;
+            reader_mac = javax.crypto.Mac.getInstance("HmacSHA1");
+            reader_mac.init(new javax.crypto.spec.SecretKeySpec(_reader_mac, "HmacSHA1"));            
+        }catch (Exception e){
+            throw new Exception("ex_149 - " + e.toString());
+        }
+    }
+    private byte[] digest_trunc_len(byte[] digest, int len){
+        if (digest.length <= len)
+            return digest;
+        byte [] a = new byte[len];
+        System.arraycopy(digest, 0, a, 0, a.length);
+        return a;
+    }
+
     public Buf read(Buf buf) throws Exception {        
         while(true){
             buf.reset();            
-            getByte(buf.buffer, buf.get_put(), s2ccipher_size, 1);
-            buf.skip_put(s2ccipher_size);
-            if (s2ccipher != null)
-                s2ccipher.update(buf.buffer, 0, s2ccipher_size, buf.buffer, 0);
-            int need = (((buf.buffer[0] << 24) & 0xff000000) | ((buf.buffer[1] << 16) & 0x00ff0000) | ((buf.buffer[2] << 8) & 0x0000ff00) | ((buf.buffer[3]) & 0x000000ff)) + 4 - s2ccipher_size;
+            getByte(buf.buffer, buf.get_put(), reader_cipher_size, 1);
+            buf.skip_put(reader_cipher_size);
+            if (reader_cipher != null)
+                reader_cipher.update(buf.buffer, 0, reader_cipher_size, buf.buffer, 0);
+            int need = (((buf.buffer[0] << 24) & 0xff000000) | ((buf.buffer[1] << 16) & 0x00ff0000) | ((buf.buffer[2] << 8) & 0x0000ff00) | ((buf.buffer[3]) & 0x000000ff)) + 4 - reader_cipher_size;
             if ((buf.get_put() + need) > buf.buffer.length) {
                 byte[] a = new byte[buf.get_put() + need];
                 System.arraycopy(buf.buffer, 0, a, 0, buf.get_put());
@@ -283,14 +325,13 @@ class Session{
             if (need > 0) {
                 getByte(buf.buffer, buf.get_put(), need, 2);
                 buf.skip_put(need);
-                if (s2ccipher != null)
-                    s2ccipher.update(buf.buffer, s2ccipher_size, need, buf.buffer, s2ccipher_size);
-            }
-            if (s2cmac != null) {
-                s2cmac.update(buf.buffer, 0, buf.get_put());
-                s2cmac.doFinal(s2cmac_result1, 0);
-                getByte(s2cmac_result2, 0, s2cmac_result2.length, 3);
+                if (reader_cipher != null)
+                    reader_cipher.update(buf.buffer, reader_cipher_size, need, buf.buffer, reader_cipher_size);
             }            
+            if (reader_mac != null) {
+                reader_mac.update(buf.buffer, 0, buf.get_put());
+                getByte(new byte[20], 0, 20, 3);
+            }           
             int type = buf.getCommand() & 0xff;
             if (type == SSH_MSG_DISCONNECT) {
                 System.exit(0);
@@ -317,67 +358,12 @@ class Session{
         buf.reset_get();
         return buf;
     }
-
-    private void receive_newkeys(Buf buf, ECDH kex) throws Exception {
-        byte[] K = kex.getK();
-        byte[] H = kex.getH();
-        java.security.MessageDigest sha = kex.getHash();
-        if (session_ids == null) {
-            session_ids = new byte[H.length];
-            System.arraycopy(H, 0, session_ids, 0, H.length);
-        }
-        buf.reset();
-        buf.putValue(K);
-        buf.putBytes(H);
-        buf.putByte((byte) 0x41);
-        buf.putBytes(session_ids);
-        int j = buf.get_put() - session_ids.length - 1;        
-        sha.update(buf.buffer, 0, buf.get_put());
-        IVc2s = digest_trunc_len(sha.digest(), 16);
-        buf.buffer[j]++;
-        sha.update(buf.buffer, 0, buf.get_put());
-        IVs2c = digest_trunc_len(sha.digest(), 16);
-        buf.buffer[j]++;
-        sha.update(buf.buffer, 0, buf.get_put());
-        Ec2s = digest_trunc_len(sha.digest(), 32);
-        buf.buffer[j]++;
-        sha.update(buf.buffer, 0, buf.get_put());
-        Es2c = digest_trunc_len(sha.digest(), 32);
-        buf.buffer[j]++;
-        sha.update(buf.buffer, 0, buf.get_put());
-        MACc2s = digest_trunc_len(sha.digest(), 20);
-        buf.buffer[j]++;
-        sha.update(buf.buffer, 0, buf.get_put());
-        MACs2c = digest_trunc_len(sha.digest(), 20);
-        try{
-            s2ccipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-            s2ccipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Es2c, "AES"), new javax.crypto.spec.IvParameterSpec(IVs2c));
-            s2ccipher_size = 16;
-            s2cmac = javax.crypto.Mac.getInstance("HmacSHA1");
-            s2cmac.init(new javax.crypto.spec.SecretKeySpec(MACs2c, "HmacSHA1"));
-            s2cmac_result1 = new byte[20];
-            s2cmac_result2 = new byte[20];
-            c2scipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-            c2scipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(Ec2s, "AES"), new javax.crypto.spec.IvParameterSpec(IVc2s));
-            c2scipher_size = 16;
-            c2smac = javax.crypto.Mac.getInstance("HmacSHA1");
-            c2smac.init(new javax.crypto.spec.SecretKeySpec(MACc2s, "HmacSHA1"));
-        }catch (Exception e){
-            throw new Exception("ex_149 - " + e.toString());
-        }
-    }
-    private byte[] digest_trunc_len(byte[] digest, int len){
-        if (digest.length <= len)
-            return digest;
-        byte [] a = new byte[len];
-        System.arraycopy(digest, 0, a, 0, a.length);
-        return a;
-    }
+    
     public void write(Buf buf) throws Exception {
-        if (c2scipher == null) {
+        if (writer_cipher == null) {
             buf.padding(8);
         }else{
-            buf.padding(c2scipher_size);
+            buf.padding(16);
             int pad = buf.buffer[4];
             int put = buf.get_put();
             byte[] a = new byte[16];
@@ -386,18 +372,18 @@ class Session{
             Buf.random.nextBytes(a);
             System.arraycopy(a, 0, buf.buffer, put - pad, pad);
             a = new byte[4];
-            a[0] = (byte)(seqo >>> 24);
-            a[1] = (byte)(seqo >>> 16);
-            a[2] = (byte)(seqo >>> 8);
-            a[3] = (byte) seqo;
-            c2smac.update(a);
-            c2smac.update(buf.buffer, 0, buf.get_put());
-            c2smac.doFinal(buf.buffer, buf.get_put());
-            c2scipher.update(buf.buffer, 0, buf.get_put(), buf.buffer, 0);            
+            a[0] = (byte)(writer_seq >>> 24);
+            a[1] = (byte)(writer_seq >>> 16);
+            a[2] = (byte)(writer_seq >>> 8);
+            a[3] = (byte) writer_seq;
+            writer_mac.update(a);
+            writer_mac.update(buf.buffer, 0, buf.get_put());
+            writer_mac.doFinal(buf.buffer, buf.get_put());
+            writer_cipher.update(buf.buffer, 0, buf.get_put(), buf.buffer, 0);            
             buf.skip_put(20);
         }
         put_stream(buf);
-        seqo++;
+        writer_seq++;
     }
     public void put_stream(Buf buf) throws java.io.IOException, java.net.SocketException {
         //////////// 
