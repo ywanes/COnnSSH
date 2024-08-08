@@ -84,8 +84,9 @@ class Session{
                 throw new Exception("Error session connect socket " + e);
             }
             // colocar \r\n nao resolve o problema no linux
-            put_stream(V_C);
-            put_stream(new byte[]{barra_n});
+            out.write(V_C, 0, V_C.length);
+            out.write(barra_n);
+            out.flush();
             
             while(true){
                 i = 0;
@@ -106,10 +107,10 @@ class Session{
             V_S = new byte[i];
             System.arraycopy(_buf.buffer, 0, V_S, 0, i);
             send_kexinit();
-            _buf = read(_buf);
+            _buf = read();
             ECDH kex = receive_kexinit(_buf);
             while(true){
-                _buf = read(_buf);
+                _buf = read();
                 if (kex.getState() != _buf.getCommand()) 
                     throw new Exception("invalid protocol(kex): " + _buf.getCommand());
                 if (!kex.next(_buf)) 
@@ -120,7 +121,7 @@ class Session{
             _buf.reset_packet();
             _buf.putByte((byte) SSH_MSG_NEWKEYS);
             write(_buf);
-            _buf = read(_buf);
+            _buf = read();
             if (_buf.getCommand() != SSH_MSG_NEWKEYS )
                 throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());
             receive_newkeys(_buf, kex);
@@ -128,7 +129,7 @@ class Session{
             _buf.putByte((byte) SSH_MSG_SERVICE_REQUEST);
             _buf.putValue("ssh-userauth".getBytes("UTF-8"));
             write(_buf);
-            _buf = read(_buf);
+            _buf = read();
             _buf.reset_packet();
             _buf.putByte((byte) SSH_MSG_USERAUTH_REQUEST);
             _buf.putValue(username.getBytes("UTF-8"));
@@ -137,7 +138,7 @@ class Session{
             _buf.putByte((byte) 0);
             _buf.putValue(password.getBytes("UTF-8"));
             write(_buf);
-            _buf = read(_buf);
+            _buf = read();
             int command = _buf.getCommand() & 0xff;
             if (command == SSH_MSG_USERAUTH_BANNER)
                 throw new Exception("USERAUTH_BANNER");
@@ -155,7 +156,7 @@ class Session{
         try {
             while(true) {
                 try{
-                    buf = read(buf);
+                    buf = read();
                 }catch (java.io.InterruptedIOException ee){
                     throw new Exception("Error Session 261 " + ee);
                 }
@@ -225,8 +226,8 @@ class Session{
         Buf.random.nextBytes(a);
         System.arraycopy(a, 0, buf.buffer, start_fill, a.length);
         buf.skip_put(16);
-        buf.putValue(ECDH.cipher.getBytes("UTF-8"));
-        buf.putValue(ECDH.groupCipher.getBytes("UTF-8"));
+        buf.putValue(("ecdh-sha2-nistp" + ECDH.key_size).getBytes("UTF-8"));
+        buf.putValue(("ssh-rsa,ecdsa-sha2-nistp" + ECDH.key_size).getBytes("UTF-8"));
         buf.putValue("aes256-ctr".getBytes("UTF-8"));
         buf.putValue("aes256-ctr".getBytes("UTF-8"));
         buf.putValue("hmac-sha1".getBytes("UTF-8"));
@@ -309,7 +310,8 @@ class Session{
         return a;
     }
 
-    public Buf read(Buf buf) throws Exception {        
+    public Buf read() throws Exception {        
+        Buf buf=new Buf();
         while(true){
             buf.reset();            
             getByte(buf.buffer, buf.get_put(), reader_cipher_size, 1);
@@ -372,9 +374,9 @@ class Session{
             Buf.random.nextBytes(a);
             System.arraycopy(a, 0, buf.buffer, put - pad, pad);
             a = new byte[4];
-            a[0] = (byte)(writer_seq >>> 24);
-            a[1] = (byte)(writer_seq >>> 16);
-            a[2] = (byte)(writer_seq >>> 8);
+            a[0] = (byte)(writer_seq >> 24);
+            a[1] = (byte)(writer_seq >> 16);
+            a[2] = (byte)(writer_seq >> 8);
             a[3] = (byte) writer_seq;
             writer_mac.update(a);
             writer_mac.update(buf.buffer, 0, buf.get_put());
@@ -382,17 +384,9 @@ class Session{
             writer_cipher.update(buf.buffer, 0, buf.get_put(), buf.buffer, 0);            
             buf.skip_put(20);
         }
-        put_stream(buf);
-        writer_seq++;
-    }
-    public void put_stream(Buf buf) throws java.io.IOException, java.net.SocketException {
-        //////////// 
         out.write(buf.buffer, 0, buf.get_put());
         out.flush();
-    }
-    void put_stream(byte[] array) throws java.io.IOException {
-        out.write(array, 0, array.length);
-        out.flush();
+        writer_seq++;
     }
     int getByte() throws java.io.IOException {
         return in.read();

@@ -92,9 +92,9 @@ class Buf {
             pad += bsize;
         len = len + pad - 4;
         byte[] ba4 = new byte[4];
-        ba4[0] = (byte)(len >>> 24);
-        ba4[1] = (byte)(len >>> 16);
-        ba4[2] = (byte)(len >>> 8);
+        ba4[0] = (byte)(len >> 24);
+        ba4[1] = (byte)(len >> 16);
+        ba4[2] = (byte)(len >> 8);
         ba4[3] = (byte)(len);
         System.arraycopy(ba4, 0, buffer, 0, 4);
         buffer[4] = (byte) pad;

@@ -19,8 +19,6 @@ class ConfigECDH512{
 }
 
 class ECDH extends Config{    
-    public static String cipher = "ecdh-sha2-nistp" + key_size;
-    public static String groupCipher = "ssh-rsa,ecdsa-sha2-nistp" + key_size;    
     java.security.MessageDigest sha = null;        
     String _ecsp = "secp" + key_size + "r1";
 
