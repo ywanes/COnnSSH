@@ -72,12 +72,9 @@ class Buf {
     public int getLength(){
         return i_put - i_get;
     }    
-    public void reset(){
-        i_put = 0;
-        i_get = 0;
-    }
-    public void reset_packet(){
+    public void reset_command(int command){
         set_put(5);
+        putByte((byte) command);
     }
     void reset_get(){
         i_get = 0;

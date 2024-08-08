@@ -47,8 +47,7 @@ class ECDH extends Config{
         this.I_C = I_C;
         sha = java.security.MessageDigest.getInstance(digest);
         buf = new Buf();
-        buf.reset_packet();
-        buf.putByte((byte) SSH_MSG_KEX_ECDH_INIT);
+        buf.reset_command(SSH_MSG_KEX_ECDH_INIT);
         try{           
             java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
             java.security.spec.ECGenParameterSpec ecsp = new java.security.spec.ECGenParameterSpec(_ecsp);
@@ -72,9 +71,9 @@ class ECDH extends Config{
         state = SSH_MSG_KEX_ECDH_REPLY;
     }
 
-    public boolean next(Buf _buf) throws Exception {
+    public void next(Buf _buf) throws Exception {
         if ( state != SSH_MSG_KEX_ECDH_REPLY )
-            return false;
+            throw new Exception("state != SSH_MSG_KEX_ECDH_REPLY");
         _buf.getInt();
         _buf.getByte();
         int j = _buf.getByte();
@@ -92,7 +91,7 @@ class ECDH extends Config{
         BigInteger y = new BigInteger(1, s_array);
         java.security.spec.ECPoint w = new java.security.spec.ECPoint(x, y);
         if ( w.equals(java.security.spec.ECPoint.POINT_INFINITY) )
-            return false;
+            throw new Exception("POINT_INFINITY");
         java.security.spec.ECParameterSpec params = publicKey.getParams();
         java.security.spec.EllipticCurve curve = params.getCurve();
         BigInteger p = ((java.security.spec.ECFieldFp) curve.getField()).getP();
@@ -108,7 +107,7 @@ class ECDH extends Config{
             K=tmp;
         }            
         byte[] sig_of_H = _buf.getValue();
-        buf.reset();
+        buf=new Buf();
         buf.putValue(V_C);
         buf.putValue(V_S);
         buf.putValue(I_C);
@@ -153,9 +152,9 @@ class ECDH extends Config{
                 System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
                 sig_of_H = tmp_RSA;
             }
-            return signature.verify(sig_of_H);  
+            if ( !signature.verify(sig_of_H) )
+                throw new Exception("signature.verify false");
         }
-        return true;
     }
     byte[] getK() {
         return K;
