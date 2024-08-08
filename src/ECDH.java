@@ -71,28 +71,22 @@ class ECDH extends Config{
     public void next(Buf _buf) throws Exception {
         _buf.getInt();
         _buf.getByte();
-        int j = _buf.getByte();
+        _buf.getByte();
         K_S = _buf.getValue();
         byte[] Q_S = _buf.getValue();
         int i = 0;
         while (Q_S[i] != 4)
             i++;
         i++;
-        byte[] r_array = new byte[(Q_S.length - i) / 2];
-        byte[] s_array = new byte[(Q_S.length - i) / 2];
-        System.arraycopy(Q_S, i, r_array, 0, r_array.length);
-        System.arraycopy(Q_S, i + r_array.length, s_array, 0, s_array.length);
-        BigInteger x = new BigInteger(1, r_array);
-        BigInteger y = new BigInteger(1, s_array);
-        java.security.spec.ECPoint w = new java.security.spec.ECPoint(x, y);
-        if ( w.equals(java.security.spec.ECPoint.POINT_INFINITY) )
-            throw new Exception("POINT_INFINITY");
-        java.security.spec.ECParameterSpec params = publicKey.getParams();
-        java.security.spec.EllipticCurve curve = params.getCurve();
-        BigInteger p = ((java.security.spec.ECFieldFp) curve.getField()).getP();
-        java.security.KeyFactory kf = java.security.KeyFactory.getInstance("EC");
+        byte[] _Q_S = new byte[Q_S.length-i];
+        System.arraycopy(Q_S, i, _Q_S, 0, _Q_S.length);
+        byte[] r_array = new byte[_Q_S.length/2];
+        byte[] s_array = new byte[_Q_S.length/2];
+        System.arraycopy(_Q_S, 0, r_array, 0, r_array.length);
+        System.arraycopy(_Q_S, r_array.length, s_array, 0, s_array.length);        
         java.security.spec.ECPoint point = new java.security.spec.ECPoint(new BigInteger(1, r_array), new BigInteger(1, s_array));
         java.security.spec.ECPublicKeySpec spec = new java.security.spec.ECPublicKeySpec(point, publicKey.getParams());
+        java.security.KeyFactory kf = java.security.KeyFactory.getInstance("EC");
         java.security.PublicKey theirPublicKey = kf.generatePublic(spec);
         myKeyAgree.doPhase(theirPublicKey, true);
         K = myKeyAgree.generateSecret();
@@ -114,28 +108,19 @@ class ECDH extends Config{
         byte[] a = this._buf.getValueAllLen();
         sha.update(a);
         H = sha.digest();
-        i = 0;
-        j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) |
-            ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);        
-        if (!new String(K_S, i, j, "UTF-8").equals("ssh-rsa"))
+        Buf buf = new Buf(K_S);
+        if (!new String(buf.getValue(), "UTF-8").equals("ssh-rsa"))
             throw new Exception("unknown alg");
-        i += j;
         if ( can_verification ){            
-            j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-            byte[] tmp = new byte[j];
-            System.arraycopy(K_S, i, tmp, 0, j);
-            i += j;
-            byte[] ee = tmp;
-            j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-            tmp = new byte[j];
-            System.arraycopy(K_S, i, tmp, 0, j);
+            byte[] p2 = buf.getValue();
+            byte[] p1 = buf.getValue();
             java.security.Signature signature = java.security.Signature.getInstance("SHA1withRSA");
             java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("RSA");
-            java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(new BigInteger(tmp), new BigInteger(ee));
+            java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(new BigInteger(p1), new BigInteger(p2));
             java.security.PublicKey _publicKey = keyFactory.generatePublic(rsaPubKeySpec);
             signature.initVerify(_publicKey);
             signature.update(H);        
-            Buf buf = new Buf(sig_of_H);
+            buf = new Buf(sig_of_H);
             if (!new String(buf.getValue()).equals("ssh-rsa"))
                 throw new Exception("error ssh-rsa");
             if ( !signature.verify(buf.getValue()) )
