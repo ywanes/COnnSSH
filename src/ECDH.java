@@ -8,7 +8,7 @@ class ConfigECDH256{
     String digest = "SHA-256";
     public static int key_size = 256;    
     public static int nn_cipher=32;
-    boolean need_verification=false;
+    boolean can_verification=false;
 }
 
 class ConfigECDH512{
@@ -27,7 +27,6 @@ class ECDH extends Config{
     private byte[] K_S = null;
     private static final int SSH_MSG_KEX_ECDH_INIT = 30;
     private static final int SSH_MSG_KEX_ECDH_REPLY = 31;
-    private int state;    
     byte[] V_S;
     byte[] V_C;
     byte[] I_S;
@@ -68,12 +67,9 @@ class ECDH extends Config{
         } catch (Exception e) {
             throw new Exception("Error ECDH " + e.toString());
         }
-        state = SSH_MSG_KEX_ECDH_REPLY;
     }
 
     public void next(Buf _buf) throws Exception {
-        if ( state != SSH_MSG_KEX_ECDH_REPLY )
-            throw new Exception("state != SSH_MSG_KEX_ECDH_REPLY");
         _buf.getInt();
         _buf.getByte();
         int j = _buf.getByte();
@@ -119,13 +115,12 @@ class ECDH extends Config{
         byte[] a = buf.getValueAllLen();
         sha.update(a);
         H = sha.digest();
-        state = 0;        
         i = 0;
         j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) |
             ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);        
         if (!new String(K_S, i, j, "UTF-8").equals("ssh-rsa"))
             throw new Exception("unknown alg");
-        if ( can_verification ){            
+        if ( can_verification){
             i += j;
             byte[] tmp;
             byte[] ee;
@@ -164,8 +159,5 @@ class ECDH extends Config{
     }
     java.security.MessageDigest getHash() {
         return sha;
-    }
-    public int getState() {
-        return state;
     }
 }  

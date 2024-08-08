@@ -104,4 +104,3 @@ class Buf {
         skip_put(pad);
     }    
 }
-

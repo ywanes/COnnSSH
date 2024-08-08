@@ -110,10 +110,6 @@ class Session{
             ECDH kex = receive_kexinit(read());
             _buf = read();
             kex.next(_buf);
-            while(kex.getState() != 0){
-                _buf = read();
-                kex.next(_buf);
-            }
             _buf.reset_command(SSH_MSG_NEWKEYS);
             write(_buf);
             _buf = read();
@@ -383,7 +379,7 @@ class Session{
         write(buf);
         
         int limit=3000;
-        while(limit-->0 && !channel_opened )
+        while( limit-->0 && !channel_opened )
             try { Thread.sleep(10); } catch (Exception e) {};        
         if ( !channel_opened )
             throw new Exception("channel is not opened.");        

@@ -136,7 +136,6 @@ public class COnnSSH {
             }
         }
     }
-
     public static String lendo_arquivo_ofuscado(String caminho) {
         String result = "";
         String strLine;
@@ -153,6 +152,4 @@ public class COnnSSH {
             result2 += result.substring(ofuscado[i], ofuscado[i] + 1);
         return result2;
     }
-
 }
-
