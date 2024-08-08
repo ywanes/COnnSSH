@@ -119,15 +119,13 @@ class ECDH extends Config{
             ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);        
         if (!new String(K_S, i, j, "UTF-8").equals("ssh-rsa"))
             throw new Exception("unknown alg");
-        if ( can_verification ){
-            i += j;
-            byte[] tmp;
-            byte[] ee;
+        i += j;
+        if ( can_verification ){            
             j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
-            tmp = new byte[j];
+            byte[] tmp = new byte[j];
             System.arraycopy(K_S, i, tmp, 0, j);
             i += j;
-            ee = tmp;
+            byte[] ee = tmp;
             j = ((K_S[i++] << 24) & 0xff000000) | ((K_S[i++] << 16) & 0x00ff0000) | ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);
             tmp = new byte[j];
             System.arraycopy(K_S, i, tmp, 0, j);
@@ -144,13 +142,13 @@ class ECDH extends Config{
                 throw new Exception("signature.verify false");
         }
     }
-    byte[] getK() {
+    byte[] getK(){
         return K;
     }
-    byte[] getH() {
+    byte[] getH(){
         return H;
     }
-    java.security.MessageDigest getHash() {
+    java.security.MessageDigest getHash(){
         return sha;
     }
 }  
