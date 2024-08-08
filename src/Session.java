@@ -239,8 +239,8 @@ class Session{
             I_S = new byte[j - 1 - buf.getByte()];
         System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
         ECDH kex = new ECDH(V_S, V_C, I_S, I_C);
-        if ( kex.buf != null )
-            write(kex.buf);
+        if ( kex._buf != null )
+            write(kex._buf);
         return kex;
     }
 

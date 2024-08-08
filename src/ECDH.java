@@ -25,14 +25,13 @@ class ECDH extends Config{
     private byte[] K = null;
     private byte[] H = null;
     private byte[] K_S = null;
-    private static final int SSH_MSG_KEX_ECDH_INIT = 30;
-    private static final int SSH_MSG_KEX_ECDH_REPLY = 31;
+    int SSH_MSG_KEX_ECDH_INIT = 30;
     byte[] V_S;
     byte[] V_C;
     byte[] I_S;
     byte[] I_C;
     byte[] Q_C;
-    Buf buf=null;    
+    Buf _buf=null;    
     java.security.interfaces.ECPrivateKey privateKey = null;
     java.security.interfaces.ECPublicKey publicKey = null;
     javax.crypto.KeyAgreement myKeyAgree = null;    
@@ -45,8 +44,8 @@ class ECDH extends Config{
         this.I_S = I_S;
         this.I_C = I_C;
         sha = java.security.MessageDigest.getInstance(digest);
-        buf = new Buf();
-        buf.reset_command(SSH_MSG_KEX_ECDH_INIT);
+        _buf = new Buf();
+        _buf.reset_command(SSH_MSG_KEX_ECDH_INIT);
         try{           
             java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
             java.security.spec.ECGenParameterSpec ecsp = new java.security.spec.ECGenParameterSpec(_ecsp);
@@ -63,8 +62,8 @@ class ECDH extends Config{
             System.arraycopy(s, 0, Q_C, 1 + r.length, s.length);            
             myKeyAgree = javax.crypto.KeyAgreement.getInstance("ECDH");
             myKeyAgree.init(privateKey);            
-            buf.putValue(Q_C);
-        } catch (Exception e) {
+            _buf.putValue(Q_C);
+        }catch(Exception e){
             throw new Exception("Error ECDH " + e.toString());
         }
     }
@@ -103,16 +102,16 @@ class ECDH extends Config{
             K=tmp;
         }            
         byte[] sig_of_H = _buf.getValue();
-        buf=new Buf();
-        buf.putValue(V_C);
-        buf.putValue(V_S);
-        buf.putValue(I_C);
-        buf.putValue(I_S);
-        buf.putValue(K_S);
-        buf.putValue(Q_C);
-        buf.putValue(Q_S);
-        buf.putValue(K);
-        byte[] a = buf.getValueAllLen();
+        this._buf=new Buf();
+        this._buf.putValue(V_C);
+        this._buf.putValue(V_S);
+        this._buf.putValue(I_C);
+        this._buf.putValue(I_S);
+        this._buf.putValue(K_S);
+        this._buf.putValue(Q_C);
+        this._buf.putValue(Q_S);
+        this._buf.putValue(K);
+        byte[] a = this._buf.getValueAllLen();
         sha.update(a);
         H = sha.digest();
         i = 0;
@@ -120,7 +119,7 @@ class ECDH extends Config{
             ((K_S[i++] << 8) & 0x0000ff00) | ((K_S[i++]) & 0x000000ff);        
         if (!new String(K_S, i, j, "UTF-8").equals("ssh-rsa"))
             throw new Exception("unknown alg");
-        if ( can_verification){
+        if ( can_verification ){
             i += j;
             byte[] tmp;
             byte[] ee;
@@ -138,16 +137,10 @@ class ECDH extends Config{
             java.security.PublicKey _publicKey = keyFactory.generatePublic(rsaPubKeySpec);
             signature.initVerify(_publicKey);
             signature.update(H);        
-            Buf buf_RSA = new Buf(sig_of_H);
-            if (new String(buf_RSA.getValue()).equals("ssh-rsa")) {
-                byte[] tmp_RSA;
-                int j_RSA = buf_RSA.getInt();
-                int i_RSA = buf_RSA.get_get();
-                tmp_RSA = new byte[j_RSA];
-                System.arraycopy(sig_of_H, i_RSA, tmp_RSA, 0, j_RSA);
-                sig_of_H = tmp_RSA;
-            }
-            if ( !signature.verify(sig_of_H) )
+            Buf buf = new Buf(sig_of_H);
+            if (!new String(buf.getValue()).equals("ssh-rsa"))
+                throw new Exception("error ssh-rsa");
+            if ( !signature.verify(buf.getValue()) )
                 throw new Exception("signature.verify false");
         }
     }
