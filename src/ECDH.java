@@ -1,4 +1,3 @@
-import java.math.BigInteger;
 
 // ConfigECDH256 and ConfigECDH512 -> OK
 //class Config extends ConfigECDH256{}
@@ -25,18 +24,13 @@ class ECDH extends Config{
     private byte[] K = null;
     private byte[] H = null;
     private byte[] K_S = null;
-    int SSH_MSG_KEX_ECDH_INIT = 30;
     byte[] V_S;
     byte[] V_C;
     byte[] I_S;
     byte[] I_C;
-    byte[] Q_C;
-    Buf _buf=null;    
-    java.security.PrivateKey privateKey = null;
+    byte[] Q_C;    
     java.security.interfaces.ECPublicKey publicKey = null;
     javax.crypto.KeyAgreement myKeyAgree = null;    
-    public BigInteger two = BigInteger.ONE.add(BigInteger.ONE);
-    public BigInteger three = two.add(BigInteger.ONE);
 
     ECDH(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
         this.V_S = V_S;
@@ -44,14 +38,12 @@ class ECDH extends Config{
         this.I_S = I_S;
         this.I_C = I_C;
         sha = java.security.MessageDigest.getInstance(digest);
-        _buf = new Buf();
-        _buf.reset_command(SSH_MSG_KEX_ECDH_INIT);
         try{           
             java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
             java.security.spec.ECGenParameterSpec ecsp = new java.security.spec.ECGenParameterSpec(_ecsp);
             kpg.initialize(ecsp);
             java.security.KeyPair kp = kpg.genKeyPair();
-            privateKey = kp.getPrivate();
+            java.security.PrivateKey privateKey = kp.getPrivate();
             publicKey = (java.security.interfaces.ECPublicKey) kp.getPublic();            
             java.security.spec.ECPoint w = publicKey.getW();            
             byte[] r = w.getAffineX().toByteArray();
@@ -62,47 +54,45 @@ class ECDH extends Config{
             System.arraycopy(s, 0, Q_C, 1 + r.length, s.length);            
             myKeyAgree = javax.crypto.KeyAgreement.getInstance("ECDH");
             myKeyAgree.init(privateKey);            
-            _buf.putValue(Q_C);
         }catch(Exception e){
             throw new Exception("Error ECDH " + e.toString());
         }
     }
 
-    public void next(Buf _buf) throws Exception {
-        _buf.getInt();
-        _buf.getByte();
-        _buf.getByte();
-        K_S = _buf.getValue();
-        byte[] Q_S = _buf.getValue();
+    public void next(Buf buf) throws Exception {
+        buf.getInt();
+        buf.getByte();
+        buf.getByte();
+        K_S = buf.getValue();
+        byte[] Q_S = buf.getValue();
         byte[] r_array = new byte[(Q_S.length-1)/2];
         byte[] s_array = new byte[(Q_S.length-1)/2];
         System.arraycopy(Q_S, 1, r_array, 0, r_array.length);
         System.arraycopy(Q_S, 1 + r_array.length, s_array, 0, s_array.length);        
-        java.security.spec.ECPoint point = new java.security.spec.ECPoint(new BigInteger( r_array), new BigInteger( s_array));
-        java.security.spec.ECPublicKeySpec spec = new java.security.spec.ECPublicKeySpec(point, publicKey.getParams());
+        java.security.spec.ECPoint point = new java.security.spec.ECPoint(new java.math.BigInteger( r_array), new java.math.BigInteger( s_array));        
+        java.security.spec.ECPublicKeySpec spec = new java.security.spec.ECPublicKeySpec(point, publicKey.getParams());        
         java.security.KeyFactory kf = java.security.KeyFactory.getInstance("EC");
         java.security.PublicKey theirPublicKey = kf.generatePublic(spec);
         myKeyAgree.doPhase(theirPublicKey, true);
         K = myKeyAgree.generateSecret();
-        while(K.length > 1 && K[0] == 0 && (K[1] & 0x80) == 0){
+        while( K.length > 1 && K[0] == 0 && (K[1] & 0x80) == 0 ){
             byte[] tmp = new byte[K.length - 1];
             System.arraycopy(K, 1, tmp, 0, tmp.length);
             K=tmp;
         }            
-        byte[] sig_of_H = _buf.getValue();
-        this._buf=new Buf();
-        this._buf.putValue(V_C);
-        this._buf.putValue(V_S);
-        this._buf.putValue(I_C);
-        this._buf.putValue(I_S);
-        this._buf.putValue(K_S);
-        this._buf.putValue(Q_C);
-        this._buf.putValue(Q_S);
-        this._buf.putValue(K);
-        byte[] a = this._buf.getValueAllLen();
-        sha.update(a);
+        byte[] sig_of_H = buf.getValue();
+        buf=new Buf();
+        buf.putValue(V_C);
+        buf.putValue(V_S);
+        buf.putValue(I_C);
+        buf.putValue(I_S);
+        buf.putValue(K_S);
+        buf.putValue(Q_C);
+        buf.putValue(Q_S);
+        buf.putValue(K);
+        sha.update(buf.getValueAllLen());
         H = sha.digest();
-        Buf buf = new Buf(K_S);
+        buf = new Buf(K_S);
         if (!new String(buf.getValue(), "UTF-8").equals("ssh-rsa"))
             throw new Exception("unknown alg");
         if ( can_verification ){            
@@ -110,7 +100,7 @@ class ECDH extends Config{
             byte[] p1 = buf.getValue();
             java.security.Signature signature = java.security.Signature.getInstance("SHA1withRSA");
             java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("RSA");
-            java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(new BigInteger(p1), new BigInteger(p2));
+            java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(new java.math.BigInteger(p1), new java.math.BigInteger(p2));
             java.security.PublicKey _publicKey = keyFactory.generatePublic(rsaPubKeySpec);
             signature.initVerify(_publicKey);
             signature.update(H);        
@@ -126,6 +116,9 @@ class ECDH extends Config{
     }
     byte[] getH(){
         return H;
+    }
+    byte[] get_Q_C() {
+        return Q_C;
     }
     java.security.MessageDigest getHash(){
         return sha;

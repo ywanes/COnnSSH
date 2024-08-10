@@ -56,17 +56,15 @@ class Buf {
         return getB() << 24 | getB() << 16 | getB() << 8 | getB(); 
     }
     public byte[] getValue() {
-        int len = getInt();
-        byte[] a = new byte[len];
-        for ( int i=0;i<len;i++ )
-            a[i] = buffer[i_get++];
+        byte[] a = new byte[getInt()];
+        System.arraycopy(buffer, i_get, a, 0, a.length);
+        i_get+=a.length;
         return a;
     }
     public byte[] getValueAllLen(){
-        int len = getLength();
-        byte[] a = new byte[len];
-        for ( int i=0;i<len;i++ )
-            a[i] = buffer[i_get++];
+        byte[] a = new byte[getLength()];
+        System.arraycopy(buffer, i_get, a, 0, a.length);
+        i_get+=a.length;
         return a;
     }
     public int getLength(){

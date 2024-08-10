@@ -87,22 +87,18 @@ class Session{
             out.write(V_C, 0, V_C.length);
             out.write(barra_n);
             out.flush();
-            
-            while(true){
-                i = 0;
-                while(i < _buf.buffer.length){
-                    j = getByte();
-                    if (j < 0) 
-                        break;
-                    _buf.buffer[i++] = (byte) j;
-                    if (j == barra_n){
+            i = 0;
+            while(i < _buf.buffer.length){
+                j = getByte();
+                if (j < 0) 
+                    break;
+                _buf.buffer[i++] = (byte) j;
+                if (j == barra_n){
+                    i--;
+                    if (i > 0 && _buf.buffer[i - 1] == barra_r)
                         i--;
-                        if (i > 0 && _buf.buffer[i - 1] == barra_r)
-                            i--;
-                        break;
-                    }
+                    break;
                 }
-                break;
             }
             V_S = new byte[i];
             System.arraycopy(_buf.buffer, 0, V_S, 0, i);
@@ -199,7 +195,7 @@ class Session{
                 throw new Exception("msgType " + msgType+" not found. - Only 4 msgType implementations");
             }
         } catch (Exception e) {
-            System.out.println("ex_151 " + e.toString());
+            System.out.println("ex_3 " + e.toString());
             System.exit(1);
         }
         System.exit(0);
@@ -238,9 +234,11 @@ class Session{
         }else
             I_S = new byte[j - 1 - buf.getByte()];
         System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
-        ECDH kex = new ECDH(V_S, V_C, I_S, I_C);
-        if ( kex._buf != null )
-            write(kex._buf);
+        ECDH kex = new ECDH(V_S, V_C, I_S, I_C);        
+        buf = new Buf();
+        buf.reset_command(SSH_MSG_KEXDH_INIT);
+        buf.putValue(kex.get_Q_C());
+        write(buf);
         return kex;
     }
 
@@ -286,7 +284,7 @@ class Session{
             reader_mac = javax.crypto.Mac.getInstance("HmacSHA1");
             reader_mac.init(new javax.crypto.spec.SecretKeySpec(_reader_mac, "HmacSHA1"));            
         }catch (Exception e){
-            throw new Exception("ex_149 - " + e.toString());
+            throw new Exception("ex_2 - " + e.toString());
         }
     }
     private byte[] digest_trunc_len(byte[] digest, int len){
@@ -431,7 +429,7 @@ class Session{
                 write(buf);
             }
         } catch (Exception e) {
-            System.out.println("ex_20");
+            System.out.println("ex_1");
         }        
     }
     public void set_rwsize(long a) {

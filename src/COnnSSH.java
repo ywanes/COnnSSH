@@ -1,6 +1,3 @@
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 public class COnnSSH {
     public static void main(String[] args) {
@@ -15,15 +12,14 @@ public class COnnSSH {
         // maquina windows A conectando maquina windows B funciona
         // maquina linux conectando windows nao funciona
         // ssh -o HostKeyAlgorithms=ecdsa-sha2-nistp256 ywanes@192.168.0.100
-        // cd C:\tmp\tmp_teste && xcopy "D:\NetBeansProjects2\teste\src" . /h /i /c /k /e /r /y && y cls && javac teste.java && native-image teste --no-fallback && teste
+        // cd C:\tmp\tmp_teste && xcopy "D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\src" . /h /i /c /k /e /r /y && y cls && javac COnnSSH.java && native-image COnnSSH --no-fallback && connssh
         String access = "ywanes@192.168.0.100";
         if ( args.length > 0 )
             access=args[0];
         else{
-            File f = new java.io.File("..\\key.txt");
-            if (f.exists() && f.isFile()){
+            java.io.File f = new java.io.File("..\\key.txt");
+            if ( f.exists() && f.isFile() )
                 access = lendo_arquivo_ofuscado(f.getAbsolutePath()) + "@192.168.0.100";
-            }
         }
         ssh(new String[] {
             "ssh",
@@ -140,7 +136,7 @@ public class COnnSSH {
         String result = "";
         String strLine;
         try {            
-            List<String> lines=java.nio.file.Files.readAllLines(java.nio.file.Paths.get(caminho), StandardCharsets.UTF_8);            
+            java.util.List<String> lines=java.nio.file.Files.readAllLines(java.nio.file.Paths.get(caminho), java.nio.charset.StandardCharsets.UTF_8);            
             for ( int i=0;i<lines.size();i++ )
                 result += lines.get(i) + "\n";
         } catch (Exception e) {
