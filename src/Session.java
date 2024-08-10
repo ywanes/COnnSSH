@@ -50,6 +50,7 @@ class Session{
     private long rwsize = 0;
     private boolean channel_opened=false;
     private int rmpsize = 0;
+    boolean verbose=false;
 
     public static int count_line_return=-1;
     public static boolean can_print(int len){
@@ -64,12 +65,12 @@ class Session{
     }    
     
     Session(String host, String username, int port, String password) throws Exception {                
-        connect_stream(host, username, port, password);                   
+        connect_stream(host, username, port, password);
         new Thread(){public void run(){
-            working_stream();
+            reading_stream();
         }}.start();                
-        connect();
-        working();
+        connect_stdin();
+        writing_stdin(); // send msg by keyboard
     }
     
     public void connect_stream(String host, String username, int port, String password) throws Exception{                
@@ -88,33 +89,109 @@ class Session{
             out.write(barra_n);
             out.flush();
             i = 0;
-            while(i < _buf.buffer.length){
-                j = getByte();
-                if (j < 0) 
-                    break;
-                _buf.buffer[i++] = (byte) j;
-                if (j == barra_n){
-                    i--;
-                    if (i > 0 && _buf.buffer[i - 1] == barra_r)
+            while( (j = getByte()) >= 0 ){
+                if ( j == barra_n ){
+                    if ( i > 0 && _buf.buffer[i-1] == barra_r )
                         i--;
                     break;
                 }
-            }
+                _buf.buffer[i++] = (byte)j;
+            }            
             V_S = new byte[i];
             System.arraycopy(_buf.buffer, 0, V_S, 0, i);
-            send_kexinit();
-            ECDH kex = receive_kexinit(read());
+            debug("connect stream <-: ", V_S); // SSH-2.0-OpenSSH_for_Windows_8.1
+            
+            _buf = new Buf();
+            _buf.reset_command(SSH_MSG_KEXINIT);
+            int start_fill = _buf.get_put();
+            byte[] a = new byte[16];
+            _buf.random.nextBytes(a);
+            System.arraycopy(a, 0, _buf.buffer, start_fill, a.length);
+            _buf.skip_put(16);
+            _buf.putValue(("ecdh-sha2-nistp" + ECDH.key_size).getBytes("UTF-8"));
+            _buf.putValue(("ssh-rsa,ecdsa-sha2-nistp" + ECDH.key_size).getBytes("UTF-8"));
+            _buf.putValue("aes256-ctr".getBytes("UTF-8"));
+            _buf.putValue("aes256-ctr".getBytes("UTF-8"));
+            _buf.putValue("hmac-sha1".getBytes("UTF-8"));
+            _buf.putValue("hmac-sha1".getBytes("UTF-8"));
+            _buf.putValue("none".getBytes("UTF-8"));
+            _buf.putValue("none".getBytes("UTF-8"));
+            _buf.putValue("".getBytes("UTF-8"));
+            _buf.putValue("".getBytes("UTF-8"));
+            _buf.putByte((byte) 0);
+            _buf.putInt(0);
+            _buf.set_get(5);
+            I_C = _buf.getValueAllLen();
+            write(_buf);
+            debug("connect stream ->: ", _buf);
+            
+            _buf = read();
+            j = _buf.getInt();
+            if (j != _buf.getLength()){
+                _buf.getByte();
+                I_S = new byte[_buf.get_put() - 5];
+            }else
+                I_S = new byte[j - 1 - _buf.getByte()];
+            System.arraycopy(_buf.buffer, _buf.get_get(), I_S, 0, I_S.length);
+            debug("connect stream <-: ", I_S);
+            
+            ECDH kex = new ECDH(V_S, V_C, I_S, I_C);        
+            _buf = new Buf();
+            _buf.reset_command(SSH_MSG_KEXDH_INIT);
+            _buf.putValue(kex.get_Q_C());
+            write(_buf);
+            debug("connect stream ->: ", _buf);
+            
             _buf = read();
             kex.next(_buf);
             _buf.reset_command(SSH_MSG_NEWKEYS);
             write(_buf);
+            
             _buf = read();
             if (_buf.getCommand() != SSH_MSG_NEWKEYS )
-                throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());
-            receive_newkeys(_buf, kex);
+                throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());            
+            
+            _buf=new Buf();
+            byte[] K = kex.getK();
+            byte[] H = kex.getH();
+            java.security.MessageDigest sha = kex.getHash();
+            session_ids = new byte[H.length];
+            System.arraycopy(H, 0, session_ids, 0, H.length);                        
+            _buf.putValue(K);
+            _buf.putBytes(H);
+            _buf.putByte((byte) 0x41);
+            _buf.putBytes(session_ids);
+            j = _buf.get_put() - session_ids.length - 1;        
+            sha.update(_buf.buffer, 0, _buf.get_put());
+            byte[] _writer_cipher_IV = digest_trunc_len(sha.digest(), 16);
+            _buf.buffer[j]++;
+            sha.update(_buf.buffer, 0, _buf.get_put());
+            byte[] _reader_cipher_IV = digest_trunc_len(sha.digest(), 16);
+            _buf.buffer[j]++;
+            sha.update(_buf.buffer, 0, _buf.get_put());
+            byte[] _writer_cipher = digest_trunc_len(sha.digest(), 32);
+            _buf.buffer[j]++;
+            sha.update(_buf.buffer, 0, _buf.get_put());
+            byte[] _reader_cipher = digest_trunc_len(sha.digest(), 32);
+            _buf.buffer[j]++;
+            sha.update(_buf.buffer, 0, _buf.get_put());
+            byte[] _writer_mac = digest_trunc_len(sha.digest(), 20);
+            _buf.buffer[j]++;
+            sha.update(_buf.buffer, 0, _buf.get_put());
+            byte[] _reader_mac = digest_trunc_len(sha.digest(), 20);
+            writer_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+            writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_writer_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_writer_cipher_IV));
+            writer_mac = javax.crypto.Mac.getInstance("HmacSHA1");
+            writer_mac.init(new javax.crypto.spec.SecretKeySpec(_writer_mac, "HmacSHA1"));
+            reader_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+            reader_cipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_reader_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_reader_cipher_IV));
+            reader_cipher_size = 16;
+            reader_mac = javax.crypto.Mac.getInstance("HmacSHA1");
+            reader_mac.init(new javax.crypto.spec.SecretKeySpec(_reader_mac, "HmacSHA1"));                        
             _buf.reset_command(SSH_MSG_SERVICE_REQUEST);
             _buf.putValue("ssh-userauth".getBytes("UTF-8"));
             write(_buf);
+            
             _buf = read();
             _buf.reset_command(SSH_MSG_USERAUTH_REQUEST);
             _buf.putValue(username.getBytes("UTF-8"));
@@ -123,6 +200,7 @@ class Session{
             _buf.putByte((byte) 0);
             _buf.putValue(password.getBytes("UTF-8"));
             write(_buf);
+            
             _buf = read();
             int command = _buf.getCommand() & 0xff;
             if (command == SSH_MSG_USERAUTH_FAILURE)
@@ -134,7 +212,7 @@ class Session{
         }
     }
 
-    public void working_stream(){
+    public void reading_stream(){
         Buf buf=new Buf();
         try {
             while(true) {
@@ -200,93 +278,7 @@ class Session{
         }
         System.exit(0);
     }
-
-    private void send_kexinit() throws Exception {
-        Buf buf = new Buf();
-        buf.reset_command(SSH_MSG_KEXINIT);
-        int start_fill = buf.get_put();
-        byte[] a = new byte[16];
-        Buf.random.nextBytes(a);
-        System.arraycopy(a, 0, buf.buffer, start_fill, a.length);
-        buf.skip_put(16);
-        buf.putValue(("ecdh-sha2-nistp" + ECDH.key_size).getBytes("UTF-8"));
-        buf.putValue(("ssh-rsa,ecdsa-sha2-nistp" + ECDH.key_size).getBytes("UTF-8"));
-        buf.putValue("aes256-ctr".getBytes("UTF-8"));
-        buf.putValue("aes256-ctr".getBytes("UTF-8"));
-        buf.putValue("hmac-sha1".getBytes("UTF-8"));
-        buf.putValue("hmac-sha1".getBytes("UTF-8"));
-        buf.putValue("none".getBytes("UTF-8"));
-        buf.putValue("none".getBytes("UTF-8"));
-        buf.putValue("".getBytes("UTF-8"));
-        buf.putValue("".getBytes("UTF-8"));
-        buf.putByte((byte) 0);
-        buf.putInt(0);
-        buf.set_get(5);
-        I_C = buf.getValueAllLen();
-        write(buf);
-    }
     
-    private ECDH receive_kexinit(Buf buf) throws Exception {
-        int j = buf.getInt();
-        if (j != buf.getLength()){
-            buf.getByte();
-            I_S = new byte[buf.get_put() - 5];
-        }else
-            I_S = new byte[j - 1 - buf.getByte()];
-        System.arraycopy(buf.buffer, buf.get_get(), I_S, 0, I_S.length);
-        ECDH kex = new ECDH(V_S, V_C, I_S, I_C);        
-        buf = new Buf();
-        buf.reset_command(SSH_MSG_KEXDH_INIT);
-        buf.putValue(kex.get_Q_C());
-        write(buf);
-        return kex;
-    }
-
-    private void receive_newkeys(Buf buf, ECDH kex) throws Exception {
-        try{
-            byte[] K = kex.getK();
-            byte[] H = kex.getH();
-            java.security.MessageDigest sha = kex.getHash();
-            if (session_ids == null) {
-                session_ids = new byte[H.length];
-                System.arraycopy(H, 0, session_ids, 0, H.length);
-            }
-            buf=new Buf();
-            buf.putValue(K);
-            buf.putBytes(H);
-            buf.putByte((byte) 0x41);
-            buf.putBytes(session_ids);
-            int j = buf.get_put() - session_ids.length - 1;        
-            sha.update(buf.buffer, 0, buf.get_put());
-            byte[] _writer_cipher_IV = digest_trunc_len(sha.digest(), 16);
-            buf.buffer[j]++;
-            sha.update(buf.buffer, 0, buf.get_put());
-            byte[] _reader_cipher_IV = digest_trunc_len(sha.digest(), 16);
-            buf.buffer[j]++;
-            sha.update(buf.buffer, 0, buf.get_put());
-            byte[] _writer_cipher = digest_trunc_len(sha.digest(), 32);
-            buf.buffer[j]++;
-            sha.update(buf.buffer, 0, buf.get_put());
-            byte[] _reader_cipher = digest_trunc_len(sha.digest(), 32);
-            buf.buffer[j]++;
-            sha.update(buf.buffer, 0, buf.get_put());
-            byte[] _writer_mac = digest_trunc_len(sha.digest(), 20);
-            buf.buffer[j]++;
-            sha.update(buf.buffer, 0, buf.get_put());
-            byte[] _reader_mac = digest_trunc_len(sha.digest(), 20);
-            writer_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-            writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_writer_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_writer_cipher_IV));
-            writer_mac = javax.crypto.Mac.getInstance("HmacSHA1");
-            writer_mac.init(new javax.crypto.spec.SecretKeySpec(_writer_mac, "HmacSHA1"));
-            reader_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-            reader_cipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_reader_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_reader_cipher_IV));
-            reader_cipher_size = 16;
-            reader_mac = javax.crypto.Mac.getInstance("HmacSHA1");
-            reader_mac.init(new javax.crypto.spec.SecretKeySpec(_reader_mac, "HmacSHA1"));            
-        }catch (Exception e){
-            throw new Exception("ex_2 - " + e.toString());
-        }
-    }
     private byte[] digest_trunc_len(byte[] digest, int len){
         if (digest.length <= len)
             return digest;
@@ -367,8 +359,8 @@ class Session{
         }
     }
 
-    public void connect() throws Exception {
-        Buf buf=new Buf(new byte[100]);
+    public void connect_stdin() throws Exception {
+        Buf buf=new Buf();
         buf.reset_command(SSH_MSG_CHANNEL_OPEN);
         buf.putValue("session".getBytes("UTF-8"));
         buf.putInt(0);
@@ -404,17 +396,19 @@ class Session{
         buf.putByte((byte) 0);
         write(buf);
     }
-    public void working(){
+    public void writing_stdin(){
         ///////////
         // ponto critico!!
         Buf buf=new Buf(new byte[rmpsize]);
         try {
             int i=0;
             while ( (i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(ECDH.nn_cipher+64))) >= 0 ){            
-                // input send
-                //System.out.write("[".getBytes());
-                //System.out.write(buf.buffer, 14, i);
-                //System.out.write("]".getBytes());                
+                // input text
+                if ( verbose ){
+                    System.out.write("[".getBytes());
+                    System.out.write(buf.buffer, 14, i);
+                    System.out.write("]".getBytes());                
+                }
                 count_line_return=0;
                 if (i == 0)
                     continue;
@@ -446,5 +440,21 @@ class Session{
     }
     public void set_rmpsize(int a) {
         rmpsize = a;
+    }
+
+    private void debug(String a, byte[] b) {
+        if ( verbose ){
+            System.out.println(a + new String(b));        
+            System.out.flush();
+        }
+    }
+
+    private void debug(String a, Buf _buf) {
+        if ( verbose ){
+            System.out.print(a);
+            System.out.write(_buf.buffer, 0, _buf.get_put());
+            System.out.println();
+            System.out.flush();
+        }
     }
 }

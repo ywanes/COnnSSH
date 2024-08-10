@@ -38,7 +38,7 @@ class ECDH extends Config{
         this.I_S = I_S;
         this.I_C = I_C;
         sha = java.security.MessageDigest.getInstance(digest);
-        try{           
+        try{     
             java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
             java.security.spec.ECGenParameterSpec ecsp = new java.security.spec.ECGenParameterSpec(_ecsp);
             kpg.initialize(ecsp);
