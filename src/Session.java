@@ -1,3 +1,4 @@
+
 class Session{
     final int SSH_MSG_DISCONNECT = 1;
     final int SSH_MSG_IGNORE = 2;
@@ -105,7 +106,7 @@ class Session{
             _buf.reset_command(SSH_MSG_KEXINIT);
             int start_fill = _buf.get_put();
             byte[] a = new byte[16];
-            _buf.random.nextBytes(a);
+            Buf.random.nextBytes(a);
             System.arraycopy(a, 0, _buf.buffer, start_fill, a.length);
             _buf.skip_put(16);
             _buf.putValue(("ecdh-sha2-nistp" + ECDH.key_size).getBytes("UTF-8"));
@@ -216,11 +217,7 @@ class Session{
         Buf buf=new Buf();
         try {
             while(true) {
-                try{
-                    buf = read();
-                }catch (java.io.InterruptedIOException ee){
-                    throw new Exception("Error Session 261 " + ee);
-                }
+                buf = read();
                 int msgType = buf.getCommand() & 0xff;        
                 if ( msgType == SSH_MSG_CHANNEL_DATA){
                     buf.getInt();
@@ -396,19 +393,15 @@ class Session{
         buf.putByte((byte) 0);
         write(buf);
     }
+    
     public void writing_stdin(){
         ///////////
         // ponto critico!!
         Buf buf=new Buf(new byte[rmpsize]);
         try {
             int i=0;
-            while ( (i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(ECDH.nn_cipher+64))) >= 0 ){            
-                // input text
-                if ( verbose ){
-                    System.out.write("[".getBytes());
-                    System.out.write(buf.buffer, 14, i);
-                    System.out.write("]".getBytes());                
-                }
+            while ( (i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(ECDH.nn_cipher+64))) >= 0 ){                            
+                debug(buf.buffer, 14, i); // input text debug
                 count_line_return=0;
                 if (i == 0)
                     continue;
@@ -423,7 +416,8 @@ class Session{
                 write(buf);
             }
         } catch (Exception e) {
-            System.out.println("ex_1");
+            System.err.println("ex_1");
+            System.exit(1);
         }        
     }
     public void set_rwsize(long a) {
@@ -456,5 +450,13 @@ class Session{
             System.out.println();
             System.out.flush();
         }
+    }
+
+    private void debug(byte[] a, int i, int i0) throws Exception {
+        if ( verbose ){
+            System.out.write("[".getBytes());
+            System.out.write(a, 14, i);
+            System.out.write("]".getBytes());                
+        }        
     }
 }
