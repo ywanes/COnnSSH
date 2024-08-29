@@ -1,4 +1,4 @@
-class Buf {    
+class Buf{
     public static java.security.SecureRandom random = new java.security.SecureRandom();
     public byte[] buffer;
     private int i_put;
