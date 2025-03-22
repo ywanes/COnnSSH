@@ -132,7 +132,7 @@ public class COnnSSH {
             }
         }
     }
-    public static String lendo_arquivo_ofuscado(String caminho) {
+    public String lendo_arquivo_ofuscado(String caminho) {
         String result = "";
         try {            
             java.util.List<String> lines=java.nio.file.Files.readAllLines(java.nio.file.Paths.get(caminho), java.nio.charset.StandardCharsets.UTF_8);            

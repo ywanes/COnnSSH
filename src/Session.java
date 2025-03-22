@@ -50,9 +50,10 @@ class Session{
     public boolean channel_opened=false;
     public int rmpsize = 0;
     boolean verbose=false;
+    public ECDH kex=null;
 
-    public static int count_line_return=-1;
-    public static boolean can_print(int len){
+    public int count_line_return=-1;
+    public boolean can_print(int len){
         if ( count_line_return == -1 )
             return true;
         count_line_return++;        
@@ -64,6 +65,7 @@ class Session{
     }    
     
     Session(String host, String username, int port, String password) throws Exception {                
+        kex=new ECDH();
         connect_stream(host, username, port, password);
         new Thread(){public void run(){
             reading_stream();
@@ -104,11 +106,11 @@ class Session{
             _buf.reset_command(SSH_MSG_KEXINIT);
             int start_fill = _buf.get_put();
             byte[] a = new byte[16];
-            Buf.random.nextBytes(a);
+            _buf.random.nextBytes(a);
             System.arraycopy(a, 0, _buf.buffer, start_fill, a.length);
-            _buf.skip_put(16);
-            _buf.putValue(("ecdh-sha2-nistp" + ECDH.key_size).getBytes("UTF-8"));
-            _buf.putValue(("ssh-rsa,ecdsa-sha2-nistp" + ECDH.key_size).getBytes("UTF-8"));
+            _buf.skip_put(16);                        
+            _buf.putValue(("ecdh-sha2-nistp" + kex.key_size).getBytes("UTF-8"));
+            _buf.putValue(("ssh-rsa,ecdsa-sha2-nistp" + kex.key_size).getBytes("UTF-8"));
             _buf.putValue("aes256-ctr".getBytes("UTF-8"));
             _buf.putValue("aes256-ctr".getBytes("UTF-8"));
             _buf.putValue("hmac-sha1".getBytes("UTF-8"));
@@ -134,7 +136,7 @@ class Session{
             System.arraycopy(_buf.buffer, _buf.get_get(), I_S, 0, I_S.length);
             debug("connect stream <-: ", I_S);
             
-            ECDH kex = new ECDH(V_S, V_C, I_S, I_C);        
+            kex.init(V_S, V_C, I_S, I_C);
             _buf = new Buf();
             _buf.reset_command(SSH_MSG_KEXDH_INIT);
             _buf.putValue(kex.Q_C);
@@ -321,7 +323,7 @@ class Session{
             byte[] a = new byte[16];
             if (pad > 16)
                 a = new byte[pad];
-            Buf.random.nextBytes(a);
+            buf.random.nextBytes(a);
             System.arraycopy(a, 0, buf.buffer, put - pad, pad);
             a = new byte[4];
             a[0] = (byte)(writer_seq >> 24);
@@ -393,7 +395,7 @@ class Session{
         Buf buf=new Buf(new byte[rmpsize]);
         try {
             int i=0;
-            while ( (i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(ECDH.nn_cipher+64))) >= 0 ){                            
+            while ( (i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(kex.nn_cipher+64))) >= 0 ){                            
                 debug(buf.buffer, 14, i); // input text debug
                 count_line_return=0;
                 if (i == 0)

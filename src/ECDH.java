@@ -4,15 +4,15 @@ class Config extends ConfigECDH512{}
 
 class ConfigECDH256{
     String digest = "SHA-256";
-    public static int key_size = 256;    
-    public static int nn_cipher=32;
+    public int key_size = 256;    
+    public int nn_cipher=32;
     boolean can_verification=false;
 }
 
 class ConfigECDH512{
     String digest = "SHA-512";
-    public static int key_size = 521;    
-    public static int nn_cipher=64;
+    public int key_size = 521;    
+    public int nn_cipher=64;
     boolean can_verification=true;
 }
 
@@ -22,7 +22,7 @@ class ECDH extends Config{
     java.security.interfaces.ECPublicKey publicKey = null;
     javax.crypto.KeyAgreement myKeyAgree = null;    
 
-    ECDH(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
+    public void init(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
         this.V_S = V_S;
         this.V_C = V_C;
         this.I_S = I_S;
