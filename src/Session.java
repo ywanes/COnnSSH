@@ -85,7 +85,6 @@ class Session{
             }catch(Exception e){
                 throw new Exception("Error session connect socket " + e);
             }
-            // colocar \r\n nao resolve o problema no linux
             out.write(V_C, 0, V_C.length);
             out.write(barra_n);
             out.flush();
@@ -395,11 +394,12 @@ class Session{
             int i=0;
             int off=14;
             while ( (i = System.in.read(buf.buffer, off, buf.buffer.length -off -(kex.nn_cipher+64))) >= 0 ){                                            
-                if ( (int)buf.buffer[i-2+off] != 13 || (int)buf.buffer[i-1+off] != 10 ){ // linux nao faz \r\n
+                if ( buf.buffer[i-2+off] != barra_r || buf.buffer[i-1+off] != barra_n ){ // linux fazendo \r\n para ssh windows
                     i++;
-                    buf.buffer[i-2+14]=(byte)13;
-                    buf.buffer[i-1+14]=(byte)10;
+                    buf.buffer[i-2+14]=barra_r;
+                    buf.buffer[i-1+14]=barra_n;
                 }
+                
                 debug(buf.buffer, 14, i); // input text debug
                 count_line_return=0;
                 if (i == 0)
