@@ -21,14 +21,14 @@ class ECDH extends Config{
     java.security.MessageDigest sha = null;        
     String _ecsp = "secp" + key_size + "r1";
 
-    private byte[] K = null;
-    private byte[] H = null;
-    private byte[] K_S = null;
-    byte[] V_S;
-    byte[] V_C;
-    byte[] I_S;
-    byte[] I_C;
-    byte[] Q_C;    
+    public byte[] K = null;
+    public byte[] H = null;
+    public byte[] K_S = null;
+    public byte[] V_S;
+    public byte[] V_C;
+    public byte[] I_S;
+    public byte[] I_C;
+    public byte[] Q_C;    
     java.security.interfaces.ECPublicKey publicKey = null;
     javax.crypto.KeyAgreement myKeyAgree = null;    
 
@@ -110,17 +110,5 @@ class ECDH extends Config{
             if ( !signature.verify(buf.getValue()) )
                 throw new Exception("signature.verify false");
         }
-    }
-    byte[] getK(){
-        return K;
-    }
-    byte[] getH(){
-        return H;
-    }
-    byte[] get_Q_C() {
-        return Q_C;
-    }
-    java.security.MessageDigest getHash(){
-        return sha;
     }
 }  
