@@ -49,7 +49,7 @@ class Session{
     public long rwsize = 0;
     public boolean channel_opened=false;
     public int rmpsize = 0;
-    boolean verbose=false;
+    boolean verbose=1==2?true:false;
     public ECDH kex=null;
 
     public int count_line_return=-1;
@@ -390,12 +390,16 @@ class Session{
     }
     
     public void writing_stdin(){
-        ///////////
-        // ponto critico!!
         Buf buf=new Buf(new byte[rmpsize]);
         try {
             int i=0;
-            while ( (i = System.in.read(buf.buffer, 14, buf.buffer.length -14 -(kex.nn_cipher+64))) >= 0 ){                            
+            int off=14;
+            while ( (i = System.in.read(buf.buffer, off, buf.buffer.length -off -(kex.nn_cipher+64))) >= 0 ){                                            
+                if ( (int)buf.buffer[i-2+off] != 13 || (int)buf.buffer[i-1+off] != 10 ){ // linux nao faz \r\n
+                    i++;
+                    buf.buffer[i-2+14]=(byte)13;
+                    buf.buffer[i-1+14]=(byte)10;
+                }
                 debug(buf.buffer, 14, i); // input text debug
                 count_line_return=0;
                 if (i == 0)
@@ -435,7 +439,7 @@ class Session{
     private void debug(byte[] a, int i, int i0) throws Exception {
         if ( verbose ){
             System.out.write("[".getBytes());
-            System.out.write(a, 14, i);
+            System.out.write(a, i, i0);
             System.out.write("]".getBytes());                
         }        
     }

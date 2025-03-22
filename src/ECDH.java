@@ -65,12 +65,6 @@ class ECDH extends Config{
         java.security.PublicKey theirPublicKey = kf.generatePublic(spec);
         myKeyAgree.doPhase(theirPublicKey, true);
         K = myKeyAgree.generateSecret();
-        // provavelmente não entra nesse while
-        while( K.length > 1 && K[0] == 0 && (K[1] & 0x80) == 0 ){
-            byte[] tmp = new byte[K.length - 1];
-            System.arraycopy(K, 1, tmp, 0, tmp.length);
-            K=tmp;
-        }            
         byte[] sig_of_H = buf.getValue();
         buf=new Buf();
         buf.putValue(V_C);
