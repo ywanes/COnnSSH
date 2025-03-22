@@ -128,7 +128,7 @@ class Session{
             
             _buf = read();
             j = _buf.getInt();
-            if (j != _buf.getLength()){
+            if (j != (_buf.i_put - _buf.i_get)){
                 _buf.getByte();
                 I_S = new byte[_buf.get_put() - 5];
             }else

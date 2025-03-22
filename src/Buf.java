@@ -1,8 +1,8 @@
 class Buf{
     public java.security.SecureRandom random = new java.security.SecureRandom();
     public byte[] buffer;
-    private int i_put;
-    private int i_get;
+    public int i_put;
+    public int i_get;
     public Buf() {
         this(new byte[1024 * 10 * 2]);
     }
@@ -62,14 +62,11 @@ class Buf{
         return a;
     }
     public byte[] getValueAllLen(){
-        byte[] a = new byte[getLength()];
+        byte[] a = new byte[i_put - i_get];
         System.arraycopy(buffer, i_get, a, 0, a.length);
         i_get+=a.length;
         return a;
     }
-    public int getLength(){
-        return i_put - i_get;
-    }    
     public void reset_command(int command){
         set_put(5);
         putByte((byte) command);
