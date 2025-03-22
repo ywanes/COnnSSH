@@ -243,8 +243,8 @@ class Session{
                     buf.getInt();
                     int rps = buf.getInt();
                     channel_opened=true;
-                    set_rwsize(0);
-                    set_rmpsize(rps);                        
+                    rwsize=0;
+                    rmpsize=rps;
                     continue;
                 }
                 if ( msgType == SSH_MSG_GLOBAL_REQUEST ){
@@ -402,31 +402,16 @@ class Session{
                 buf.putInt(0);
                 buf.putInt(i);
                 buf.skip_put(i);                
-                if ( get_rwsize() > i )
-                    rwsize_substract(i);
+                if ( rwsize > i )
+                    rwsize-=i;
                 else
-                    rwsize_substract(get_rwsize());
+                    rwsize-=rwsize;
                 write(buf);
             }
         } catch (Exception e) {
             System.err.println("ex_1");
             System.exit(1);
         }        
-    }
-    public void set_rwsize(long a) {
-        rwsize = a;
-    }
-    public void add_rwsize(long a) {
-        rwsize += a;
-    }
-    public long get_rwsize() {
-        return rwsize;
-    }
-    public void rwsize_substract(long a) {
-        rwsize -= a;
-    }
-    public void set_rmpsize(int a) {
-        rmpsize = a;
     }
 
     private void debug(String a, byte[] b) {

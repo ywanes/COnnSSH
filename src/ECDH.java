@@ -1,4 +1,3 @@
-
 // ConfigECDH256 and ConfigECDH512 -> OK
 //class Config extends ConfigECDH256{}
 class Config extends ConfigECDH512{}
@@ -19,16 +18,7 @@ class ConfigECDH512{
 
 class ECDH extends Config{    
     java.security.MessageDigest sha = null;        
-    String _ecsp = "secp" + key_size + "r1";
-
-    public byte[] K = null;
-    public byte[] H = null;
-    public byte[] K_S = null;
-    public byte[] V_S;
-    public byte[] V_C;
-    public byte[] I_S;
-    public byte[] I_C;
-    public byte[] Q_C;    
+    public byte[] K, H, K_S, V_S, V_C, I_S, I_C, Q_C;    
     java.security.interfaces.ECPublicKey publicKey = null;
     javax.crypto.KeyAgreement myKeyAgree = null;    
 
@@ -40,7 +30,7 @@ class ECDH extends Config{
         sha = java.security.MessageDigest.getInstance(digest);
         try{     
             java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
-            java.security.spec.ECGenParameterSpec ecsp = new java.security.spec.ECGenParameterSpec(_ecsp);
+            java.security.spec.ECGenParameterSpec ecsp = new java.security.spec.ECGenParameterSpec("secp" + key_size + "r1");
             kpg.initialize(ecsp);
             java.security.KeyPair kp = kpg.genKeyPair();
             java.security.PrivateKey privateKey = kp.getPrivate();
@@ -96,11 +86,11 @@ class ECDH extends Config{
         if (!new String(buf.getValue(), "UTF-8").equals("ssh-rsa"))
             throw new Exception("unknown alg");
         if ( can_verification ){            
-            byte[] p2 = buf.getValue();
-            byte[] p1 = buf.getValue();
+            java.math.BigInteger p2=new java.math.BigInteger(buf.getValue());
+            java.math.BigInteger p1=new java.math.BigInteger(buf.getValue());
             java.security.Signature signature = java.security.Signature.getInstance("SHA1withRSA");
             java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("RSA");
-            java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(new java.math.BigInteger(p1), new java.math.BigInteger(p2));
+            java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(p1, p2);
             java.security.PublicKey _publicKey = keyFactory.generatePublic(rsaPubKeySpec);
             signature.initVerify(_publicKey);
             signature.update(H);        
@@ -111,4 +101,4 @@ class ECDH extends Config{
                 throw new Exception("signature.verify false");
         }
     }
-}  
+}
