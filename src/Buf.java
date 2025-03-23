@@ -40,9 +40,6 @@ class Buf{
     public void set_put(int s) {
         i_put = s;
     }
-    public int get_put() {
-        return i_put;
-    }
     public byte getByte() {
         return buffer[i_get++];
     }
@@ -78,7 +75,7 @@ class Buf{
         return buffer[5];
     }
     void padding(int bsize) {
-        int len = get_put();
+        int len = i_put;
         int pad = (-len) & (bsize - 1);
         if (pad < bsize)
             pad += bsize;
@@ -90,12 +87,11 @@ class Buf{
         ba4[3] = (byte)(len);
         System.arraycopy(ba4, 0, buffer, 0, 4);
         buffer[4] = (byte) pad;
-        int start_fill = get_put();
         byte[] tmp_fill = new byte[16];
         if (pad > tmp_fill.length)
             tmp_fill = new byte[pad];
         random.nextBytes(tmp_fill);
-        System.arraycopy(tmp_fill, 0, buffer, start_fill, pad);
+        System.arraycopy(tmp_fill, 0, buffer, i_put, pad);
         skip_put(pad);
     }    
 }
