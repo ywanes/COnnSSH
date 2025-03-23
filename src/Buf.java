@@ -28,18 +28,6 @@ class Buf{
         putInt(a.length);
         putBytes(a);
     }
-    void skip_put(int n) {
-        i_put += n;
-    }   
-    public void set_get(int s) {
-        i_get = s;
-    }
-    public int get_get() {
-        return i_get;
-    }
-    public void set_put(int s) {
-        i_put = s;
-    }
     public byte getByte() {
         return buffer[i_get++];
     }
@@ -65,11 +53,8 @@ class Buf{
         return a;
     }
     public void reset_command(int command){
-        set_put(5);
+        i_put=5;
         putByte((byte) command);
-    }
-    void reset_get(){
-        i_get = 0;
     }
     byte getCommand(){
         return buffer[5];
@@ -92,6 +77,6 @@ class Buf{
             tmp_fill = new byte[pad];
         random.nextBytes(tmp_fill);
         System.arraycopy(tmp_fill, 0, buffer, i_put, pad);
-        skip_put(pad);
+        i_put+=pad;
     }    
 }

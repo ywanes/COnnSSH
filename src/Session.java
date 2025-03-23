@@ -101,11 +101,11 @@ class Session{
             debug("connect stream <-: ", V_S); // SSH-2.0-OpenSSH_for_Windows_8.1
             _buf = new Buf();
             _buf.reset_command(SSH_MSG_KEXINIT);
-            int start_fill = _buf.i_put;//_buf.i_put/*get_put()*/;
+            int start_fill = _buf.i_put;//_buf.i_put;
             byte[] a = new byte[16];
             _buf.random.nextBytes(a);
             System.arraycopy(a, 0, _buf.buffer, start_fill, a.length);
-            _buf.skip_put(16);                        
+            _buf.i_put+=16;
             _buf.putValue(("ecdh-sha2-nistp" + kex.key_size).getBytes("UTF-8"));
             _buf.putValue(("ssh-rsa,ecdsa-sha2-nistp" + kex.key_size).getBytes("UTF-8"));
             _buf.putValue("aes256-ctr".getBytes("UTF-8"));
@@ -118,7 +118,7 @@ class Session{
             _buf.putValue("".getBytes("UTF-8"));
             _buf.putByte((byte) 0);
             _buf.putInt(0);
-            _buf.set_get(5);
+            _buf.i_get=5;
             I_C = _buf.getValueAllLen();
             write(_buf);
             debug("connect stream ->: ", _buf);
@@ -127,10 +127,10 @@ class Session{
             j = _buf.getInt();
             if (j != (_buf.i_put - _buf.i_get)){
                 _buf.getByte();
-                I_S = new byte[_buf.i_put/*get_put()*/ - 5];
+                I_S = new byte[_buf.i_put - 5];
             }else
                 I_S = new byte[j - 1 - _buf.getByte()];
-            System.arraycopy(_buf.buffer, _buf.get_get(), I_S, 0, I_S.length);
+            System.arraycopy(_buf.buffer, _buf.i_get, I_S, 0, I_S.length);
             debug("connect stream <-: ", I_S);
             
             kex.init(V_S, V_C, I_S, I_C);
@@ -154,23 +154,23 @@ class Session{
             _buf.putBytes(kex.H);
             _buf.putByte((byte) 0x41);
             _buf.putBytes(kex.H);
-            j = _buf.i_put/*get_put()*/ - kex.H.length - 1;        
-            kex.sha.update(_buf.buffer, 0, _buf.i_put/*get_put()*/);
+            j = _buf.i_put - kex.H.length - 1;        
+            kex.sha.update(_buf.buffer, 0, _buf.i_put);
             byte[] _writer_cipher_IV = digest_trunc_len(kex.sha.digest(), 16);
             _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put/*get_put()*/);
+            kex.sha.update(_buf.buffer, 0, _buf.i_put);
             byte[] _reader_cipher_IV = digest_trunc_len(kex.sha.digest(), 16);
             _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put/*get_put()*/);
+            kex.sha.update(_buf.buffer, 0, _buf.i_put);
             byte[] _writer_cipher = digest_trunc_len(kex.sha.digest(), 32);
             _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put/*get_put()*/);
+            kex.sha.update(_buf.buffer, 0, _buf.i_put);
             byte[] _reader_cipher = digest_trunc_len(kex.sha.digest(), 32);
             _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put/*get_put()*/);
+            kex.sha.update(_buf.buffer, 0, _buf.i_put);
             byte[] _writer_mac = digest_trunc_len(kex.sha.digest(), 20);
             _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put/*get_put()*/);
+            kex.sha.update(_buf.buffer, 0, _buf.i_put);
             byte[] _reader_mac = digest_trunc_len(kex.sha.digest(), 20);
             writer_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
             writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_writer_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_writer_cipher_IV));
@@ -280,24 +280,24 @@ class Session{
         Buf buf=new Buf();
         while(true){
             buf=new Buf();
-            getByte(buf.buffer, buf.i_put/*get_put()*/, reader_cipher_size, 1);
-            buf.skip_put(reader_cipher_size);
+            getByte(buf.buffer, buf.i_put, reader_cipher_size, 1);
+            buf.i_put+=reader_cipher_size;
             if (reader_cipher != null)
                 reader_cipher.update(buf.buffer, 0, reader_cipher_size, buf.buffer, 0);
             int need = (((buf.buffer[0] << 24) & 0xff000000) | ((buf.buffer[1] << 16) & 0x00ff0000) | ((buf.buffer[2] << 8) & 0x0000ff00) | ((buf.buffer[3]) & 0x000000ff)) + 4 - reader_cipher_size;
-            if ((buf.i_put/*get_put()*/ + need) > buf.buffer.length) {
-                byte[] a = new byte[buf.i_put/*get_put()*/ + need];
-                System.arraycopy(buf.buffer, 0, a, 0, buf.i_put/*get_put()*/);
+            if ((buf.i_put + need) > buf.buffer.length) {
+                byte[] a = new byte[buf.i_put + need];
+                System.arraycopy(buf.buffer, 0, a, 0, buf.i_put);
                 buf.buffer = a;
             }
             if (need > 0) {
-                getByte(buf.buffer, buf.i_put/*get_put()*/, need, 2);
-                buf.skip_put(need);
+                getByte(buf.buffer, buf.i_put, need, 2);
+                buf.i_put+=need;
                 if (reader_cipher != null)
                     reader_cipher.update(buf.buffer, reader_cipher_size, need, buf.buffer, reader_cipher_size);
             }            
             if (reader_mac != null) {
-                reader_mac.update(buf.buffer, 0, buf.i_put/*get_put()*/);
+                reader_mac.update(buf.buffer, 0, buf.i_put);
                 getByte(new byte[20], 0, 20, 3);
             }           
             int type = buf.getCommand() & 0xff;
@@ -306,7 +306,7 @@ class Session{
             if ( type != SSH_MSG_IGNORE && type != SSH_MSG_UNIMPLEMENTED && type != SSH_MSG_DEBUG && type != SSH_MSG_CHANNEL_WINDOW_ADJUST )
                 break;
         }
-        buf.reset_get();
+        buf.i_get=0;
         return buf;
     }
     
@@ -316,7 +316,7 @@ class Session{
         }else{
             buf.padding(16);
             int pad = buf.buffer[4];
-            int put = buf.i_put/*get_put()*/;
+            int put = buf.i_put;
             byte[] a = new byte[16];
             if (pad > 16)
                 a = new byte[pad];
@@ -328,12 +328,12 @@ class Session{
             a[2] = (byte)(writer_seq >> 8);
             a[3] = (byte) writer_seq;
             writer_mac.update(a);
-            writer_mac.update(buf.buffer, 0, buf.i_put/*get_put()*/);
-            writer_mac.doFinal(buf.buffer, buf.i_put/*get_put()*/);
-            writer_cipher.update(buf.buffer, 0, buf.i_put/*get_put()*/, buf.buffer, 0);            
-            buf.skip_put(20);
+            writer_mac.update(buf.buffer, 0, buf.i_put);
+            writer_mac.doFinal(buf.buffer, buf.i_put);
+            writer_cipher.update(buf.buffer, 0, buf.i_put, buf.buffer, 0);            
+            buf.i_put+=20;
         }
-        out.write(buf.buffer, 0, buf.i_put/*get_put()*/);
+        out.write(buf.buffer, 0, buf.i_put);
         out.flush();
         writer_seq++;
     }
@@ -405,7 +405,7 @@ class Session{
                 buf.reset_command(SSH_MSG_CHANNEL_DATA);
                 buf.putInt(0);
                 buf.putInt(i);
-                buf.skip_put(i);                
+                buf.i_put+=i;                
                 if ( rwsize > i )
                     rwsize-=i;
                 else
@@ -428,7 +428,7 @@ class Session{
     private void debug(String a, Buf _buf) {
         if ( verbose ){
             System.out.print(a);
-            System.out.write(_buf.buffer, 0, _buf.i_put/*get_put()*/);
+            System.out.write(_buf.buffer, 0, _buf.i_put);
             System.out.println();
             System.out.flush();
         }
