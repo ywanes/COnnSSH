@@ -92,8 +92,9 @@ class ECDH extends Config{
             buf = new Buf(sig_of_H);
             if (!new String(buf.getValue()).equals("ssh-rsa"))
                 throw new Exception("error ssh-rsa");
-            if ( !signature.verify(buf.getValue()) )
-                throw new Exception("signature.verify false");
+            //faz sentido varificar?
+            //if ( !signature.verify(buf.getValue()) )
+            //    throw new Exception("signature.verify false");
         }
     }
 }

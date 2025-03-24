@@ -53,13 +53,13 @@ class Session{
     public ECDH kex=null;
 
     public int count_line_return=-1;
-    public boolean can_print(int len){
+    public boolean can_print(int len, int first){
         if ( count_line_return == -1 )
             return true;
         count_line_return++;        
         if ( count_line_return == 1 )
             return false;
-        if ( count_line_return == 2 && len == 1 )
+        if ( count_line_return == 2 && len == 1 && first == 10 )
             return false;  
         return true;
     }    
@@ -205,6 +205,17 @@ class Session{
         }
     }
 
+    public boolean texto_oculto(byte [] a){
+        // 033 ] 0 ; .... \a
+        return a.length > 6 && (int)a[0] == 27 && (int)a[1] == 93 && (int)a[2] == 48 && (int)a[3] == 59 && (int)a[a.length-1] == 7;
+    }
+    public void mostra_bytes(byte [] a){
+        String s="";
+        for ( int i=0;i<a.length;i++ )
+            s+=(int)a[i]+",";
+        s="["+s+"]";
+        System.out.println(s);
+    }
     public void reading_stream(){
         Buf buf=new Buf();
         try {
@@ -220,14 +231,14 @@ class Session{
                     if (a.length == 0)
                         System.exit(0);
                     try {
-                        // ponto critico retorno out
-                        // enviando ls ele só retorna ls
-                        // analisando o send, dá para observar que ele manda o dado
-                        // ainda não sei porque ele nao me responde corretamente.
-                        ///////////                                    
-                        if ( can_print(a.length) ){
+                        if ( texto_oculto(a) )// ocorre no começo e fim de cada interação
+                            continue;                            
+                        ////////////////
+                        // recebendo texto
+                        if ( can_print(a.length, (int)a[0]) ){
                             System.out.write(a);
-                            System.out.flush();                            
+                            System.out.flush();                                                        
+                            //mostra_bytes(a);
                         }
                     } catch (Exception e) {
                         throw new Exception("Error Session 287 " + e);                                    
