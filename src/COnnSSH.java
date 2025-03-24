@@ -17,7 +17,7 @@ public class COnnSSH {
         if ( args.length > 0 )
             access=args[0];
         else{
-            java.io.File f = new java.io.File("..\\key.txt");
+            java.io.File f = new java.io.File("D:\\DADOSSSSS\\Desktopsss\\desktop\\COnnSSH\\key.txt");
             if ( f.exists() && f.isFile() )
                 access = lendo_arquivo_ofuscado(f.getAbsolutePath()) + "@192.168.0.100";
         }

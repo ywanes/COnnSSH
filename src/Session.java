@@ -390,6 +390,7 @@ class Session{
             int i=0;
             int off=14;
             /////////////////
+            // enviando texto
             while ( (i = System.in.read(buf.buffer, off, buf.buffer.length -off -(kex.nn_cipher+64))) >= 0 ){                                            
                 if ( buf.buffer[i-2+off] != barra_r || buf.buffer[i-1+off] != barra_n ){ // linux fazendo \r\n para ssh windows
                     i++;
