@@ -71,7 +71,8 @@ public class COnnSSH {
                     continue;
                 }
                 if ( s.contains("verify: false") && limit > 5 ){
-                    //System.out.println("verify: false.. reloading...");
+                    System.out.println("verify: false.. reloading...");
+                    try { Thread.sleep(20); }catch(Exception ee){}
                     continue;
                 }
                 if ( s.contains("UserAuth Fail") ){

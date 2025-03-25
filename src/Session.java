@@ -139,7 +139,6 @@ class Session{
             _buf.putValue(kex.Q_C);
             write(_buf);
             debug("connect stream ->: ", _buf);
-            
             _buf = read();
             kex.next(_buf);
             _buf.reset_command(SSH_MSG_NEWKEYS);
@@ -228,8 +227,10 @@ class Session{
                     buf.getByte();
                     buf.getInt();
                     byte[] a = buf.getValue();
-                    if (a.length == 0)
+                    if (a.length == 0){
+                        System.out.println("a.length == 0");
                         System.exit(0);
+                    }
                     try {
                         if ( texto_oculto(a) )// ocorre no começo e fim de cada interação
                             continue;                            
@@ -312,10 +313,15 @@ class Session{
                 getByte(new byte[20], 0, 20, 3);
             }           
             int type = buf.getCommand() & 0xff;
-            if (type == SSH_MSG_DISCONNECT)
+            if (type == SSH_MSG_DISCONNECT){
                 System.exit(0);
-            if ( type != SSH_MSG_IGNORE && type != SSH_MSG_UNIMPLEMENTED && type != SSH_MSG_DEBUG && type != SSH_MSG_CHANNEL_WINDOW_ADJUST )
+            }
+            if ( type != SSH_MSG_IGNORE && type != SSH_MSG_UNIMPLEMENTED && type != SSH_MSG_DEBUG && type != SSH_MSG_CHANNEL_WINDOW_ADJUST ){
+                // 20, 31 /////////////////// SSH_MSG_KEXINIT = 20; SSH_MSG_NEWKEYS = 21; SSH_MSG_KEX_DH_GEX_GROUP = 31;
+                //System.out.println("type? " + type);
+                // muitas vezes para o programa após ocorrer um desses 3 types aqui
                 break;
+            }
         }
         buf.i_get=0;
         return buf;
