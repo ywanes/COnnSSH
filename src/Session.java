@@ -46,7 +46,6 @@ class Session{
     byte barra_n=new byte[]{10}[0];
     java.io.InputStream in = null;
     java.io.OutputStream out = null;
-    public long rwsize = 0;
     public boolean channel_opened=false;
     public int rmpsize = 0;
     boolean verbose=1==2?true:false;
@@ -255,7 +254,6 @@ class Session{
                     buf.getInt();
                     int rps = buf.getInt();
                     channel_opened=true;
-                    rwsize=0;
                     rmpsize=rps;
                     continue;
                 }
@@ -294,7 +292,7 @@ class Session{
         Buf buf=new Buf();
         while(true){
             buf=new Buf();
-            getByte(buf.buffer, buf.i_put, reader_cipher_size, 1);
+            in.read(buf.buffer, buf.i_put, reader_cipher_size);
             buf.i_put+=reader_cipher_size;
             if (reader_cipher != null)
                 reader_cipher.update(buf.buffer, 0, reader_cipher_size, buf.buffer, 0);
@@ -305,14 +303,14 @@ class Session{
                 buf.buffer = a;
             }
             if (need > 0) {
-                getByte(buf.buffer, buf.i_put, need, 2);
+                in.read(buf.buffer, buf.i_put, need);
                 buf.i_put+=need;
                 if (reader_cipher != null)
                     reader_cipher.update(buf.buffer, reader_cipher_size, need, buf.buffer, reader_cipher_size);
             }            
             if (reader_mac != null) {
                 reader_mac.update(buf.buffer, 0, buf.i_put);
-                getByte(new byte[20], 0, 20, 3);
+                in.read(new byte[20], 0, 20);
             }           
             int type = buf.getCommand();
             if (type == SSH_MSG_DISCONNECT){
@@ -357,14 +355,6 @@ class Session{
         writer_seq++;
     }
     
-    void getByte(byte[] array, int begin, int length, int identity) throws Exception{
-        if (length > 0){
-            int completed = in.read(array, begin, length);
-            begin += completed;
-            length -= completed;
-        }
-    }
-
     public void connect_stdin() throws Exception {
         Buf buf=new Buf();
         buf.reset_command(SSH_MSG_CHANNEL_OPEN);
@@ -426,10 +416,6 @@ class Session{
                 buf.putInt(0);
                 buf.putInt(i);
                 buf.i_put+=i;                
-                if ( rwsize > i )
-                    rwsize-=i;
-                else
-                    rwsize-=rwsize;
                 write(buf);
             }
         } catch (Exception e) {
