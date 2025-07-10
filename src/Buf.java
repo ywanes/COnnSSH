@@ -12,9 +12,9 @@ class Buf{
         i_get = 0;
     }
     public void putInt(int val) {
-        buffer[i_put++] = (byte)(val >>> 24);
-        buffer[i_put++] = (byte)(val >>> 16);
-        buffer[i_put++] = (byte)(val >>> 8);
+        buffer[i_put++] = (byte)(val >> 24);
+        buffer[i_put++] = (byte)(val >> 16);
+        buffer[i_put++] = (byte)(val >> 8);
         buffer[i_put++] = (byte)val;
     }
     public void putByte(byte a) {
@@ -31,14 +31,8 @@ class Buf{
     public byte getByte() {
         return buffer[i_get++];
     }
-    private int getB() {
-        return getByte() & 0xff;
-    }
-    public int getShort() {
-        return getB() << 8 | getB();        
-    }
     public int getInt(){
-        return getB() << 24 | getB() << 16 | getB() << 8 | getB(); 
+        return (getByte() & 0xff) << 24 | (getByte() & 0xff) << 16 | (getByte() & 0xff) << 8 | (getByte() & 0xff); 
     }
     public byte[] getValue() {
         byte[] a = new byte[getInt()];
@@ -56,10 +50,10 @@ class Buf{
         i_put=5;
         putByte((byte) command);
     }
-    byte getCommand(){
-        return buffer[5];
+    public int getCommand(){
+        return buffer[5] & 0xff;
     }
-    void padding(int bsize) {
+    public void padding(int bsize) {
         int len = i_put;
         int pad = (-len) & (bsize - 1);
         if (pad < bsize)

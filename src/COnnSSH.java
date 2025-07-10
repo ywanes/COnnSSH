@@ -8,9 +8,8 @@ public class COnnSSH {
         }
     }
 
-    public void go(String [] args) {
-        // maquina windows A conectando maquina windows B funciona
-        // maquina linux conectando windows nao funciona
+    public void go(String [] args){
+        // java -jar "D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\dist\COnnSSH.jar"
         // ssh -o HostKeyAlgorithms=ecdsa-sha2-nistp256 ywanes@192.168.0.100
         // cd C:\tmp\tmp_teste && xcopy "D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\src" . /h /i /c /k /e /r /y && y cls && javac COnnSSH.java && native-image COnnSSH --no-fallback && connssh
         String access = "ywanes@192.168.0.100";

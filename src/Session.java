@@ -194,7 +194,7 @@ class Session{
             write(_buf);
             
             _buf = read();
-            int command = _buf.getCommand() & 0xff;
+            int command = _buf.getCommand();
             if (command == SSH_MSG_USERAUTH_FAILURE)
                 throw new Exception("UserAuth Fail!");
             if (command == SSH_MSG_USERAUTH_BANNER || command == SSH_MSG_USERAUTH_PASSWD_CHANGEREQ )
@@ -220,7 +220,7 @@ class Session{
         try {
             while(true) {
                 buf = read();
-                int msgType = buf.getCommand() & 0xff;        
+                int msgType = buf.getCommand();
                 if ( msgType == SSH_MSG_CHANNEL_DATA){
                     buf.getInt();
                     buf.getByte();
@@ -248,7 +248,8 @@ class Session{
                 }
                 if ( msgType == SSH_MSG_CHANNEL_OPEN_CONFIRMATION){
                     buf.getInt();
-                    buf.getShort();
+                    buf.getByte();
+                    buf.getByte();
                     buf.getInt();
                     buf.getInt();
                     buf.getInt();
@@ -260,7 +261,8 @@ class Session{
                 }
                 if ( msgType == SSH_MSG_GLOBAL_REQUEST ){
                     buf.getInt();
-                    buf.getShort();
+                    buf.getByte();
+                    buf.getByte();
                     buf.getValue();
                     if (buf.getByte() != 0) {
                         buf.reset_command(SSH_MSG_REQUEST_FAILURE);
@@ -312,7 +314,7 @@ class Session{
                 reader_mac.update(buf.buffer, 0, buf.i_put);
                 getByte(new byte[20], 0, 20, 3);
             }           
-            int type = buf.getCommand() & 0xff;
+            int type = buf.getCommand();
             if (type == SSH_MSG_DISCONNECT){
                 System.exit(0);
             }
@@ -355,9 +357,9 @@ class Session{
         writer_seq++;
     }
     
-    void getByte(byte[] array, int begin, int length, int identity) throws java.io.IOException {
-        while (length > 0){
-            int completed = in.read(array, begin, length);            
+    void getByte(byte[] array, int begin, int length, int identity) throws Exception{
+        if (length > 0){
+            int completed = in.read(array, begin, length);
             begin += completed;
             length -= completed;
         }
