@@ -56,32 +56,20 @@ public class COnnSSH {
             System.err.println("Error parameter.. example:user,pass@remotehost");
         String user = arg0.split("@")[0];
         String host = arg0.split("@")[1];  
-        int limit=30;
-        String s="Error unknow";
+        int limit=5;
         while(limit-->0){
             try{
-                new Session(host, user, port, password);
-                return;
+                new Session(host, user, port, password);                
             }catch(Exception e){
-                s=e.toString();
-                if ( s.contains("Connection reset") ){
-                    //System.out.println(s+".. reloading...");                    
-                    try { Thread.sleep(20); }catch(Exception ee){}
+                if ( e.toString().equals("java.net.SocketException: Connection reset") ){
+                    System.out.print(".");
                     continue;
                 }
-                if ( s.contains("verify: false") && limit > 5 ){
-                    System.out.println("verify: false.. reloading...");
-                    try { Thread.sleep(20); }catch(Exception ee){}
-                    continue;
-                }
-                if ( s.contains("UserAuth Fail") ){
-                    //System.out.println("UserAuth Fail.. reloading...");
-                    s="UserAuth Fail!!";
-                }
+                System.err.println(e.toString().contains("UserAuth Fail")?"UserAuth Fail!!":e.toString());                
             }            
-            System.err.println(s);
-            System.exit(1);
+            return;
         }
+        System.err.println("limite de tentativas atingido!");
     }
 
     public void comando_invalido(String[] args) {

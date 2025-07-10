@@ -68,139 +68,138 @@ class Session{
         connect_stream(host, username, port, password);
         new Thread(){public void run(){
             reading_stream();
-        }}.start();                
+        }}.start();   
         connect_stdin();
         writing_stdin(); // send msg by keyboard
     }
     
     public void connect_stream(String host, String username, int port, String password) throws Exception{                
         _buf = new Buf();
-        try {
-            int i, j;
-            try{
-                socket = new java.net.Socket(host, port);
-                in = socket.getInputStream();
-                out = socket.getOutputStream();
-            }catch(Exception e){
-                throw new Exception("Error session connect socket " + e);
-            }
-            out.write(V_C, 0, V_C.length);
-            out.write(barra_n);
-            out.flush();
-            i = 0;
-            while( (j = in.read(_buf.buffer, i, 1)) > 0 ){
-                if ( i > 0 && _buf.buffer[i-1] == barra_r && _buf.buffer[i] == barra_n ){
-                    i--;
-                    break;
-                }
-                i++;
-            }
-            V_S = new byte[i];
-            System.arraycopy(_buf.buffer, 0, V_S, 0, i);
-            debug("connect stream <-: ", V_S); // SSH-2.0-OpenSSH_for_Windows_8.1
-            _buf = new Buf();
-            _buf.reset_command(SSH_MSG_KEXINIT);
-            int start_fill = _buf.i_put;//_buf.i_put;
-            byte[] a = new byte[16];
-            _buf.random.nextBytes(a);
-            System.arraycopy(a, 0, _buf.buffer, start_fill, a.length);
-            _buf.i_put+=16;
-            _buf.putValue(("ecdh-sha2-nistp" + kex.key_size).getBytes("UTF-8"));
-            _buf.putValue(("ssh-rsa,ecdsa-sha2-nistp" + kex.key_size).getBytes("UTF-8"));
-            _buf.putValue("aes256-ctr".getBytes("UTF-8"));
-            _buf.putValue("aes256-ctr".getBytes("UTF-8"));
-            _buf.putValue("hmac-sha1".getBytes("UTF-8"));
-            _buf.putValue("hmac-sha1".getBytes("UTF-8"));
-            _buf.putValue("none".getBytes("UTF-8"));
-            _buf.putValue("none".getBytes("UTF-8"));
-            _buf.putValue("".getBytes("UTF-8"));
-            _buf.putValue("".getBytes("UTF-8"));
-            _buf.putByte((byte) 0);
-            _buf.putInt(0);
-            _buf.i_get=5;
-            I_C = _buf.getValueAllLen();
-            write(_buf);
-            debug("connect stream ->: ", _buf);
-            
-            _buf = read();
-            j = _buf.getInt();
-            if (j != (_buf.i_put - _buf.i_get)){
-                _buf.getByte();
-                I_S = new byte[_buf.i_put - 5];
-            }else
-                I_S = new byte[j - 1 - _buf.getByte()];
-            System.arraycopy(_buf.buffer, _buf.i_get, I_S, 0, I_S.length);
-            debug("connect stream <-: ", I_S);
-            
-            kex.init(V_S, V_C, I_S, I_C);
-            _buf = new Buf();
-            _buf.reset_command(SSH_MSG_KEXDH_INIT);
-            _buf.putValue(kex.Q_C);
-            write(_buf);
-            debug("connect stream ->: ", _buf);
-            _buf = read();
-            kex.next(_buf);
-            _buf.reset_command(SSH_MSG_NEWKEYS);
-            write(_buf);
-            
-            _buf = read();
-            if (_buf.getCommand() != SSH_MSG_NEWKEYS )
-                throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());            
-            
-            _buf=new Buf();
-            _buf.putValue(kex.K);
-            _buf.putBytes(kex.H);
-            _buf.putByte((byte) 0x41);
-            _buf.putBytes(kex.H);
-            j = _buf.i_put - kex.H.length - 1;        
-            kex.sha.update(_buf.buffer, 0, _buf.i_put);
-            byte[] _writer_cipher_IV = digest_trunc_len(kex.sha.digest(), 16);
-            _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put);
-            byte[] _reader_cipher_IV = digest_trunc_len(kex.sha.digest(), 16);
-            _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put);
-            byte[] _writer_cipher = digest_trunc_len(kex.sha.digest(), 32);
-            _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put);
-            byte[] _reader_cipher = digest_trunc_len(kex.sha.digest(), 32);
-            _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put);
-            byte[] _writer_mac = digest_trunc_len(kex.sha.digest(), 20);
-            _buf.buffer[j]++;
-            kex.sha.update(_buf.buffer, 0, _buf.i_put);
-            byte[] _reader_mac = digest_trunc_len(kex.sha.digest(), 20);
-            writer_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-            writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_writer_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_writer_cipher_IV));
-            writer_mac = javax.crypto.Mac.getInstance("HmacSHA1");
-            writer_mac.init(new javax.crypto.spec.SecretKeySpec(_writer_mac, "HmacSHA1"));
-            reader_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-            reader_cipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_reader_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_reader_cipher_IV));
-            reader_cipher_size = 16;
-            reader_mac = javax.crypto.Mac.getInstance("HmacSHA1");
-            reader_mac.init(new javax.crypto.spec.SecretKeySpec(_reader_mac, "HmacSHA1"));                        
-            _buf.reset_command(SSH_MSG_SERVICE_REQUEST);
-            _buf.putValue("ssh-userauth".getBytes("UTF-8"));
-            write(_buf);
-            
-            _buf = read();
-            _buf.reset_command(SSH_MSG_USERAUTH_REQUEST);
-            _buf.putValue(username.getBytes("UTF-8"));
-            _buf.putValue("ssh-connection".getBytes("UTF-8"));
-            _buf.putValue("password".getBytes("UTF-8"));
-            _buf.putByte((byte) 0);
-            _buf.putValue(password.getBytes("UTF-8"));
-            write(_buf);
-            
-            _buf = read();
-            int command = _buf.getCommand();
-            if (command == SSH_MSG_USERAUTH_FAILURE)
-                throw new Exception("UserAuth Fail!");
-            if (command == SSH_MSG_USERAUTH_BANNER || command == SSH_MSG_USERAUTH_PASSWD_CHANGEREQ )
-                throw new Exception("USERAUTH BANNER or PASSWD_CHANGEREQ");
+        int i, j;
+        try{
+            socket = new java.net.Socket(host, port);
+            in = socket.getInputStream();
+            out = socket.getOutputStream();
         }catch(Exception e){
-            throw new Exception("Error Session 224 " + e.toString());
+            throw new Exception("Error session connect socket " + e);
         }
+        out.write(V_C, 0, V_C.length);
+        out.write(barra_n);
+        out.flush();
+        i = 0;
+        while( (j = in.read(_buf.buffer, i, 1)) > 0 ){
+            if ( i > 0 && _buf.buffer[i-1] == barra_r && _buf.buffer[i] == barra_n ){
+                i--;
+                break;
+            }
+            i++;
+        }
+        V_S = new byte[i];
+        System.arraycopy(_buf.buffer, 0, V_S, 0, i);
+        debug("connect stream <-: ", V_S); // SSH-2.0-OpenSSH_for_Windows_8.1
+        _buf = new Buf();
+        _buf.reset_command(SSH_MSG_KEXINIT);
+        int start_fill = _buf.i_put;//_buf.i_put;
+        byte[] a = new byte[16];
+        _buf.random.nextBytes(a);
+        System.arraycopy(a, 0, _buf.buffer, start_fill, a.length);
+        _buf.i_put+=16;
+        _buf.putValue(("ecdh-sha2-nistp" + kex.key_size).getBytes("UTF-8"));
+        _buf.putValue(("ssh-rsa,ecdsa-sha2-nistp" + kex.key_size).getBytes("UTF-8"));
+        _buf.putValue("aes256-ctr".getBytes("UTF-8"));
+        _buf.putValue("aes256-ctr".getBytes("UTF-8"));
+        _buf.putValue("hmac-sha1".getBytes("UTF-8"));
+        _buf.putValue("hmac-sha1".getBytes("UTF-8"));
+        _buf.putValue("none".getBytes("UTF-8"));
+        _buf.putValue("none".getBytes("UTF-8"));
+        _buf.putValue("".getBytes("UTF-8"));
+        _buf.putValue("".getBytes("UTF-8"));
+        _buf.putByte((byte) 0);
+        _buf.putInt(0);
+        _buf.i_get=5;
+        I_C = _buf.getValueAllLen();
+        write(_buf);
+        debug("connect stream ->: ", _buf);
+
+        _buf = read();
+        j = _buf.getInt();
+        if (j != (_buf.i_put - _buf.i_get)){
+            _buf.getByte();
+            I_S = new byte[_buf.i_put - 5];
+        }else
+            I_S = new byte[j - 1 - _buf.getByte()];
+        System.arraycopy(_buf.buffer, _buf.i_get, I_S, 0, I_S.length);
+        debug("connect stream <-: ", I_S);
+
+        kex.init(V_S, V_C, I_S, I_C);
+        _buf = new Buf();
+        _buf.reset_command(SSH_MSG_KEXDH_INIT);
+        _buf.putValue(kex.Q_C);
+        write(_buf);
+        debug("connect stream ->: ", _buf);
+        // as vezes falha aqui
+        // Connection reset..
+        _buf = read();
+        kex.next(_buf);
+        _buf.reset_command(SSH_MSG_NEWKEYS);
+        write(_buf);
+        _buf = read();
+        if (_buf.getCommand() != SSH_MSG_NEWKEYS )
+            throw new Exception("invalid protocol(newkyes): " + _buf.getCommand());            
+
+        _buf=new Buf();
+        _buf.putValue(kex.K);
+        _buf.putBytes(kex.H);
+        _buf.putByte((byte) 0x41);
+        _buf.putBytes(kex.H);
+        j = _buf.i_put - kex.H.length - 1;        
+        kex.sha.update(_buf.buffer, 0, _buf.i_put);
+        byte[] _writer_cipher_IV = digest_trunc_len(kex.sha.digest(), 16);
+        _buf.buffer[j]++;
+        kex.sha.update(_buf.buffer, 0, _buf.i_put);
+        byte[] _reader_cipher_IV = digest_trunc_len(kex.sha.digest(), 16);
+        _buf.buffer[j]++;
+        kex.sha.update(_buf.buffer, 0, _buf.i_put);
+        byte[] _writer_cipher = digest_trunc_len(kex.sha.digest(), 32);
+        _buf.buffer[j]++;
+        kex.sha.update(_buf.buffer, 0, _buf.i_put);
+        byte[] _reader_cipher = digest_trunc_len(kex.sha.digest(), 32);
+        _buf.buffer[j]++;
+        kex.sha.update(_buf.buffer, 0, _buf.i_put);
+        byte[] _writer_mac = digest_trunc_len(kex.sha.digest(), 20);
+        _buf.buffer[j]++;
+        kex.sha.update(_buf.buffer, 0, _buf.i_put);
+        byte[] _reader_mac = digest_trunc_len(kex.sha.digest(), 20);
+        writer_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+        writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_writer_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_writer_cipher_IV));
+        writer_mac = javax.crypto.Mac.getInstance("HmacSHA1");
+        writer_mac.init(new javax.crypto.spec.SecretKeySpec(_writer_mac, "HmacSHA1"));
+        reader_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+        reader_cipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_reader_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_reader_cipher_IV));
+        reader_cipher_size = 16;
+        reader_mac = javax.crypto.Mac.getInstance("HmacSHA1");
+        reader_mac.init(new javax.crypto.spec.SecretKeySpec(_reader_mac, "HmacSHA1"));                        
+        _buf.reset_command(SSH_MSG_SERVICE_REQUEST);
+        _buf.putValue("ssh-userauth".getBytes("UTF-8"));
+        write(_buf);
+        
+        // as vezes falha aqui
+        // Connection reset..
+        _buf = read();
+        _buf.reset_command(SSH_MSG_USERAUTH_REQUEST);
+        _buf.putValue(username.getBytes("UTF-8"));
+        _buf.putValue("ssh-connection".getBytes("UTF-8"));
+        _buf.putValue("password".getBytes("UTF-8"));
+        _buf.putByte((byte) 0);
+        _buf.putValue(password.getBytes("UTF-8"));
+        write(_buf);
+
+        _buf = read();
+        int command = _buf.getCommand();
+        if (command == SSH_MSG_USERAUTH_FAILURE)
+            throw new Exception("UserAuth Fail!");
+        if (command == SSH_MSG_USERAUTH_BANNER || command == SSH_MSG_USERAUTH_PASSWD_CHANGEREQ )
+            throw new Exception("USERAUTH BANNER or PASSWD_CHANGEREQ");
     }
 
     public boolean texto_oculto(byte [] a){
@@ -230,18 +229,14 @@ class Session{
                         System.out.println("a.length == 0");
                         System.exit(0);
                     }
-                    try {
-                        if ( texto_oculto(a) )// ocorre no começo e fim de cada interação
-                            continue;                            
-                        ////////////////
-                        // recebendo texto
-                        if ( can_print(a.length, (int)a[0]) ){
-                            System.out.write(a);
-                            System.out.flush();                                                        
-                            //mostra_bytes(a);
-                        }
-                    } catch (Exception e) {
-                        throw new Exception("Error Session 287 " + e);                                    
+                    if ( texto_oculto(a) )// ocorre no começo e fim de cada interação
+                        continue;                            
+                    ////////////////
+                    // recebendo texto
+                    if ( can_print(a.length, (int)a[0]) ){
+                        System.out.write(a);
+                        System.out.flush();                                                        
+                        //mostra_bytes(a);
                     }
                     continue;
                 }
@@ -268,16 +263,15 @@ class Session{
                     }
                     continue;
                 }
-                if ( msgType == SSH_MSG_CHANNEL_EOF ){
+                if ( msgType == SSH_MSG_CHANNEL_EOF )
                     System.exit(0);
-                }
-                throw new Exception("msgType " + msgType+" not found. - Only 4 msgType implementations");
+                System.err.println("msgType " + msgType+" not found. - Only 4 msgType implementations");
+                System.exit(1);
             }
         } catch (Exception e) {
             System.out.println("ex_3 " + e.toString());
             System.exit(1);
         }
-        System.exit(0);
     }
     
     private byte[] digest_trunc_len(byte[] digest, int len){
@@ -317,9 +311,7 @@ class Session{
                 System.exit(0);
             }
             if ( type != SSH_MSG_IGNORE && type != SSH_MSG_UNIMPLEMENTED && type != SSH_MSG_DEBUG && type != SSH_MSG_CHANNEL_WINDOW_ADJUST ){
-                // 20, 31 /////////////////// SSH_MSG_KEXINIT = 20; SSH_MSG_NEWKEYS = 21; SSH_MSG_KEX_DH_GEX_GROUP = 31;
-                //System.out.println("type? " + type);
-                // muitas vezes para o programa após ocorrer um desses 3 types aqui
+                //System.out.println("erro type: " + type);                
                 break;
             }
         }
