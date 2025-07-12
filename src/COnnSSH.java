@@ -56,7 +56,7 @@ public class COnnSSH {
             System.err.println("Error parameter.. example:user,pass@remotehost");
         String user = arg0.split("@")[0];
         String host = arg0.split("@")[1];  
-        int limit=5;
+        int limit=10;
         while(limit-->0){
             try{
                 new Session(host, user, port, password);                

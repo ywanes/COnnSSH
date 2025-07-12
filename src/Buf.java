@@ -53,24 +53,4 @@ class Buf{
     public int getCommand(){
         return buffer[5] & 0xff;
     }
-    public void padding(int bsize) {
-        int len = i_put;
-        int pad = (-len) & (bsize - 1);
-        if (pad < bsize)
-            pad += bsize;
-        len = len + pad - 4;
-        byte[] ba4 = new byte[4];
-        ba4[0] = (byte)(len >> 24);
-        ba4[1] = (byte)(len >> 16);
-        ba4[2] = (byte)(len >> 8);
-        ba4[3] = (byte)(len);
-        System.arraycopy(ba4, 0, buffer, 0, 4);
-        buffer[4] = (byte) pad;
-        byte[] tmp_fill = new byte[16];
-        if (pad > tmp_fill.length)
-            tmp_fill = new byte[pad];
-        random.nextBytes(tmp_fill);
-        System.arraycopy(tmp_fill, 0, buffer, i_put, pad);
-        i_put+=pad;
-    }    
 }

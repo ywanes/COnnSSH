@@ -320,15 +320,24 @@ class Session{
     }
     
     public void write(Buf buf) throws Exception {
-        if (writer_cipher == null) {
-            buf.padding(8);
-        }else{
-            buf.padding(16);
-            int pad = buf.buffer[4];
+        int len = buf.i_put;
+        int pad = (-len) & (15);
+        if (pad < 16)
+            pad += 16;
+        len = len + pad - 4;
+        byte[] ba4 = new byte[4];
+        ba4[0] = (byte)(len >> 24);
+        ba4[1] = (byte)(len >> 16);
+        ba4[2] = (byte)(len >> 8);
+        ba4[3] = (byte)(len);
+        System.arraycopy(ba4, 0, buf.buffer, 0, 4);
+        buf.buffer[4] = (byte) pad;
+        System.arraycopy(new byte[pad>16?pad:16], 0, buf.buffer, buf.i_put, pad);
+        buf.i_put+=pad;
+        if (writer_cipher != null) {
+            pad = buf.buffer[4];
             int put = buf.i_put;
-            byte[] a = new byte[16];
-            if (pad > 16)
-                a = new byte[pad];
+            byte[] a = new byte[pad>16?pad:16];
             buf.random.nextBytes(a);
             System.arraycopy(a, 0, buf.buffer, put - pad, pad);
             a = new byte[4];
