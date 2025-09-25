@@ -1,3 +1,6 @@
+
+import java.io.UnsupportedEncodingException;
+
 class Buf{
     byte[] buffer;
     int i_put, i_get;
@@ -24,6 +27,9 @@ class Buf{
     public void putValue(byte[] a) {
         putInt(a.length);
         putBytes(a);
+    }
+    public void putString(String a) throws Exception{
+        putValue(a.getBytes("UTF-8"));
     }
     public byte getByte(){
         return buffer[i_get++];

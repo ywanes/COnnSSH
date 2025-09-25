@@ -91,14 +91,14 @@ class Session{
         byte[] a = get_random_bytes(16);
         System.arraycopy(a, 0, buf.buffer, start_fill, a.length);
         buf.i_put+=16;
-        buf.putValue(("ecdh-sha2-nistp521").getBytes("UTF-8"));
-        buf.putValue(("ssh-rsa,ecdsa-sha2-nistp521").getBytes("UTF-8"));
-        buf.putValue("aes256-ctr".getBytes("UTF-8"));
-        buf.putValue("aes256-ctr".getBytes("UTF-8"));
-        buf.putValue("hmac-sha1".getBytes("UTF-8"));
-        buf.putValue("hmac-sha1".getBytes("UTF-8"));
-        buf.putValue("none".getBytes("UTF-8"));
-        buf.putValue("none".getBytes("UTF-8"));
+        buf.putString("ecdh-sha2-nistp521");
+        buf.putString("ssh-rsa,ecdsa-sha2-nistp521");
+        buf.putString("aes256-ctr");
+        buf.putString("aes256-ctr");
+        buf.putString("hmac-sha1");
+        buf.putString("hmac-sha1");
+        buf.putString("none");
+        buf.putString("none");
         buf.putInt(0);
         buf.putInt(0);
         buf.putByte((byte) 0);
@@ -166,17 +166,17 @@ class Session{
         reader_mac = javax.crypto.Mac.getInstance("HmacSHA1");
         reader_mac.init(new javax.crypto.spec.SecretKeySpec(_reader_mac, "HmacSHA1"));                        
         buf.reset_command(SSH_MSG_SERVICE_REQUEST);
-        buf.putValue("ssh-userauth".getBytes("UTF-8"));
+        buf.putString("ssh-userauth");
         write(buf);
         
         // as vezes falha aqui "java.net.SocketException: Connection reset"
         buf = read();
         buf.reset_command(SSH_MSG_USERAUTH_REQUEST);
-        buf.putValue(username.getBytes("UTF-8"));
-        buf.putValue("ssh-connection".getBytes("UTF-8"));
-        buf.putValue("password".getBytes("UTF-8"));
+        buf.putString(username);
+        buf.putString("ssh-connection");
+        buf.putString("password");
         buf.putByte((byte) 0);
-        buf.putValue(password.getBytes("UTF-8"));
+        buf.putString(password);
         write(buf);
 
         buf = read();
@@ -330,7 +330,7 @@ class Session{
     public void connect_stdin() throws Exception{
         Buf buf=new Buf();
         buf.reset_command(SSH_MSG_CHANNEL_OPEN);
-        buf.putValue("session".getBytes("UTF-8"));
+        buf.putString("session");
         buf.putInt(0);
         buf.putInt(0x100000);
         buf.putInt(0x4000);
@@ -344,9 +344,9 @@ class Session{
         
         buf.reset_command(SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
-        buf.putValue("pty-req".getBytes("UTF-8"));
+        buf.putString("pty-req");
         buf.putByte((byte) 0);
-        buf.putValue("vt100".getBytes("UTF-8"));
+        buf.putString("vt100");
         buf.putInt(10000); //tcol
         buf.putInt(24); // trow
         buf.putInt(640); // twp
@@ -356,7 +356,7 @@ class Session{
         
         buf.reset_command(SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
-        buf.putValue("shell".getBytes("UTF-8"));
+        buf.putString("shell");
         buf.putByte((byte) 0);
         write(buf);
     }
