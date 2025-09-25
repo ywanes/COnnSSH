@@ -18,8 +18,6 @@ class Buf{
         buffer[i_put++] = a;
     }
     public void putBytes(byte[] a) {
-        //for ( int i=0;i<a.length;i++ )
-        //    buffer[i_put++] = a[i];
         System.arraycopy(a, 0, buffer, i_put, a.length);
         i_put+=a.length;
     }
@@ -53,6 +51,6 @@ class Buf{
         putByte((byte) command);
     }
     public int getCommand(){
-        return buffer[5] & 0xff;
+        return buffer[5];
     }
 }

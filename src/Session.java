@@ -99,8 +99,8 @@ class Session{
         buf.putValue("hmac-sha1".getBytes("UTF-8"));
         buf.putValue("none".getBytes("UTF-8"));
         buf.putValue("none".getBytes("UTF-8"));
-        buf.putValue("".getBytes("UTF-8"));
-        buf.putValue("".getBytes("UTF-8"));
+        buf.putInt(0);
+        buf.putInt(0);
         buf.putByte((byte) 0);
         buf.putInt(0);
         buf.i_get=5;
@@ -309,10 +309,10 @@ class Session{
         buf.buffer[1] = (byte)(len >> 16);
         buf.buffer[2] = (byte)(len >> 8);
         buf.buffer[3] = (byte)len;
-        buf.buffer[4] = (byte) pad;
+        buf.buffer[4] = (byte)pad;
         System.arraycopy(new byte[pad>16?pad:16], 0, buf.buffer, buf.i_put, pad);
         buf.i_put+=pad;
-        if (writer_cipher != null) {
+        if (writer_cipher != null){
             pad = buf.buffer[4];
             int put = buf.i_put;
             System.arraycopy(get_random_bytes(pad>16?pad:16), 0, buf.buffer, put - pad, pad);
@@ -341,21 +341,17 @@ class Session{
             try { Thread.sleep(10); } catch (Exception e) {};        
         if ( !channel_opened )
             throw new Exception("channel is not opened.");        
-        int tcol = 10000;//80;
-        int trow = 24;
-        int twp = 640;
-        int thp = 480;
         
         buf.reset_command(SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
         buf.putValue("pty-req".getBytes("UTF-8"));
         buf.putByte((byte) 0);
         buf.putValue("vt100".getBytes("UTF-8"));
-        buf.putInt(tcol);
-        buf.putInt(trow);
-        buf.putInt(twp);
-        buf.putInt(thp);
-        buf.putValue("".getBytes("UTF-8"));
+        buf.putInt(10000); //tcol
+        buf.putInt(24); // trow
+        buf.putInt(640); // twp
+        buf.putInt(480); // thp
+        buf.putInt(0);
         write(buf);
         
         buf.reset_command(SSH_MSG_CHANNEL_REQUEST);
