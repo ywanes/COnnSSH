@@ -111,7 +111,7 @@ class Session{
         buf = read();
         j = buf.getInt();
         if (j != (buf.i_put - buf.i_get)){
-            buf.getByte();
+            buf.add_i_get(1);
             I_S = new byte[buf.i_put - 5];
         }else
             I_S = new byte[j - 1 - buf.getByte()];
@@ -205,10 +205,7 @@ class Session{
                 buf = read();
                 int msgType = buf.getCommand();
                 if ( msgType == SSH_MSG_CHANNEL_DATA){
-                    buf.getInt();
-                    buf.getByte();
-                    buf.getByte();
-                    buf.getInt();
+                    buf.add_i_get(10);
                     byte[] a = buf.getValue();
                     if (a.length == 0){
                         System.out.println("a.length == 0");
@@ -226,21 +223,14 @@ class Session{
                     continue;
                 }
                 if ( msgType == SSH_MSG_CHANNEL_OPEN_CONFIRMATION){
-                    buf.getInt();
-                    buf.getByte();
-                    buf.getByte();
-                    buf.getInt();
-                    buf.getInt();
-                    buf.getInt();
+                    buf.add_i_get(18);
                     int rps = buf.getInt();
                     channel_opened=true;
                     rmpsize=rps;
                     continue;
                 }
                 if ( msgType == SSH_MSG_GLOBAL_REQUEST ){
-                    buf.getInt();
-                    buf.getByte();
-                    buf.getByte();
+                    buf.add_i_get(6);
                     buf.getValue();
                     if (buf.getByte() != 0) {
                         buf.reset_command(SSH_MSG_REQUEST_FAILURE);

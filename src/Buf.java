@@ -18,14 +18,16 @@ class Buf{
         buffer[i_put++] = a;
     }
     public void putBytes(byte[] a) {
-        for ( int i=0;i<a.length;i++ )
-            buffer[i_put++] = a[i];
+        //for ( int i=0;i<a.length;i++ )
+        //    buffer[i_put++] = a[i];
+        System.arraycopy(a, 0, buffer, i_put, a.length);
+        i_put+=a.length;
     }
     public void putValue(byte[] a) {
         putInt(a.length);
         putBytes(a);
     }
-    public byte getByte() {
+    public byte getByte(){
         return buffer[i_get++];
     }
     public int getInt(){
@@ -34,8 +36,11 @@ class Buf{
     public byte[] getValue() {
         byte[] a = new byte[getInt()];
         System.arraycopy(buffer, i_get, a, 0, a.length);
-        i_get+=a.length;
+        add_i_get(a.length);
         return a;
+    }
+    public void add_i_get(int a){
+        i_get+=a;
     }
     public byte[] getValueAllLen(){
         byte[] a = new byte[i_put - i_get];

@@ -29,9 +29,7 @@ class ECDH{
     }
 
     public void next(Buf buf) throws Exception {
-        buf.getInt();
-        buf.getByte();
-        buf.getByte();
+        buf.add_i_get(6);
         K_S = buf.getValue();
         byte[] Q_S = buf.getValue();
         byte[] H2 = buf.getValue();        
