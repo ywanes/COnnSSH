@@ -1,6 +1,3 @@
-
-import java.io.UnsupportedEncodingException;
-
 class Buf{
     byte[] buffer;
     int i_put, i_get;
