@@ -140,31 +140,31 @@ class Session{
         buf.putBytes(kex.H);
         j = buf.i_put - kex.H.length - 1;        
         kex.sha.update(buf.buffer, 0, buf.i_put);
-        byte[] _writer_cipher_IV = digest_trunc_len(kex.sha.digest(), 16);
+        java.security.spec.AlgorithmParameterSpec writer_cipher_params = new javax.crypto.spec.IvParameterSpec(digest_trunc_len(kex.sha.digest(), 16));
         buf.buffer[j]++;
         kex.sha.update(buf.buffer, 0, buf.i_put);
-        byte[] _reader_cipher_IV = digest_trunc_len(kex.sha.digest(), 16);
+        java.security.spec.AlgorithmParameterSpec reader_cipher_params = new javax.crypto.spec.IvParameterSpec(digest_trunc_len(kex.sha.digest(), 16));
         buf.buffer[j]++;
         kex.sha.update(buf.buffer, 0, buf.i_put);
-        byte[] _writer_cipher = digest_trunc_len(kex.sha.digest(), 32);
+        java.security.Key writer_cipher_key = new javax.crypto.spec.SecretKeySpec(digest_trunc_len(kex.sha.digest(), 32), "AES");
+        buf.buffer[j]++;
+        kex.sha.update(buf.buffer, 0, buf.i_put);        
+        java.security.Key reader_cipher_key = new javax.crypto.spec.SecretKeySpec(digest_trunc_len(kex.sha.digest(), 32), "AES");
         buf.buffer[j]++;
         kex.sha.update(buf.buffer, 0, buf.i_put);
-        byte[] _reader_cipher = digest_trunc_len(kex.sha.digest(), 32);
+        java.security.Key writer_mac_key = new javax.crypto.spec.SecretKeySpec(digest_trunc_len(kex.sha.digest(), 20), "HmacSHA1");
         buf.buffer[j]++;
         kex.sha.update(buf.buffer, 0, buf.i_put);
-        byte[] _writer_mac = digest_trunc_len(kex.sha.digest(), 20);
-        buf.buffer[j]++;
-        kex.sha.update(buf.buffer, 0, buf.i_put);
-        byte[] _reader_mac = digest_trunc_len(kex.sha.digest(), 20);
+        java.security.Key reader_mac_key = new javax.crypto.spec.SecretKeySpec(digest_trunc_len(kex.sha.digest(), 20), "HmacSHA1");
         writer_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-        writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_writer_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_writer_cipher_IV));
+        writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, writer_cipher_key, writer_cipher_params);
         writer_mac = javax.crypto.Mac.getInstance("HmacSHA1");
-        writer_mac.init(new javax.crypto.spec.SecretKeySpec(_writer_mac, "HmacSHA1"));
+        writer_mac.init(writer_mac_key);
         reader_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
-        reader_cipher.init(javax.crypto.Cipher.DECRYPT_MODE, new javax.crypto.spec.SecretKeySpec(_reader_cipher, "AES"), new javax.crypto.spec.IvParameterSpec(_reader_cipher_IV));
+        reader_cipher.init(javax.crypto.Cipher.DECRYPT_MODE, reader_cipher_key, reader_cipher_params);
         reader_cipher_size = 16;
         reader_mac = javax.crypto.Mac.getInstance("HmacSHA1");
-        reader_mac.init(new javax.crypto.spec.SecretKeySpec(_reader_mac, "HmacSHA1"));                        
+        reader_mac.init(reader_mac_key);
         buf.reset_command(SSH_MSG_SERVICE_REQUEST);
         buf.putString("ssh-userauth");
         write(buf);
@@ -240,7 +240,7 @@ class Session{
                 }
                 if ( msgType == SSH_MSG_CHANNEL_EOF )
                     System.exit(0);
-                System.err.println("msgType " + msgType+" not found. - Only 4 msgType implementations");
+                System.err.println("msgType " + msgType + " not found. - Only 4 msgType implementations");
                 System.exit(1);
             }
         } catch (Exception e) {
