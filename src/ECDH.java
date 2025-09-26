@@ -1,6 +1,7 @@
 class ECDH{    
     java.security.MessageDigest sha = null;        
-    public byte[] V_S, V_C, I_S, I_C, K, H, Q_C;        
+    private byte[] V_S, V_C, I_S, I_C;
+    public byte[] K, H, Q_C;        
     java.security.spec.ECParameterSpec params=null;
     javax.crypto.KeyAgreement myKeyAgree = null;    
 
