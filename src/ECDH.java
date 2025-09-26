@@ -34,19 +34,12 @@ class ECDH{
         byte[] Q_S = buf.getValue();
         byte[] H2 = buf.getValue();        
         buf = new Buf(K_S);
-        byte[] sig_of_K_S=buf.getValue();
-        byte[] p2_K_S=buf.getValue();
-        byte[] p1_K_S=buf.getValue();        
-        java.math.BigInteger p2=new java.math.BigInteger(p2_K_S);
-        java.math.BigInteger p1=new java.math.BigInteger(p1_K_S);
+        buf.getValue();
+        buf.getValue();
+        buf.getValue();        
         buf = new Buf(H2);
-        byte[] sig_of_H2=buf.getValue();
-        byte[] signature_H2=buf.getValue();        
-        if (!new String(sig_of_K_S, "UTF-8").equals("ssh-rsa"))
-            throw new Exception("unknown alg");        
-        if (!new String(sig_of_H2, "UTF-8").equals("ssh-rsa"))
-            throw new Exception("error ssh-rsa");
-        
+        buf.getValue();
+        buf.getValue();                
         byte[] r_array = new byte[(Q_S.length-1)/2];
         byte[] s_array = new byte[(Q_S.length-1)/2];
         System.arraycopy(Q_S, 1, r_array, 0, r_array.length);
@@ -68,15 +61,5 @@ class ECDH{
         buf.putValue(K);
         sha.update(buf.getValueAllLen());
         H = sha.digest();
-        if ( false ){
-            java.security.Signature signature = java.security.Signature.getInstance("SHA1withRSA");
-            java.security.KeyFactory keyFactory = java.security.KeyFactory.getInstance("RSA");
-            java.security.spec.RSAPublicKeySpec rsaPubKeySpec = new java.security.spec.RSAPublicKeySpec(p1, p2);
-            java.security.PublicKey publicKey2 = keyFactory.generatePublic(rsaPubKeySpec);
-            signature.initVerify(publicKey2);
-            signature.update(H);        
-            if ( !signature.verify(signature_H2) )
-                throw new Exception("signature.verify false");
-        }
     }    
 }
