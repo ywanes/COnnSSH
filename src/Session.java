@@ -1,46 +1,34 @@
 class Session{
-    final int SSH_MSG_DISCONNECT = 1;
-    final int SSH_MSG_IGNORE = 2;
-    final int SSH_MSG_UNIMPLEMENTED = 3;
-    final int SSH_MSG_DEBUG = 4;
-    final int SSH_MSG_SERVICE_REQUEST = 5;
-    final int SSH_MSG_KEXINIT = 20;
-    final int SSH_MSG_NEWKEYS = 21;
-    final int SSH_MSG_KEXDH_INIT = 30;
-    final int SSH_MSG_USERAUTH_REQUEST = 50;
-    final int SSH_MSG_USERAUTH_FAILURE = 51;
-    final int SSH_MSG_USERAUTH_BANNER = 53;
-    final int SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60;
-    final int SSH_MSG_GLOBAL_REQUEST = 80;
-    final int SSH_MSG_REQUEST_FAILURE = 82;
-    final int SSH_MSG_CHANNEL_OPEN = 90;
-    final int SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91;
-    final int SSH_MSG_CHANNEL_WINDOW_ADJUST = 93;
-    final int SSH_MSG_CHANNEL_DATA = 94;
-    final int SSH_MSG_CHANNEL_EOF = 96;
-    final int SSH_MSG_CHANNEL_REQUEST = 98;
-    public byte[] V_S;
-    public byte[] V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
-    public byte[] I_C;
-    public byte[] I_S;
-    public javax.crypto.Cipher reader_cipher;
-    public javax.crypto.Mac reader_mac;    
-    public javax.crypto.Cipher writer_cipher;
-    public javax.crypto.Mac writer_mac;
-    public int writer_seq = 0;        
-    public int reader_cipher_size = 8;
-    byte barra_r=new byte[]{13}[0];
-    byte barra_n=new byte[]{10}[0];
-    java.io.InputStream in = null;
-    java.io.OutputStream out = null;
-    public boolean channel_opened=false;
-    public int rmpsize = 0;
-    boolean verbose=1==2?true:false;
-    public ECDH kex=null;
-    java.security.SecureRandom random = null;
+    final int SSH_MSG_DISCONNECT = 1, SSH_MSG_IGNORE = 2, SSH_MSG_UNIMPLEMENTED = 3, SSH_MSG_DEBUG = 4,
+              SSH_MSG_SERVICE_REQUEST = 5, SSH_MSG_KEXINIT = 20, SSH_MSG_NEWKEYS = 21, SSH_MSG_KEXDH_INIT = 30,
+              SSH_MSG_USERAUTH_REQUEST = 50, SSH_MSG_USERAUTH_FAILURE = 51, SSH_MSG_USERAUTH_BANNER = 53, 
+              SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60, SSH_MSG_GLOBAL_REQUEST = 80, SSH_MSG_REQUEST_FAILURE = 82, 
+              SSH_MSG_CHANNEL_OPEN = 90, SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91, SSH_MSG_CHANNEL_WINDOW_ADJUST = 93, 
+              SSH_MSG_CHANNEL_DATA = 94, SSH_MSG_CHANNEL_EOF = 96, SSH_MSG_CHANNEL_REQUEST = 98;    
+    private byte[] V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8"), V_S, I_C, I_S;
+    private javax.crypto.Cipher reader_cipher, writer_cipher;
+    private javax.crypto.Mac reader_mac, writer_mac;
+    private int writer_seq = 0, reader_cipher_size = 8, rmpsize = 0;
+    private byte barra_r=new byte[]{13}[0], barra_n=new byte[]{10}[0];
+    private java.io.InputStream in = null;
+    private java.io.OutputStream out = null;
+    private boolean channel_opened=false;
+    private boolean verbose=false; // true/false
+    private ECDH kex=null;
+    private java.security.SecureRandom random = null;
+        
+    public Session(String host, String username, int port, String password) throws Exception {                
+        kex=new ECDH();
+        connect_stream(host, username, port, password);
+        new Thread(){public void run(){
+            reading_stream();
+        }}.start();   
+        connect_stdin();
+        writing_stdin(); // send msg by keyboard
+    }
     
-    public int count_line_return=-1;
-    public boolean can_print(byte [] a){
+    private int count_line_return=-1;
+    private boolean can_print(byte [] a){
         if ( count_line_return == -1 )
             return true;
         count_line_return++;        
@@ -51,17 +39,7 @@ class Session{
         return true;
     }    
     
-    Session(String host, String username, int port, String password) throws Exception {                
-        kex=new ECDH();
-        connect_stream(host, username, port, password);
-        new Thread(){public void run(){
-            reading_stream();
-        }}.start();   
-        connect_stdin();
-        writing_stdin(); // send msg by keyboard
-    }
-    
-    public void connect_stream(String host, String username, int port, String password) throws Exception{                
+    private void connect_stream(String host, String username, int port, String password) throws Exception{                
         Buf buf = new Buf();
         int i, j;
         try{
@@ -187,18 +165,18 @@ class Session{
             throw new Exception("USERAUTH BANNER or PASSWD_CHANGEREQ");
     }
 
-    public boolean texto_oculto(byte [] a){
+    private boolean texto_oculto(byte [] a){
         // 033 ] 0 ; .... \a
         return a.length > 6 && (int)a[0] == 27 && (int)a[1] == 93 && (int)a[2] == 48 && (int)a[3] == 59 && (int)a[a.length-1] == 7;
     }
-    public void mostra_bytes(byte [] a){
+    private void mostra_bytes(byte [] a){
         String s="";
         for ( int i=0;i<a.length;i++ )
             s+=(int)a[i]+",";
         s="["+s+"]";
         System.out.println(s);
     }
-    public void reading_stream(){        
+    private void reading_stream(){        
         try {
             Buf buf=new Buf();
             while(true) {
@@ -257,7 +235,7 @@ class Session{
         return a;
     }
 
-    public byte [] get_random_bytes(int n){
+    private byte [] get_random_bytes(int n){
         if ( random == null )
             random = new java.security.SecureRandom();
         byte[] a = new byte[n];        
@@ -265,7 +243,7 @@ class Session{
         return a;
     }
     
-    public Buf read() throws Exception {        
+    private Buf read() throws Exception {        
         Buf buf=new Buf();
         while(true){
             buf=new Buf();
@@ -299,7 +277,7 @@ class Session{
         return buf;
     }
         
-    public void write(Buf buf) throws Exception {
+    private void write(Buf buf) throws Exception {
         int len = buf.i_put;
         int pad = (-len) & (15);
         if (pad < 16)
@@ -327,7 +305,7 @@ class Session{
         writer_seq++;
     }
     
-    public void connect_stdin() throws Exception{
+    private void connect_stdin() throws Exception{
         Buf buf=new Buf();
         buf.reset_command(SSH_MSG_CHANNEL_OPEN);
         buf.putString("session");
@@ -341,7 +319,6 @@ class Session{
             try { Thread.sleep(10); } catch (Exception e) {};        
         if ( !channel_opened )
             throw new Exception("channel is not opened.");        
-        
         buf.reset_command(SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
         buf.putString("pty-req");
@@ -353,7 +330,7 @@ class Session{
         buf.putInt(480); // thp
         buf.putInt(0);
         write(buf);
-        
+
         buf.reset_command(SSH_MSG_CHANNEL_REQUEST);
         buf.putInt(0);
         buf.putString("shell");
@@ -361,7 +338,7 @@ class Session{
         write(buf);
     }
     
-    public void writing_stdin() throws Exception{
+    private void writing_stdin() throws Exception{
         Buf buf=new Buf(new byte[rmpsize]);
         int i=0;
         int off=14;

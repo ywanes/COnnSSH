@@ -1,9 +1,9 @@
 class ECDH{    
-    java.security.MessageDigest sha = null;        
-    private byte[] V_S, V_C, I_S, I_C;
     public byte[] K, H, Q_C;        
-    java.security.spec.ECParameterSpec params=null;
-    javax.crypto.KeyAgreement myKeyAgree = null;    
+    private byte[] V_S, V_C, I_S, I_C;
+    public java.security.MessageDigest sha = null;        
+    private java.security.spec.ECParameterSpec params=null;
+    private javax.crypto.KeyAgreement myKeyAgree = null;    
 
     public void init(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
         this.V_S = V_S;
