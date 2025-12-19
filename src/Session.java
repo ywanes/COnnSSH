@@ -69,12 +69,12 @@ class Session{
         byte[] a = get_random_bytes(16);
         System.arraycopy(a, 0, buf.buffer, start_fill, a.length);
         buf.i_put+=16;
-        buf.putString("ecdh-sha2-nistp521");
-        buf.putString("ssh-rsa,ecdsa-sha2-nistp521");
+       buf.putString("ecdh-sha2-nistp256");
+        buf.putString("ssh-rsa,ecdsa-sha2-nistp256");
         buf.putString("aes256-ctr");
         buf.putString("aes256-ctr");
-        buf.putString("hmac-sha1");
-        buf.putString("hmac-sha1");
+        buf.putString("hmac-sha2-256");
+        buf.putString("hmac-sha2-256");
         buf.putString("none");
         buf.putString("none");
         buf.putInt(0);
@@ -130,18 +130,18 @@ class Session{
         java.security.Key reader_cipher_key = new javax.crypto.spec.SecretKeySpec(digest_trunc_len(kex.sha.digest(), 32), "AES");
         buf.buffer[j]++;
         kex.sha.update(buf.buffer, 0, buf.i_put);
-        java.security.Key writer_mac_key = new javax.crypto.spec.SecretKeySpec(digest_trunc_len(kex.sha.digest(), 20), "HmacSHA1");
+        java.security.Key writer_mac_key = new javax.crypto.spec.SecretKeySpec(digest_trunc_len(kex.sha.digest(), 32), "HmacSHA256");
         buf.buffer[j]++;
         kex.sha.update(buf.buffer, 0, buf.i_put);
-        java.security.Key reader_mac_key = new javax.crypto.spec.SecretKeySpec(digest_trunc_len(kex.sha.digest(), 20), "HmacSHA1");
+        java.security.Key reader_mac_key = new javax.crypto.spec.SecretKeySpec(digest_trunc_len(kex.sha.digest(), 32), "HmacSHA256");
         writer_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
         writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, writer_cipher_key, writer_cipher_params);
-        writer_mac = javax.crypto.Mac.getInstance("HmacSHA1");
+        writer_mac = javax.crypto.Mac.getInstance("HmacSHA256");
         writer_mac.init(writer_mac_key);
         reader_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
         reader_cipher.init(javax.crypto.Cipher.DECRYPT_MODE, reader_cipher_key, reader_cipher_params);
         reader_cipher_size = 16;
-        reader_mac = javax.crypto.Mac.getInstance("HmacSHA1");
+        reader_mac = javax.crypto.Mac.getInstance("HmacSHA256");
         reader_mac.init(reader_mac_key);
         buf.reset_command(SSH_MSG_SERVICE_REQUEST);
         buf.putString("ssh-userauth");
@@ -265,7 +265,7 @@ class Session{
             }            
             if (reader_mac != null) {
                 reader_mac.update(buf.buffer, 0, buf.i_put);
-                in.read(new byte[20], 0, 20);
+                in.read(new byte[32], 0, 32);
             }           
             int type = buf.getCommand();
             if (type == SSH_MSG_DISCONNECT)
@@ -296,9 +296,10 @@ class Session{
             System.arraycopy(get_random_bytes(pad>16?pad:16), 0, buf.buffer, put - pad, pad);
             writer_mac.update(new byte[]{(byte)(writer_seq >> 24), (byte)(writer_seq >> 16), (byte)(writer_seq >> 8), (byte)writer_seq});
             writer_mac.update(buf.buffer, 0, buf.i_put);
-            writer_mac.doFinal(buf.buffer, buf.i_put);
+            byte[] mac = writer_mac.doFinal();
+            System.arraycopy(mac, 0, buf.buffer, buf.i_put, 32);
             writer_cipher.update(buf.buffer, 0, buf.i_put, buf.buffer, 0);            
-            buf.i_put+=20;
+            buf.i_put+=32;
         }
         out.write(buf.buffer, 0, buf.i_put);
         out.flush();
