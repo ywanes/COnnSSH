@@ -69,7 +69,7 @@ class Session{
         byte[] a = get_random_bytes(16);
         System.arraycopy(a, 0, buf.buffer, start_fill, a.length);
         buf.i_put+=16;
-       buf.putString("ecdh-sha2-nistp256");
+        buf.putString("ecdh-sha2-nistp256");        
         buf.putString("ssh-rsa,ecdsa-sha2-nistp256");
         buf.putString("aes256-ctr");
         buf.putString("aes256-ctr");
