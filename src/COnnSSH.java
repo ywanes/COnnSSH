@@ -1,12 +1,7 @@
 public class COnnSSH {
-    public static void main(String[] args) {
-        try {
-            new COnnSSH().go(args);
-        } catch (Exception e) {
-            System.err.println(e.toString());
-        }
+    public static void main(String[] args){
+        new COnnSSH().go(args);
     }
-
     public void go(String [] args){
         // java -jar "D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\dist\COnnSSH.jar"
         // ssh -o HostKeyAlgorithms=ecdsa-sha2-nistp256 ywanes@192.168.0.100
@@ -28,6 +23,7 @@ public class COnnSSH {
         // créditos
         // https://github.com/is/jsch/tree/master/examples
         int port = 22;
+        // int port = 2222; // java -jar "D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\dist\COnnSSH.jar" admin,admin123@localhost
         if (args.length != 2 && args.length != 3) {
             comando_invalido(args);
             return;
@@ -58,7 +54,7 @@ public class COnnSSH {
         int limit=10;
         while(limit-->0){
             try{
-                new Session(host, user, port, password);                
+                new SSHClientMini_tmp(host, user, port, password);                
             }catch(Exception e){
                 if ( e.toString().equals("java.net.SocketException: Connection reset") ){
                     System.out.print(".");
