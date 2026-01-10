@@ -1,29 +1,15 @@
-
-
-import java.io.*;
-import java.net.*;
-import java.security.*;
-import javax.crypto.*;
-import javax.crypto.spec.*;
-import java.security.spec.*;
-import java.util.Arrays;
-
 public class SSHServerMini {
     public SSHServerMini(int port, String username, String password) throws Exception {
-        ServerSocket serverSocket = new ServerSocket(port);
+        java.net.ServerSocket serverSocket = new java.net.ServerSocket(port);
         System.out.println("SSH Server listening on port " + port);
         System.out.println("Credentials: " + username + " / " + password);
         System.out.println("Server ready for multiple connections...\n");
-        
         while (true) {
             try {
-                Socket clientSocket = serverSocket.accept();
+                java.net.Socket clientSocket = serverSocket.accept();
                 System.out.println("New connection from: " + clientSocket.getInetAddress());
-                
-                // Cria uma nova Sessão para cada cliente (Thread isolada)
                 Session session = new Session(clientSocket, username, password);
                 new Thread(session).start();
-                
             } catch (Exception e) {
                 System.err.println("Accept error: " + e.getMessage());
             }
@@ -43,7 +29,6 @@ public class SSHServerMini {
     }
 }
 
-// Classe Session isola todo o estado de UM cliente
 class Session implements Runnable {
     final int SSH_MSG_DISCONNECT = 1, SSH_MSG_IGNORE = 2, SSH_MSG_UNIMPLEMENTED = 3, SSH_MSG_DEBUG = 4,
             SSH_MSG_SERVICE_REQUEST = 5, SSH_MSG_SERVICE_ACCEPT = 6, SSH_MSG_KEXINIT = 20, SSH_MSG_NEWKEYS = 21,
@@ -53,41 +38,39 @@ class Session implements Runnable {
             SSH_MSG_CHANNEL_DATA = 94, SSH_MSG_CHANNEL_EOF = 96, SSH_MSG_CHANNEL_CLOSE = 97,
             SSH_MSG_CHANNEL_REQUEST = 98, SSH_MSG_CHANNEL_SUCCESS = 99;
 
-    private Socket socket;
+    private java.net.Socket socket;
     private String expectedUsername;
     private String expectedPassword;
     
-    // Variáveis de estado da sessão (agora locais por thread)
     private byte[] V_S, V_C, I_S, I_C;
-    private Cipher reader_cipher, writer_cipher;
-    private Mac reader_mac, writer_mac;
+    private javax.crypto.Cipher reader_cipher, writer_cipher;
+    private javax.crypto.Mac reader_mac, writer_mac;
     private int reader_seq = 0, writer_seq = 0, reader_cipher_size = 8;
     private byte barra_r = 13, barra_n = 10;
-    private InputStream in = null;
-    private OutputStream out = null;
-    private ECDH2 kex = null;
-    private SecureRandom random = null;
+    private java.io.InputStream in = null;
+    private java.io.OutputStream out = null;
+    private ECDH kex = null; // Unificado
+    private java.security.SecureRandom random = null;
     private int clientChannel = 0;
     private Process shellProcess = null;
-    private InputStream shellOutput = null;
-    private OutputStream shellInput = null;
+    private java.io.InputStream shellOutput = null;
+    private java.io.OutputStream shellInput = null;
     private boolean authenticated = false;
 
-    public Session(Socket socket, String user, String pass) {
+    public Session(java.net.Socket socket, String user, String pass) {
         this.socket = socket;
         this.expectedUsername = user;
         this.expectedPassword = pass;
-        this.random = new SecureRandom();
+        this.random = new java.security.SecureRandom();
         try {
             this.V_S = "SSH-2.0-SSHSERVER_MINI".getBytes("UTF-8");
         } catch (Exception e) {}
     }
 
-    @Override
     public void run() {
         try {
             socket.setTcpNoDelay(true);
-            socket.setSoTimeout(0); // Timeout infinito para manter shell aberta
+            socket.setSoTimeout(0); 
             in = socket.getInputStream();
             out = socket.getOutputStream();
 
@@ -138,14 +121,12 @@ class Session implements Runnable {
         Buf buf = read();
         if (buf.getCommand() != SSH_MSG_KEXINIT) throw new Exception("Expected KEXINIT");
 
-        // Parse correto do Payload ignorando padding
         int packetLen = buf.getInt();
         int padLen = buf.getByte() & 0xff;
         int payloadLen = packetLen - padLen - 1;
         I_C = new byte[payloadLen];
         System.arraycopy(buf.buffer, 5, I_C, 0, payloadLen);
 
-        // Enviar KEXINIT do Servidor
         buf = new Buf();
         buf.reset_command(SSH_MSG_KEXINIT);
         buf.putBytes(get_random_bytes(16)); // Cookie
@@ -161,35 +142,28 @@ class Session implements Runnable {
         buf.putInt(0);
         buf.putByte((byte) 0);
         buf.putInt(0);
-        
         I_S = new byte[buf.i_put - 5];
         System.arraycopy(buf.buffer, 5, I_S, 0, I_S.length);
         write(buf);
 
-        kex = new ECDH2();
+        kex = new ECDH();
         kex.init(V_S, V_C, I_S, I_C);
-
         buf = read(); // KEXDH_INIT
         buf.getInt(); buf.getByte(); buf.getByte(); // Skip headers
         byte[] Q_C = buf.getValue();
-
         byte[] K_S = generateHostKey();
         kex.next(Q_C, K_S);
-
         buf = new Buf();
         buf.reset_command(SSH_MSG_KEXDH_REPLY);
         buf.putValue(K_S);
         buf.putValue(kex.Q_S);
         buf.putValue(generateSignature());
         write(buf);
-
         buf = new Buf();
         buf.reset_command(SSH_MSG_NEWKEYS);
         write(buf);
-
         buf = read(); // NEWKEYS Client
         if (buf.getCommand() != SSH_MSG_NEWKEYS) throw new Exception("Expected NEWKEYS");
-
         deriveKeys();
     }
 
@@ -202,33 +176,25 @@ class Session implements Runnable {
         int j = buf.i_put - kex.H.length - 1;
 
         kex.sha.update(buf.buffer, 0, buf.i_put);
-        AlgorithmParameterSpec r_iv = new IvParameterSpec(digest_trunc(kex.sha.digest(), 16));
-        
+        java.security.spec.AlgorithmParameterSpec r_iv = new javax.crypto.spec.IvParameterSpec(digest_trunc(kex.sha.digest(), 16));
         buf.buffer[j]++; kex.sha.update(buf.buffer, 0, buf.i_put);
-        AlgorithmParameterSpec w_iv = new IvParameterSpec(digest_trunc(kex.sha.digest(), 16));
-        
+        java.security.spec.AlgorithmParameterSpec w_iv = new javax.crypto.spec.IvParameterSpec(digest_trunc(kex.sha.digest(), 16));
         buf.buffer[j]++; kex.sha.update(buf.buffer, 0, buf.i_put);
-        Key r_key = new SecretKeySpec(digest_trunc(kex.sha.digest(), 32), "AES");
-        
+        java.security.Key r_key = new javax.crypto.spec.SecretKeySpec(digest_trunc(kex.sha.digest(), 32), "AES");
         buf.buffer[j]++; kex.sha.update(buf.buffer, 0, buf.i_put);
-        Key w_key = new SecretKeySpec(digest_trunc(kex.sha.digest(), 32), "AES");
-        
+        java.security.Key w_key = new javax.crypto.spec.SecretKeySpec(digest_trunc(kex.sha.digest(), 32), "AES");
         buf.buffer[j]++; kex.sha.update(buf.buffer, 0, buf.i_put);
-        Key r_mac = new SecretKeySpec(digest_trunc(kex.sha.digest(), 32), "HmacSHA256");
-        
+        java.security.Key r_mac = new javax.crypto.spec.SecretKeySpec(digest_trunc(kex.sha.digest(), 32), "HmacSHA256");
         buf.buffer[j]++; kex.sha.update(buf.buffer, 0, buf.i_put);
-        Key w_mac = new SecretKeySpec(digest_trunc(kex.sha.digest(), 32), "HmacSHA256");
-
-        reader_cipher = Cipher.getInstance("AES/CTR/NoPadding");
-        reader_cipher.init(Cipher.DECRYPT_MODE, r_key, r_iv);
+        java.security.Key w_mac = new javax.crypto.spec.SecretKeySpec(digest_trunc(kex.sha.digest(), 32), "HmacSHA256");
+        reader_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+        reader_cipher.init(javax.crypto.Cipher.DECRYPT_MODE, r_key, r_iv);
         reader_cipher_size = 16;
-        
-        reader_mac = Mac.getInstance("HmacSHA256");
+        reader_mac = javax.crypto.Mac.getInstance("HmacSHA256");
         reader_mac.init(r_mac);
-        
-        writer_cipher = Cipher.getInstance("AES/CTR/NoPadding");
-        writer_cipher.init(Cipher.ENCRYPT_MODE, w_key, w_iv);
-        writer_mac = Mac.getInstance("HmacSHA256");
+        writer_cipher = javax.crypto.Cipher.getInstance("AES/CTR/NoPadding");
+        writer_cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, w_key, w_iv);
+        writer_mac = javax.crypto.Mac.getInstance("HmacSHA256");
         writer_mac.init(w_mac);
     }
 
@@ -319,39 +285,32 @@ class Session implements Runnable {
         ProcessBuilder pb;
         
         if (os.contains("win")) {
-            // Inicia apenas cmd.exe, permitindo que ele gerencie o PATH e comandos internos
             pb = new ProcessBuilder("cmd.exe");
         } else {
             pb = new ProcessBuilder("/bin/bash", "-i");
         }
         
-        // --- CORREÇÃO IMPORTANTE 3 ---
-        // Redireciona o fluxo de erro para o fluxo de saída padrão.
-        // Isso faz com que erros de comando apareçam na tela do cliente.
         pb.redirectErrorStream(true); 
-        
         shellProcess = pb.start();
         shellOutput = shellProcess.getInputStream();
         shellInput = shellProcess.getOutputStream();
 
-        // Thread para ler saída do shell e enviar ao cliente
         new Thread(() -> {
             try {
                 byte[] buffer = new byte[4096];
                 int len;
                 while (shellProcess.isAlive() && (len = shellOutput.read(buffer)) != -1) {
                     if (len > 0) {
-                        synchronized(this) { // Evita conflito de escrita
+                        synchronized(this) { 
                             Buf b = new Buf();
                             b.reset_command(SSH_MSG_CHANNEL_DATA);
                             b.putInt(clientChannel);
                             b.putInt(len);
-                            b.putBytes(Arrays.copyOf(buffer, len));
+                            b.putBytes(java.util.Arrays.copyOf(buffer, len));
                             write(b);
                         }
                     }
                 }
-                // Enviar EOF e fechar socket apenas desta sessão
                 synchronized(this) {
                     Buf b = new Buf();
                     b.reset_command(SSH_MSG_CHANNEL_EOF);
@@ -366,7 +325,6 @@ class Session implements Runnable {
         Buf buf = new Buf();
         int total = 0;
         
-        // Ler bloco cifrado (tamanho)
         while (total < reader_cipher_size) {
             int r = in.read(buf.buffer, buf.i_put + total, reader_cipher_size - total);
             if (r == -1) throw new Exception("Socket closed");
@@ -381,14 +339,12 @@ class Session implements Runnable {
                         ((buf.buffer[2] & 0xff) << 8) | (buf.buffer[3] & 0xff);
         int need = packetLen + 4 - reader_cipher_size;
 
-        // Garantir tamanho buffer
         if ((buf.i_put + need) > buf.buffer.length) {
             byte[] a = new byte[buf.i_put + need];
             System.arraycopy(buf.buffer, 0, a, 0, buf.i_put);
             buf.buffer = a;
         }
 
-        // Ler restante do pacote
         total = 0;
         while (total < need) {
             int r = in.read(buf.buffer, buf.i_put + total, need - total);
@@ -403,9 +359,9 @@ class Session implements Runnable {
         if (reader_mac != null) {
             reader_mac.update(intToBytes(reader_seq));
             reader_mac.update(buf.buffer, 0, buf.i_put);
-            reader_mac.doFinal(); // Verifica MAC (ignora erro aqui por simplicidade no Mini)
+            reader_mac.doFinal();
             
-            in.skip(32); // Pula MAC enviado
+            in.skip(32); 
             reader_seq++;
         }
         
@@ -443,7 +399,6 @@ class Session implements Runnable {
         writer_seq++;
     }
 
-    // Utilitários de bytes dentro da Session para evitar acesso estático
     private byte[] intToBytes(int i) {
         return new byte[]{(byte)(i >> 24), (byte)(i >> 16), (byte)(i >> 8), (byte)i};
     }
@@ -464,7 +419,7 @@ class Session implements Runnable {
         Buf buf = new Buf();
         buf.putString("ssh-rsa");
         buf.putValue(new byte[]{0x01, 0x00, 0x01});
-        buf.putValue(get_random_bytes(128)); // Chave fake rápida
+        buf.putValue(get_random_bytes(128)); 
         return buf.getValueAllLen();
     }
 
@@ -476,53 +431,3 @@ class Session implements Runnable {
     }
 }
 
-
-class ECDH2{
-    public byte[] K, H, Q_S;
-    private byte[] V_S, V_C, I_S, I_C;
-    public MessageDigest sha = null;
-    private ECParameterSpec params = null;
-    private KeyAgreement myKeyAgree = null;
-
-    public void init(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
-        this.V_S = V_S; this.V_C = V_C; this.I_S = I_S; this.I_C = I_C;
-        sha = MessageDigest.getInstance("SHA-256");
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC");
-        kpg.initialize(new ECGenParameterSpec("secp256r1"));
-        KeyPair kp = kpg.genKeyPair();
-        java.security.interfaces.ECPublicKey pub = (java.security.interfaces.ECPublicKey) kp.getPublic();
-        params = pub.getParams();
-        ECPoint w = pub.getW();
-        byte[] x = toPaddedBytes(w.getAffineX(), 32);
-        byte[] y = toPaddedBytes(w.getAffineY(), 32);
-        Q_S = new byte[1 + x.length + y.length];
-        Q_S[0] = 4;
-        System.arraycopy(x, 0, Q_S, 1, x.length);
-        System.arraycopy(y, 0, Q_S, 1 + x.length, y.length);
-        myKeyAgree = KeyAgreement.getInstance("ECDH");
-        myKeyAgree.init(kp.getPrivate());
-    }
-
-    private byte[] toPaddedBytes(java.math.BigInteger bi, int length) {
-        byte[] bytes = bi.toByteArray();
-        if (bytes.length == length) return bytes;
-        byte[] res = new byte[length];
-        if (bytes.length > length) System.arraycopy(bytes, bytes.length - length, res, 0, length);
-        else System.arraycopy(bytes, 0, res, length - bytes.length, bytes.length);
-        return res;
-    }
-
-    public void next(byte[] Q_C, byte[] K_S) throws Exception {
-        int len = (Q_C.length - 1) / 2;
-        byte[] x = new byte[len]; byte[] y = new byte[len];
-        System.arraycopy(Q_C, 1, x, 0, len);
-        System.arraycopy(Q_C, 1 + len, y, 0, len);
-        myKeyAgree.doPhase(KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(new ECPoint(new java.math.BigInteger(1, x), new java.math.BigInteger(1, y)), params)), true);
-        K = new java.math.BigInteger(1, myKeyAgree.generateSecret()).toByteArray();
-        Buf buf = new Buf();
-        buf.putValue(V_C); buf.putValue(V_S); buf.putValue(I_C); buf.putValue(I_S);
-        buf.putValue(K_S); buf.putValue(Q_C); buf.putValue(Q_S); buf.putValue(K);
-        sha.update(buf.getValueAllLen());
-        H = sha.digest();
-    }
-}

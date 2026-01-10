@@ -13,7 +13,7 @@ class SSHClientMini{
     private java.io.InputStream in = null;
     private java.io.OutputStream out = null;
     private boolean channel_opened=false;
-    private boolean verbose=false; // true/false
+    private boolean verbose=false; 
     private ECDH kex=null;
     private java.security.SecureRandom random = null;
         
@@ -24,7 +24,7 @@ class SSHClientMini{
             reading_stream();
         }}.start();   
         connect_stdin();
-        writing_stdin(); // send msg by keyboard
+        writing_stdin(); 
     }
     
     private int count_line_return=-1;
@@ -62,7 +62,7 @@ class SSHClientMini{
         }
         V_S = new byte[i];
         System.arraycopy(buf.buffer, 0, V_S, 0, i);
-        debug("connect stream <-: ", V_S); // SSH-2.0-OpenSSH_for_Windows_8.1
+        debug("connect stream <-: ", V_S); 
         buf = new Buf();
         buf.reset_command(SSH_MSG_KEXINIT);
         int start_fill = buf.i_put;
@@ -102,7 +102,6 @@ class SSHClientMini{
         buf.putValue(kex.Q_C);
         write(buf);
         debug("connect stream ->: ", buf);
-        // as vezes falha aqui "java.net.SocketException: Connection reset"
         buf = read();
         kex.next(buf);
         buf.reset_command(SSH_MSG_NEWKEYS);
@@ -147,7 +146,6 @@ class SSHClientMini{
         buf.putString("ssh-userauth");
         write(buf);
         
-        // as vezes falha aqui "java.net.SocketException: Connection reset"
         buf = read();
         buf.reset_command(SSH_MSG_USERAUTH_REQUEST);
         buf.putString(username);
@@ -166,7 +164,6 @@ class SSHClientMini{
     }
 
     private boolean texto_oculto(byte [] a){
-        // 033 ] 0 ; .... \a
         return a.length > 6 && (int)a[0] == 27 && (int)a[1] == 93 && (int)a[2] == 48 && (int)a[3] == 59 && (int)a[a.length-1] == 7;
     }
     private void mostra_bytes(byte [] a){
@@ -189,14 +186,11 @@ class SSHClientMini{
                         System.out.println("a.length == 0");
                         System.exit(0);
                     }
-                    if ( texto_oculto(a) )// ocorre no começo e fim de cada interação
+                    if ( texto_oculto(a) )
                         continue;                            
-                    ////////////////
-                    // recebendo texto
                     if ( can_print(a) ){
                         System.out.write(a);
                         System.out.flush();                                                        
-                        //mostra_bytes(a);
                     }
                     continue;
                 }
@@ -218,7 +212,7 @@ class SSHClientMini{
                 }
                 if ( msgType == SSH_MSG_CHANNEL_EOF )
                     System.exit(0);
-                System.err.println("msgType " + msgType + " not found. - Only 4 msgType implementations");
+                System.err.println("msgType " + msgType + " not found.");
                 System.exit(1);
             }
         } catch (Exception e) {
@@ -271,10 +265,7 @@ class SSHClientMini{
             if (type == SSH_MSG_DISCONNECT)
                 System.exit(0);
             if ( type != SSH_MSG_IGNORE && type != SSH_MSG_UNIMPLEMENTED && type != SSH_MSG_DEBUG && type != SSH_MSG_CHANNEL_WINDOW_ADJUST ){
-                //System.out.println("?? type " + type); ///////////////
                 break;
-            }else{
-                //System.out.println("? type " + type); ///////////////
             }
         }
         buf.i_get=0;
@@ -329,10 +320,10 @@ class SSHClientMini{
         buf.putString("pty-req");
         buf.putByte((byte) 0);
         buf.putString("vt100");
-        buf.putInt(10000); //tcol
-        buf.putInt(24); // trow
-        buf.putInt(640); // twp
-        buf.putInt(480); // thp
+        buf.putInt(10000); 
+        buf.putInt(24); 
+        buf.putInt(640); 
+        buf.putInt(480); 
         buf.putInt(0);
         write(buf);
 
@@ -347,17 +338,15 @@ class SSHClientMini{
         Buf buf=new Buf(new byte[rmpsize]);
         int i=0;
         int off=14;
-        /////////////////
-        // enviando texto
         while ( (i = System.in.read(buf.buffer, off, buf.buffer.length -off -128)) >= 0 ){                                            
-            if ( buf.buffer[i-2+off] != barra_r || buf.buffer[i-1+off] != barra_n ){ // linux fazendo \r\n para ssh windows
+            if ( buf.buffer[i-2+off] != barra_r || buf.buffer[i-1+off] != barra_n ){ 
                 i++;
                 buf.buffer[i-2+off]=barra_r;
                 buf.buffer[i-1+off]=barra_n;
             }
             for ( int j=0;j<off;j++ )
                 buf.buffer[j]=0;
-            debug(buf.buffer, off, i); // input text debug
+            debug(buf.buffer, off, i); 
             count_line_return=0;
             if (i == 0)
                 continue;
@@ -375,7 +364,6 @@ class SSHClientMini{
             System.out.flush();
         }
     }
-
     private void debug(String a, Buf buf) {
         if ( verbose ){
             System.out.print(a);
@@ -384,7 +372,6 @@ class SSHClientMini{
             System.out.flush();
         }
     }
-
     private void debug(byte[] a, int i, int i0) throws Exception {
         if ( verbose ){
             System.out.write("[".getBytes());
@@ -394,93 +381,99 @@ class SSHClientMini{
     }
 }
 
-class ECDH{    
-    public byte[] K, H, Q_C;        
+class ECDH {
+    public byte[] K, H, Q_C, Q_S;
     private byte[] V_S, V_C, I_S, I_C;
-    public java.security.MessageDigest sha = null;        
-    private java.security.spec.ECParameterSpec params=null;
-    private javax.crypto.KeyAgreement myKeyAgree = null;    
+    public java.security.MessageDigest sha = null;
+    private java.security.spec.ECParameterSpec params = null;
+    private javax.crypto.KeyAgreement myKeyAgree = null;
 
-    public void init(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception{
-        this.V_S = V_S;
-        this.V_C = V_C;
-        this.I_S = I_S;
-        this.I_C = I_C;        
+    public void init(byte[] V_S, byte[] V_C, byte[] I_S, byte[] I_C) throws Exception {
+        this.V_S = V_S; this.V_C = V_C; this.I_S = I_S; this.I_C = I_C;
+        
         sha = java.security.MessageDigest.getInstance("SHA-256");
         java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("EC");
         kpg.initialize(new java.security.spec.ECGenParameterSpec("secp256r1"));
         java.security.KeyPair kp = kpg.genKeyPair();
-        java.security.PrivateKey privateKey = kp.getPrivate();
-        java.security.interfaces.ECPublicKey publicKey = (java.security.interfaces.ECPublicKey) kp.getPublic();            
-        params = publicKey.getParams();
-        java.security.spec.ECPoint w = publicKey.getW();
-        java.math.BigInteger x = w.getAffineX();
-        java.math.BigInteger y = w.getAffineY();
-        byte[] xBytes = toPaddedBytes(x, 32);
-        byte[] yBytes = toPaddedBytes(y, 32);
-        Q_C = new byte[1 + xBytes.length + yBytes.length];
-        Q_C[0] = 4;        
-        System.arraycopy(xBytes, 0, Q_C, 1, xBytes.length);
-        System.arraycopy(yBytes, 0, Q_C, 1 + xBytes.length, yBytes.length);
+        
+        java.security.interfaces.ECPublicKey pub = (java.security.interfaces.ECPublicKey) kp.getPublic();
+        params = pub.getParams();
+        java.security.spec.ECPoint w = pub.getW();
+        
+        byte[] x = toPaddedBytes(w.getAffineX(), 32);
+        byte[] y = toPaddedBytes(w.getAffineY(), 32);
+        byte[] myKey = new byte[1 + x.length + y.length];
+        myKey[0] = 4;
+        System.arraycopy(x, 0, myKey, 1, x.length);
+        System.arraycopy(y, 0, myKey, 1 + x.length, y.length);
+
+        this.Q_C = myKey;
+        
         myKeyAgree = javax.crypto.KeyAgreement.getInstance("ECDH");
-        myKeyAgree.init(privateKey);            
+        myKeyAgree.init(kp.getPrivate());
+    }
+
+    public void next(byte[] remoteQC, byte[] KS) throws Exception {
+        this.Q_S = this.Q_C; 
+        this.Q_C = remoteQC; 
+        calculateSharedSecret(this.Q_C);
+        calculateHash(KS);
+    }
+
+    public void next(Buf buf) throws Exception {
+        buf.add_i_get(6); 
+        byte[] KS = buf.getValue(); 
+        byte[] remoteQS = buf.getValue(); 
+        this.Q_S = remoteQS; 
+        calculateSharedSecret(this.Q_S);
+        calculateHash(KS);
+    }
+
+    private void calculateSharedSecret(byte[] remoteKeyBytes) throws Exception {
+        if (remoteKeyBytes[0] != 4) throw new Exception("EC Key format not supported");
+        int len = (remoteKeyBytes.length - 1) / 2;
+        byte[] x = new byte[len];
+        byte[] y = new byte[len];
+        System.arraycopy(remoteKeyBytes, 1, x, 0, len);
+        System.arraycopy(remoteKeyBytes, 1 + len, y, 0, len);
+        
+        java.security.PublicKey peerKey = java.security.KeyFactory.getInstance("EC").generatePublic(
+            new java.security.spec.ECPublicKeySpec(
+                new java.security.spec.ECPoint(new java.math.BigInteger(1, x), new java.math.BigInteger(1, y)), 
+                params
+            )
+        );
+        myKeyAgree.doPhase(peerKey, true);
+        K = new java.math.BigInteger(1, myKeyAgree.generateSecret()).toByteArray();
+    }
+
+    private void calculateHash(byte[] K_S) throws Exception {
+        Buf buf = new Buf();
+        buf.putValue(V_C); buf.putValue(V_S);
+        buf.putValue(I_C); buf.putValue(I_S);
+        buf.putValue(K_S);
+        buf.putValue(Q_C); buf.putValue(Q_S);
+        buf.putValue(K);
+        sha.update(buf.getValueAllLen());
+        H = sha.digest();
     }
 
     private byte[] toPaddedBytes(java.math.BigInteger bi, int length) {
         byte[] bytes = bi.toByteArray();
-        if (bytes.length == length) {
-            return bytes;
-        } else if (bytes.length > length) {
+        if (bytes.length == length) return bytes;
+        if (bytes.length > length) {
             if (bytes[0] == 0 && bytes.length == length + 1) {
-                byte[] result = new byte[length];
-                System.arraycopy(bytes, 1, result, 0, length);
-                return result;
+                byte[] res = new byte[length];
+                System.arraycopy(bytes, 1, res, 0, length);
+                return res;
             }
         } else if (bytes.length < length) {
-            byte[] result = new byte[length];
-            System.arraycopy(bytes, 0, result, length - bytes.length, bytes.length);
-            return result;
+            byte[] res = new byte[length];
+            System.arraycopy(bytes, 0, res, length - bytes.length, bytes.length);
+            return res;
         }
         return bytes;
     }
-    
-    public void next(Buf buf) throws Exception {
-        buf.add_i_get(6);
-        byte[] K_S = buf.getValue();
-        byte[] Q_S = buf.getValue();
-        if (Q_S[0] != 4)
-            throw new Exception("Formato de ponto EC não suportado: " + Q_S[0]);
-        int coordinateLength = 32;
-        if (Q_S.length != 1 + coordinateLength * 2)
-            coordinateLength = (Q_S.length - 1) / 2;
-        byte[] xBytes = new byte[coordinateLength];
-        byte[] yBytes = new byte[coordinateLength];
-        System.arraycopy(Q_S, 1, xBytes, 0, coordinateLength);
-        System.arraycopy(Q_S, 1 + coordinateLength, yBytes, 0, coordinateLength);
-        java.math.BigInteger x = new java.math.BigInteger(1, xBytes);
-        java.math.BigInteger y = new java.math.BigInteger(1, yBytes);
-        myKeyAgree.doPhase(
-            java.security.KeyFactory.getInstance("EC").generatePublic(
-                new java.security.spec.ECPublicKeySpec(
-                    new java.security.spec.ECPoint(x, y), 
-                    params
-                )
-            ), 
-            true
-        );
-        K = new java.math.BigInteger(1, myKeyAgree.generateSecret()).toByteArray();
-        buf=new Buf();
-        buf.putValue(V_C);
-        buf.putValue(V_S);
-        buf.putValue(I_C);
-        buf.putValue(I_S);
-        buf.putValue(K_S);
-        buf.putValue(Q_C);
-        buf.putValue(Q_S);
-        buf.putValue(K);
-        sha.update(buf.getValueAllLen());
-        H = sha.digest();
-    }    
 }
 
 class Buf{
