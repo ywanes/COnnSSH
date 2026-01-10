@@ -1,4 +1,4 @@
-package isolado;
+
 
 import java.io.*;
 import java.net.*;
@@ -65,7 +65,7 @@ class Session implements Runnable {
     private byte barra_r = 13, barra_n = 10;
     private InputStream in = null;
     private OutputStream out = null;
-    private ECDH kex = null;
+    private ECDH2 kex = null;
     private SecureRandom random = null;
     private int clientChannel = 0;
     private Process shellProcess = null;
@@ -166,7 +166,7 @@ class Session implements Runnable {
         System.arraycopy(buf.buffer, 5, I_S, 0, I_S.length);
         write(buf);
 
-        kex = new ECDH();
+        kex = new ECDH2();
         kex.init(V_S, V_C, I_S, I_C);
 
         buf = read(); // KEXDH_INIT
@@ -174,7 +174,7 @@ class Session implements Runnable {
         byte[] Q_C = buf.getValue();
 
         byte[] K_S = generateHostKey();
-        kex.next_server(Q_C, K_S);
+        kex.next(Q_C, K_S);
 
         buf = new Buf();
         buf.reset_command(SSH_MSG_KEXDH_REPLY);
@@ -476,8 +476,8 @@ class Session implements Runnable {
     }
 }
 
-// Classes auxiliares (mantidas iguais, apenas garantindo presença)
-class ECDH {
+
+class ECDH2{
     public byte[] K, H, Q_S;
     private byte[] V_S, V_C, I_S, I_C;
     public MessageDigest sha = null;
@@ -512,7 +512,7 @@ class ECDH {
         return res;
     }
 
-    public void next_server(byte[] Q_C, byte[] K_S) throws Exception {
+    public void next(byte[] Q_C, byte[] K_S) throws Exception {
         int len = (Q_C.length - 1) / 2;
         byte[] x = new byte[len]; byte[] y = new byte[len];
         System.arraycopy(Q_C, 1, x, 0, len);
@@ -525,21 +525,4 @@ class ECDH {
         sha.update(buf.getValueAllLen());
         H = sha.digest();
     }
-}
-
-class Buf {
-    byte[] buffer; int i_put, i_get;
-    public Buf() { this(new byte[32768]); }
-    public Buf(byte[] b) { this.buffer = b; }
-    public void putInt(int v) { buffer[i_put++]=(byte)(v>>24); buffer[i_put++]=(byte)(v>>16); buffer[i_put++]=(byte)(v>>8); buffer[i_put++]=(byte)v; }
-    public void putByte(byte b) { buffer[i_put++] = b; }
-    public void putBytes(byte[] b) { System.arraycopy(b, 0, buffer, i_put, b.length); i_put+=b.length; }
-    public void putValue(byte[] b) { putInt(b.length); putBytes(b); }
-    public void putString(String s) throws Exception { putValue(s.getBytes("UTF-8")); }
-    public byte getByte() { return buffer[i_get++]; }
-    public int getInt() { return (getByte()&0xff)<<24 | (getByte()&0xff)<<16 | (getByte()&0xff)<<8 | (getByte()&0xff); }
-    public byte[] getValue() { byte[] b = new byte[getInt()]; System.arraycopy(buffer, i_get, b, 0, b.length); i_get+=b.length; return b; }
-    public byte[] getValueAllLen() { byte[] b = new byte[i_put - i_get]; System.arraycopy(buffer, i_get, b, 0, b.length); i_get+=b.length; return b; }
-    public void reset_command(int c) { i_put=5; putByte((byte)c); }
-    public int getCommand() { return buffer[5]&0xff; }
 }
