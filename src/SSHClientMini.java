@@ -468,7 +468,7 @@ class ECDH{
             ), 
             true
         );
-        K = myKeyAgree.generateSecret();
+        K = new java.math.BigInteger(1, myKeyAgree.generateSecret()).toByteArray();
         buf=new Buf();
         buf.putValue(V_C);
         buf.putValue(V_S);

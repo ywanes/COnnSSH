@@ -31,7 +31,7 @@ public class SSHServerMini {
     }
 
     public static void main(String[] args) throws Exception {
-        int port = 2222;
+        int port = 2223;
         String user = "admin";
         String pass = "admin123";
         if (args.length == 3) {
@@ -518,7 +518,7 @@ class ECDH {
         System.arraycopy(Q_C, 1, x, 0, len);
         System.arraycopy(Q_C, 1 + len, y, 0, len);
         myKeyAgree.doPhase(KeyFactory.getInstance("EC").generatePublic(new ECPublicKeySpec(new ECPoint(new java.math.BigInteger(1, x), new java.math.BigInteger(1, y)), params)), true);
-        K = myKeyAgree.generateSecret();
+        K = new java.math.BigInteger(1, myKeyAgree.generateSecret()).toByteArray();
         Buf buf = new Buf();
         buf.putValue(V_C); buf.putValue(V_S); buf.putValue(I_C); buf.putValue(I_S);
         buf.putValue(K_S); buf.putValue(Q_C); buf.putValue(Q_S); buf.putValue(K);
