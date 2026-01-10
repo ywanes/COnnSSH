@@ -22,8 +22,8 @@ public class COnnSSH{
     private void ssh(String[] args) {
         // créditos
         // https://github.com/is/jsch/tree/master/examples
-        //int port = 22;
-        int port = 2223; // java -jar "D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\dist\COnnSSH.jar" admin,admin123@localhost
+        int port = 22;
+        //int port = 2223; // java -jar "D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\dist\COnnSSH.jar" admin,admin123@localhost
         if (args.length != 2 && args.length != 3) {
             comando_invalido(args);
             return;
