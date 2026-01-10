@@ -1,4 +1,3 @@
-/*
 class SSHClientMini{
     final int SSH_MSG_DISCONNECT = 1, SSH_MSG_IGNORE = 2, SSH_MSG_UNIMPLEMENTED = 3, SSH_MSG_DEBUG = 4,
               SSH_MSG_SERVICE_REQUEST = 5, SSH_MSG_KEXINIT = 20, SSH_MSG_NEWKEYS = 21, SSH_MSG_KEXDH_INIT = 30,
@@ -14,7 +13,7 @@ class SSHClientMini{
     private java.io.InputStream in = null;
     private java.io.OutputStream out = null;
     private boolean channel_opened=false;
-    private boolean verbose=true; // true/false
+    private boolean verbose=false; // true/false
     private ECDH kex=null;
     private java.security.SecureRandom random = null;
         
@@ -543,4 +542,3 @@ class Buf{
         return buffer[5];
     }
 }
-*/
