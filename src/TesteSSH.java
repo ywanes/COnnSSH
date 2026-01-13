@@ -1,9 +1,10 @@
 import java.io.*;
 
 public class TesteSSH{
-    public static void main(String[] args) {
+    public static void main(String[] args){
+        // java D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\src\TesteSSH.java
         String _jar="java -jar \"D:\\DADOSSSSS\\Desktopsss\\desktop\\COnnSSH\\COnnSSH\\dist\\COnnSSH.jar\"";
-        if ( args.length == 1 && args[1].equals("2") ){
+        if ( args.length == 1 && args[0].equals("2") ){
             _jar="java -jar \"D:\\DADOSSSSS\\Desktopsss\\desktop\\COnnSSH\\COnnSSH\\dist\\COnnSSH.jar\" admin,admin123@localhost";
         }
         String commands = """
@@ -12,6 +13,7 @@ public class TesteSSH{
             [JAR]
             c:
             cd C:\\tmp\\tmp
+            cd C:\\windows              
             y help | y grep onlyDiff
             exit
             echo %CD%
@@ -55,7 +57,7 @@ public class TesteSSH{
             String result = fullOutput.toString();
             String[] expectedOrder = {
                 "C:\\>",
-                "YWANES-PC",
+                "Microsoft Corporation. Todos os direitos reservados",
                 "C:\\tmp\\tmp>",
                 "-onlyDiff",
                 "C:\\>"
