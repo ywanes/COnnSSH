@@ -49,7 +49,7 @@ class Session implements Runnable {
     private byte barra_r = 13, barra_n = 10;
     private java.io.InputStream in = null;
     private java.io.OutputStream out = null;
-    private ECDH kex = null; // Unificado
+    public ECDH kex = null; // Unificado
     private java.security.SecureRandom random = null;
     private int clientChannel = 0;
     private Process shellProcess = null;
