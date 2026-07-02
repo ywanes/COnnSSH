@@ -41,6 +41,9 @@ class Session implements Runnable {
             SSH_MSG_CHANNEL_DATA = 94, SSH_MSG_CHANNEL_EOF = 96, SSH_MSG_CHANNEL_CLOSE = 97,
             SSH_MSG_CHANNEL_REQUEST = 98, SSH_MSG_CHANNEL_SUCCESS = 99;
 
+    // Limite defensivo: um packet_length corrompido/malicioso nao deve tentar alocar GBs.
+    private static final int MAX_PACKET = 1 << 20;
+
     private java.net.Socket socket;
     private String expectedUsername;
     private String expectedPassword;
@@ -351,6 +354,8 @@ class Session implements Runnable {
 
         int packetLen = ((buf.buffer[0] & 0xff) << 24) | ((buf.buffer[1] & 0xff) << 16) |
                         ((buf.buffer[2] & 0xff) << 8) | (buf.buffer[3] & 0xff);
+        if (packetLen < 0 || packetLen > MAX_PACKET)   // evita OOM por packet_length invalido
+            throw new Exception("packet_length invalido: " + packetLen);
         int need = packetLen + 4 - reader_cipher_size;
 
         if ((buf.i_put + need) > buf.buffer.length) {
@@ -372,7 +377,7 @@ class Session implements Runnable {
             byte[] calc = reader_mac.doFinal();
             byte[] recv = new byte[32];
             readFully(recv, 0, 32);   // era in.skip(32): skip pode pular < 32 e dessincronizar o fluxo
-            if (!java.util.Arrays.equals(calc, recv))
+            if (!java.security.MessageDigest.isEqual(calc, recv))   // comparacao constant-time
                 throw new Exception("MAC invalido (pacote adulterado ou fora de sincronia)");
         }
         reader_seq++;   // conta todo pacote, mesmo os de texto claro do KEX

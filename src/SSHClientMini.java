@@ -5,15 +5,20 @@ public class SSHClientMini {
               SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60, SSH_MSG_GLOBAL_REQUEST = 80, SSH_MSG_REQUEST_FAILURE = 82,
               SSH_MSG_CHANNEL_OPEN = 90, SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91, SSH_MSG_CHANNEL_WINDOW_ADJUST = 93,
               SSH_MSG_CHANNEL_DATA = 94, SSH_MSG_CHANNEL_EOF = 96, SSH_MSG_CHANNEL_REQUEST = 98;
+    // Limite defensivo: um packet_length corrompido/malicioso nao deve tentar alocar GBs.
+    private static final int MAX_PACKET = 1 << 20;
     private byte[] V_C, V_S, I_C, I_S;
     private javax.crypto.Cipher reader_cipher, writer_cipher;
     private javax.crypto.Mac reader_mac, writer_mac;
     // reader_seq/writer_seq: contam TODOS os pacotes desde o primeiro para o HMAC bater com o servidor.
-    private int reader_seq = 0, writer_seq = 0, reader_cipher_size = 8, rmpsize = 0;
+    private int reader_seq = 0, writer_seq = 0, reader_cipher_size = 8;
+    // rmpsize e escrito pela thread reading_stream e lido pela thread principal: volatile garante visibilidade.
+    private volatile int rmpsize = 0;
     private byte barra_r = 13, barra_n = 10;
     private java.io.InputStream in = null;
     private java.io.OutputStream out = null;
-    private boolean channel_opened = false;
+    // channel_opened e escrito pela thread reading_stream e lido pela thread principal em connect_stdin.
+    private volatile boolean channel_opened = false;
     private boolean verbose = false;
     private ECDH kex = null;
     private java.security.SecureRandom random = null;
@@ -37,7 +42,8 @@ public class SSHClientMini {
         writing_stdin();
     }
 
-    private int count_line_return = -1;
+    // count_line_return e escrito pela thread principal (writing_stdin) e lido pela reading_stream.
+    private volatile int count_line_return = -1;
     private boolean can_print(byte[] a) {
         if (count_line_return == -1)
             return true;
@@ -69,6 +75,8 @@ public class SSHClientMini {
                 break;
             }
             i++;
+            if (i >= 255)   // par que nunca manda \r\n nao pode estourar o buffer
+                throw new Exception("linha de versao do servidor muito longa");
         }
         V_S = new byte[i];
         System.arraycopy(buf.buffer, 0, V_S, 0, i);
@@ -97,12 +105,9 @@ public class SSHClientMini {
         debug("connect stream ->: ", buf);
 
         buf = read();
-        j = buf.getInt();
-        if (j != (buf.i_put - buf.i_get)) {
-            buf.add_i_get(1);
-            I_S = new byte[buf.i_put - 5];
-        } else
-            I_S = new byte[j - 1 - buf.getByte()];
+        j = buf.getInt();                     // packet_length
+        int padLen = buf.getByte() & 0xff;    // padding_length
+        I_S = new byte[j - 1 - padLen];       // payload = packet_length - 1 (byte pad_len) - padding
         System.arraycopy(buf.buffer, buf.i_get, I_S, 0, I_S.length);
         debug("connect stream <-: ", I_S);
 
@@ -209,8 +214,8 @@ public class SSHClientMini {
                 if (msgType == SSH_MSG_CHANNEL_OPEN_CONFIRMATION) {
                     buf.add_i_get(18);
                     int rps = buf.getInt();
-                    channel_opened = true;
                     rmpsize = rps;
+                    channel_opened = true;   // publicado depois de rmpsize (ambos volatile)
                     continue;
                 }
                 if (msgType == SSH_MSG_GLOBAL_REQUEST) {
@@ -276,6 +281,8 @@ public class SSHClientMini {
 
             int packetLen = ((buf.buffer[0] & 0xff) << 24) | ((buf.buffer[1] & 0xff) << 16) |
                             ((buf.buffer[2] & 0xff) << 8) | (buf.buffer[3] & 0xff);
+            if (packetLen < 0 || packetLen > MAX_PACKET)   // evita OOM por packet_length invalido
+                throw new Exception("packet_length invalido: " + packetLen);
             int need = packetLen + 4 - reader_cipher_size;
 
             if ((buf.i_put + need) > buf.buffer.length) {
@@ -295,7 +302,7 @@ public class SSHClientMini {
                 byte[] calc = reader_mac.doFinal();
                 byte[] recv = new byte[32];
                 readFully(recv, 0, 32);   // le o MAC completo (era in.read sem laco)
-                if (!java.util.Arrays.equals(calc, recv))
+                if (!java.security.MessageDigest.isEqual(calc, recv))   // comparacao constant-time
                     throw new Exception("MAC invalido (pacote adulterado ou fora de sincronia)");
             }
             reader_seq++;   // conta todo pacote, mesmo os de texto claro do KEX
@@ -377,6 +384,8 @@ public class SSHClientMini {
         int i = 0;
         int off = 14;
         while ((i = System.in.read(buf.buffer, off, buf.buffer.length - off - 128)) >= 0) {
+            if (i <= 0)   // nada lido: nao mexe no buffer (i-2+off apontaria pro cabecalho)
+                continue;
             if (buf.buffer[i-2+off] != barra_r || buf.buffer[i-1+off] != barra_n) {
                 i++;
                 buf.buffer[i-2+off] = barra_r;
@@ -386,8 +395,6 @@ public class SSHClientMini {
                 buf.buffer[j] = 0;
             debug(buf.buffer, off, i);
             count_line_return = 0;
-            if (i == 0)
-                continue;
             buf.reset_command(SSH_MSG_CHANNEL_DATA);
             buf.putInt(0);
             buf.putInt(i);

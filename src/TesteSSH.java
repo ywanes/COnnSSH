@@ -4,11 +4,15 @@ public class TesteSSH{
     public static void main(String[] args){
         // teste com o clientmini
         // compilar jar e depois rodar abaixo
+        // as vezes precisa dar clean e compilar varias vezes
+        // teste varias vezes
         // java D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\src\TesteSSH.java
         String _jar="java -jar \"D:\\DADOSSSSS\\Desktopsss\\desktop\\COnnSSH\\COnnSSH\\dist\\COnnSSH.jar\"";
         if ( args.length == 1 && args[0].equals("2") ){
             // teste com o servermini e clientmini
             // compilar jar e depois rodar abaixo
+            // as vezes precisa dar clean e compilar varias vezes
+            // teste varias vezes
             // run SSHServerMini.java no netbeans
             // java D:\DADOSSSSS\Desktopsss\desktop\COnnSSH\COnnSSH\src\TesteSSH.java 2
             _jar="java -jar \"D:\\DADOSSSSS\\Desktopsss\\desktop\\COnnSSH\\COnnSSH\\dist\\COnnSSH.jar\" admin,admin123@localhost";
