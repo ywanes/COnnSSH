@@ -53,14 +53,28 @@ public class SSHMini {
             if (access == null && port == -1) {
                 // "-test" sozinho -> auto-teste: sobe um servidor local SO durante o teste (porta 3004),
                 // roda o cliente contra ele e encerra. A thread do servidor e daemon: morre no System.exit.
+                System.setOut(TesteSSH.indentador(System.out));   // recua as linhas de "ruido" (servidor/resumo); os [checks] ficam na margem
                 int portaAuto = 3004;
+                // Pre-checa a porta: se estiver OCUPADA, aborta. Sem isso o teste conectaria num
+                // servidor DESCONHECIDO que estivesse na 3004 e daria checks [OK] enganosos.
+                try (java.net.ServerSocket probe = new java.net.ServerSocket(portaAuto)) {
+                    // porta livre (o probe fecha ao sair do try; o servidor de teste rebinda em seguida)
+                } catch (Exception e) {
+                    System.out.println("[FALHA] auto-teste abortado: porta " + portaAuto + " ja em uso (" + e.getMessage() + "). Libere-a e rode de novo.");
+                    System.exit(1);
+                }
+                boolean[] servidorNoAr = { false };
                 Thread servidor = new Thread(() -> {
-                    try { new SSHServerMini(portaAuto, "admin", "admin123"); }
-                    catch (Exception e) { System.out.println("auto-teste: nao subiu o servidor na " + portaAuto + ": " + e); }
+                    try { servidorNoAr[0] = true; new SSHServerMini(portaAuto, "admin", "admin123"); }
+                    catch (Exception e) { servidorNoAr[0] = false; System.out.println("[FALHA] auto-teste: servidor de teste caiu na " + portaAuto + ": " + e); }
                 });
                 servidor.setDaemon(true);
                 servidor.start();
                 try { Thread.sleep(300); } catch (Exception e) {}   // deixa o bind acontecer
+                if (!servidorNoAr[0]) {
+                    System.out.println("[FALHA] auto-teste abortado: servidor de teste nao subiu na " + portaAuto + ".");
+                    System.exit(1);
+                }
                 TesteSSH.runAuto("java SSHMini.java admin,admin123@localhost -P " + portaAuto);
                 System.exit(0);
             }
@@ -859,16 +873,35 @@ class Session implements Runnable {
                 buf.getInt();
                 byte[] data = buf.getValue();
                 if (shellInput != null) {
-                    // eco de terminal: devolve ao cliente o que ele enviou. Assim o SSHClientMini
-                    // (cujo can_print suprime justamente o eco) passa a exibir a saida real, e
-                    // clientes interativos (inclusive OpenSSH) veem o que digitam.
-                    Buf eco = new Buf();
-                    eco.reset_command(SSH_MSG_CHANNEL_DATA);
-                    eco.putInt(clientChannel);
-                    eco.putInt(data.length);
-                    eco.putBytes(data);
-                    write(eco);
-                    shellInput.write(data);
+                    // Sessao interativa (ssh com pty) manda CR (\r) no Enter, mas o shell le de um pipe
+                    // e precisa de LF (\n) pra fechar a linha. Sem traduzir, o cmd.exe/bash fica esperando
+                    // o fim de linha e a sessao TRAVA. Aqui: CR e CRLF -> LF para o shell; CR/LF -> CRLF no
+                    // eco (para o terminal exibir a quebra de linha certinha). Tambem some com o \r que
+                    // sujava os comandos no bash (bug antigo do \r\n).
+                    java.io.ByteArrayOutputStream paraShell = new java.io.ByteArrayOutputStream();
+                    java.io.ByteArrayOutputStream paraEco = new java.io.ByteArrayOutputStream();
+                    for (int k = 0; k < data.length; k++) {
+                        int c = data[k] & 0xff;
+                        if (c == 13) {                                                 // CR
+                            if (k + 1 < data.length && (data[k + 1] & 0xff) == 10) k++; // colapsa CRLF
+                            paraShell.write(10);
+                            paraEco.write(13); paraEco.write(10);
+                        } else if (c == 10) {                                          // LF
+                            paraShell.write(10);
+                            paraEco.write(13); paraEco.write(10);
+                        } else {
+                            paraShell.write(c);
+                            paraEco.write(c);
+                        }
+                    }
+                    byte[] eco = paraEco.toByteArray();
+                    Buf e = new Buf();
+                    e.reset_command(SSH_MSG_CHANNEL_DATA);
+                    e.putInt(clientChannel);
+                    e.putInt(eco.length);
+                    e.putBytes(eco);
+                    write(e);
+                    shellInput.write(paraShell.toByteArray());
                     shellInput.flush();
                 }
             } else if (msgType == SSH_MSG_CHANNEL_EOF) {
@@ -1452,6 +1485,28 @@ class TesteSSH {
             return s.contains("Authentications that can continue") || s.contains("Permission denied (")
                 || s.contains("Server host key: ecdsa-sha2-nistp256");
         } catch (Exception e) { return false; }
+    }
+
+    // Envolve o System.out: recua 8 espacos toda linha que NAO comeca com "[" (mensagens do
+    // servidor e o resumo ficam recuados; os [OK]/[FALHA]/[PULADO] ficam na margem). Linhas em
+    // branco nao sao recuadas. Como cada println e atomico no PrintStream, bufferizar por linha
+    // e seguro mesmo com o servidor imprimindo de outra thread.
+    static java.io.PrintStream indentador(java.io.PrintStream base) {
+        return new java.io.PrintStream(new java.io.OutputStream() {
+            final StringBuilder linha = new StringBuilder();
+            public void write(int b) {
+                if (b == '\n') {
+                    String s = linha.toString();
+                    linha.setLength(0);
+                    String t = s.trim();
+                    if (!t.isEmpty() && !t.startsWith("[")) base.print("        ");
+                    base.print(s);
+                    base.print('\n');
+                } else {
+                    linha.append((char) b);
+                }
+            }
+        }, true);
     }
 
     static boolean checkOrder(String text, String[] sequences) {
