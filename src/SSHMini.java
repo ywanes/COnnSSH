@@ -13,7 +13,7 @@
 //   java SSHMini.java -test -P 333                               auto-teste na porta 333
 //   java SSHMini.java -test admin,admin123@localhost -P 333      auto-teste na porta 333
 //
-//   ssh -o HostKeyAlgorithms=ecdsa-sha2-nistp256 -p 333 ywanes@192.168.0.100
+//   ssh -p 333 ywanes@192.168.0.100
 //
 // A ordem das opcoes e livre. Porta default = 22 (padrao SSH); use -P (ex.: -P 2223 p/ o servidor de teste).
 // Cliente e -test sem alvo: se existir a key.txt faz login automatico; senao ywanes@192.168.0.100 (pede a senha).
@@ -870,6 +870,9 @@ class Session implements Runnable {
                 String req = new String(buf.getValue(), "UTF-8");
                 byte wantReply = buf.getByte();
 
+                if (req.equals("pty-req")) {
+                    ptyPedido = true;   // liga a conversao LF->CRLF (ONLCR) na saida do shell
+                }
                 if (req.equals("shell")) {
                     startShell();
                 }
@@ -930,6 +933,9 @@ class Session implements Runnable {
     // PID do ultimo shell aberto pelo servidor; o auto-teste compara com o PID do processo host
     // para provar que a sessao roda num processo separado. volatile: escrito aqui, lido no -test.
     static volatile long ultimoShellPid = 0;
+    // Cliente pediu pty (pty-req)? Com pty, a saida do shell ganha o ONLCR que um pty de verdade
+    // faria (LF -> CRLF); sem pty (ssh -T / pipes) os bytes seguem crus para nao corromper dados.
+    private boolean ptyPedido = false;
     private void startShell() throws Exception {
         String os = System.getProperty("os.name").toLowerCase();
         ProcessBuilder pb;
@@ -950,14 +956,31 @@ class Session implements Runnable {
             try {
                 byte[] buffer = new byte[4096];
                 int len;
+                boolean crAnterior = false;   // um \r\n pode quebrar entre dois reads; o estado atravessa chunks
                 while (shellProcess.isAlive() && (len = shellOutput.read(buffer)) != -1) {
                     if (len > 0) {
+                        byte[] envio;
+                        if (ptyPedido) {
+                            // ONLCR do pty que nao temos: o ssh real poe o terminal do cliente em raw e
+                            // espera o servidor mandar CRLF; programa que imprime so \n (ex.: y ls) virava
+                            // "escadinha". So insere o \r quando o \n nao veio de um \r\n ja correto (cmd.exe).
+                            java.io.ByteArrayOutputStream conv = new java.io.ByteArrayOutputStream(len + 16);
+                            for (int k = 0; k < len; k++) {
+                                int c = buffer[k] & 0xff;
+                                if (c == 10 && !crAnterior) conv.write(13);
+                                conv.write(c);
+                                crAnterior = (c == 13);
+                            }
+                            envio = conv.toByteArray();
+                        } else {
+                            envio = java.util.Arrays.copyOf(buffer, len);   // sem pty: bytes crus
+                        }
                         synchronized(this) {
                             Buf b = new Buf();
                             b.reset_command(SSH_MSG_CHANNEL_DATA);
                             b.putInt(clientChannel);
-                            b.putInt(len);
-                            b.putBytes(java.util.Arrays.copyOf(buffer, len));
+                            b.putInt(envio.length);
+                            b.putBytes(envio);
                             write(b);
                         }
                     }
@@ -1412,7 +1435,7 @@ class TesteSSH {
     }
 
     // Loga na 3004 pelo cliente OpenSSH REAL (senha via SSH_ASKPASS) e roda os MESMOS testes internos
-    // pela sessao do ssh: echo, whoami e y. Se a senha nao puder ser automatizada aqui (ex.: askpass
+    // pela sessao do ssh: echo, whoami, y e escadinha (todo \n do pty deve chegar como \r\n). Se a senha nao puder ser automatizada aqui (ex.: askpass
     // indisponivel no Windows), cai no fallback de validar so o handshake (BatchMode). Retorna {ok,total}.
     static int[] checkSshReal(boolean win) {
         try { Process v = new ProcessBuilder("ssh", "-V").redirectErrorStream(true).start(); v.getInputStream().readAllBytes(); v.waitFor(); }
@@ -1433,13 +1456,16 @@ class TesteSSH {
             ask = java.io.File.createTempFile("sshmini_askpass", win ? ".bat" : ".sh");
             java.nio.file.Files.writeString(ask.toPath(), win ? "@echo off\r\necho admin123\r\n" : "#!/bin/sh\necho admin123\n");
             ask.setExecutable(true);
-            ProcessBuilder pb = new ProcessBuilder("ssh", "-T",
-                "-o", "HostKeyAlgorithms=ecdsa-sha2-nistp256",
+            // -tt: forca a alocacao de pty mesmo com stdin em pipe. E o cenario do ssh interativo
+            // real e exercita o ONLCR do servidor (LF -> CRLF), validado no check de escadinha.
+            ProcessBuilder pb = new ProcessBuilder("ssh", "-tt",
                 "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=" + devnull,
                 "-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no",
                 "-o", "NumberOfPasswordPrompts=1", "-o", "ConnectTimeout=10",
                 "-p", "3004", "admin@localhost");
-            pb.redirectErrorStream(true);
+            // stderr do PROPRIO ssh (warnings de known_hosts etc.) fica de fora: ele usa \n proprio
+            // e contaminaria o check de escadinha, que mede so o que veio do canal (stdout).
+            pb.redirectError(ProcessBuilder.Redirect.DISCARD);
             pb.environment().put("SSH_ASKPASS", ask.getAbsolutePath());
             pb.environment().put("SSH_ASKPASS_REQUIRE", "force");
             pb.environment().put("DISPLAY", ":0");
@@ -1468,6 +1494,13 @@ class TesteSSH {
             if (saida.contains("-onlyDiff")) { total++; ok++; System.out.println("[OK]    ssh real: y help | y grep only -> -onlyDiff"); }
             else if (saida.contains("SSHREAL_YNAO")) System.out.println("[PULADO] ssh real: y help | y grep only ('y' nao existe)");
             else { total++; System.out.println("[FALHA] ssh real: y help | y grep only (esperava -onlyDiff)"); }
+            // ---- escadinha: com pty (-tt), TODO \n do servidor deve chegar como \r\n (ONLCR). ----
+            // Sem a conversao, programa que imprime so \n (ex.: y ls) desenha escadinha no ssh real.
+            // Removendo os \r\n corretos, nao pode sobrar \n orfao; e \r\r acusaria conversao dupla.
+            total++;
+            boolean escadaOk = !saida.replace("\r\n", "").contains("\n") && !saida.contains("\r\r");
+            System.out.println((escadaOk ? "[OK]    " : "[FALHA] ") + "ssh real: sem escadinha (todo \\n do pty chegou como \\r\\n)");
+            if (escadaOk) ok++;
         } else {
             boolean hs = handshakeBatch(win, devnull);
             total++; if (hs) ok++;
@@ -1479,7 +1512,7 @@ class TesteSSH {
     // Fallback: valida so o handshake (BatchMode, sem senha) - host key ECDSA aceita e auth oferecida.
     static boolean handshakeBatch(boolean win, String devnull) {
         try {
-            Process ps = new ProcessBuilder("ssh", "-v", "-o", "HostKeyAlgorithms=ecdsa-sha2-nistp256",
+            Process ps = new ProcessBuilder("ssh", "-v",
                 "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=" + devnull,
                 "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-p", "3004", "admin@localhost")
                 .redirectErrorStream(true).start();
