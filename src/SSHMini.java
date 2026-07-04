@@ -879,6 +879,8 @@ class Session implements Runnable {
 
                 if (req.equals("pty-req")) {
                     ptyPedido = true;   // liga a conversao LF->CRLF (ONLCR) na saida do shell
+                    // payload do pty-req (RFC 4254): string TERM, depois colunas/linhas/modos
+                    try { termCliente = new String(buf.getValue(), "UTF-8"); } catch (Exception e) {}
                 }
                 if (req.equals("shell")) {
                     startShell();
@@ -900,18 +902,21 @@ class Session implements Runnable {
                     // e precisa de LF (\n) pra fechar a linha. Sem traduzir, o cmd.exe/bash fica esperando
                     // o fim de linha e a sessao TRAVA. Aqui: CR e CRLF -> LF para o shell; CR/LF -> CRLF no
                     // eco (para o terminal exibir a quebra de linha certinha). Tambem some com o \r que
-                    // sujava os comandos no bash (bug antigo do \r\n).
+                    // sujava os comandos no bash (bug antigo do \r\n). Com edicaoLinha (cmd.exe), o
+                    // servidor tambem monta a linha e trata o backspace — ver o campo edicaoLinha.
                     java.io.ByteArrayOutputStream paraShell = new java.io.ByteArrayOutputStream();
                     java.io.ByteArrayOutputStream paraEco = new java.io.ByteArrayOutputStream();
                     for (int k = 0; k < data.length; k++) {
                         int c = data[k] & 0xff;
-                        if (c == 13) {                                                 // CR
-                            if (k + 1 < data.length && (data[k + 1] & 0xff) == 10) k++; // colapsa CRLF
+                        if (c == 13 || c == 10) {                                       // Enter (CR, LF, CRLF)
+                            if (c == 13 && k + 1 < data.length && (data[k + 1] & 0xff) == 10) k++; // colapsa CRLF
+                            if (edicaoLinha) { paraShell.write(linha, 0, linhaLen); linhaLen = 0; }
                             paraShell.write(10);
                             paraEco.write(13); paraEco.write(10);
-                        } else if (c == 10) {                                          // LF
-                            paraShell.write(10);
-                            paraEco.write(13); paraEco.write(10);
+                        } else if (edicaoLinha && (c == 8 || c == 127)) {               // backspace/DEL
+                            if (linhaLen > 0) { linhaLen--; paraEco.write(8); paraEco.write(32); paraEco.write(8); }
+                        } else if (edicaoLinha) {
+                            if (linhaLen < linha.length) { linha[linhaLen++] = (byte) c; paraEco.write(c); }
                         } else {
                             paraShell.write(c);
                             paraEco.write(c);
@@ -926,8 +931,8 @@ class Session implements Runnable {
                         e.putBytes(eco);
                         write(e);
                     }
-                    shellInput.write(paraShell.toByteArray());
-                    shellInput.flush();
+                    byte[] envioShell = paraShell.toByteArray();
+                    if (envioShell.length > 0) { shellInput.write(envioShell); shellInput.flush(); }
                 }
             } else if (msgType == SSH_MSG_CHANNEL_EOF) {
                 // Cliente encerrou o stdin: fecha a entrada do shell para ele terminar de processar
@@ -945,23 +950,48 @@ class Session implements Runnable {
     // Cliente pediu pty (pty-req)? Com pty, a saida do shell ganha o ONLCR que um pty de verdade
     // faria (LF -> CRLF); sem pty (ssh -T / pipes) os bytes seguem crus para nao corromper dados.
     private boolean ptyPedido = false;
-    // O shell da sessao ja ecoa sozinho? bash -i ecoa no stderr cada caractere que le do pipe
-    // (echo_input_at_read) + prompt; somado ao eco do servidor, a digitacao saia duplicada no
-    // linux (yy eecchhoo 11). cmd.exe nao ecoa o que le do pipe, entao no windows o eco fica.
+    // O shell da sessao ja ecoa sozinho? No linux o eco vem do pty (ou do bash -i no fallback);
+    // somado ao eco do servidor, a digitacao saia duplicada (yy eecchhoo 11). cmd.exe nao ecoa
+    // o que le do pipe, entao no windows o eco do servidor fica ligado.
     private boolean ecoServidor = true;
+    // Line editing do servidor para shell SEM line discipline (cmd.exe lendo de pipe): a linha
+    // e montada aqui, backspace (0x08/0x7f) apaga do buffer (e "\b \b" no eco apaga na tela) e
+    // o shell so recebe a linha pronta no Enter — que e como o cmd ja le do pipe de toda forma.
+    // No linux o pty do 'script' ja faz esse papel, entao fica desligado.
+    private boolean edicaoLinha = false;
+    private byte[] linha = new byte[8192];
+    private int linhaLen = 0;
+    // TERM anunciado pelo cliente no pty-req (ex.: xterm-256color); repassado ao shell do pty
+    // para o readline/cores usarem as sequencias certas do terminal do cliente.
+    private String termCliente = null;
     private void startShell() throws Exception {
         String os = System.getProperty("os.name").toLowerCase();
         ProcessBuilder pb;
 
         if (os.contains("win")) {
             pb = new ProcessBuilder("cmd.exe");
+            edicaoLinha = true;   // sem pty no windows: o backspace e resolvido aqui no servidor
         } else {
-            pb = new ProcessBuilder("/bin/bash", "-i");
-            ecoServidor = false;   // bash -i ja ecoa cada caractere lido; ecoar aqui duplicaria a digitacao
+            // 'script' (util-linux) roda o bash dentro de um pty DE VERDADE: line discipline
+            // completa (backspace, setas, historico, ctrl+c) e eco feito pelo proprio pty.
+            // Sem pty o bash le de um pipe e o backspace vira um 0x7f literal na linha.
+            pb = new ProcessBuilder("script", "-qefc", "/bin/bash", "/dev/null");
+            ecoServidor = false;   // o pty (readline) ja ecoa a digitacao; ecoar aqui duplicaria
         }
+        if (termCliente != null && !termCliente.isEmpty())
+            pb.environment().put("TERM", termCliente);   // TERM do cliente vale dentro da sessao
 
         pb.redirectErrorStream(true);
-        shellProcess = pb.start();
+        try {
+            shellProcess = pb.start();
+        } catch (Exception e) {
+            if (os.contains("win")) throw e;
+            // sem o utilitario 'script' (ex.: container minimo): bash -i direto no pipe.
+            // Funciona e ecoa sozinho, mas sem line discipline (backspace nao edita a linha).
+            pb = new ProcessBuilder("/bin/bash", "-i");
+            pb.redirectErrorStream(true);
+            shellProcess = pb.start();
+        }
         ultimoShellPid = shellProcess.pid();
         shellOutput = shellProcess.getInputStream();
         shellInput = shellProcess.getOutputStream();
@@ -971,7 +1001,10 @@ class Session implements Runnable {
                 byte[] buffer = new byte[4096];
                 int len;
                 boolean crAnterior = false;   // um \r\n pode quebrar entre dois reads; o estado atravessa chunks
-                while (shellProcess.isAlive() && (len = shellOutput.read(buffer)) != -1) {
+                // Le ate o EOF do pipe (read == -1). Checar isAlive() aqui era um bug: quando o
+                // shell morria rapido (ex.: exit com comandos enfileirados), o loop parava antes
+                // de drenar o que restava no pipe e o cliente perdia o final da saida.
+                while ((len = shellOutput.read(buffer)) != -1) {
                     if (len > 0) {
                         byte[] envio;
                         if (ptyPedido) {
@@ -1451,6 +1484,20 @@ class TesteSSH {
     // Loga na 3004 pelo cliente OpenSSH REAL (senha via SSH_ASKPASS) e roda os MESMOS testes internos
     // pela sessao do ssh: echo, whoami, y e escadinha (todo \n do pty deve chegar como \r\n). Se a senha nao puder ser automatizada aqui (ex.: askpass
     // indisponivel no Windows), cai no fallback de validar so o handshake (BatchMode). Retorna {ok,total}.
+    // Espera a saida acumulada em 'sb' assentar: ja ter chegado algo e ficar quieta por quietMs
+    // (teto maxMs). Serve para digitar so depois do prompt: o bash iniciando no pty descarta o
+    // typeahead pendente no tcsetattr (ecoa mas nao executa).
+    static void esperarQuieto(StringBuilder sb, long quietMs, long maxMs) {
+        long inicio = System.currentTimeMillis(), ultima = inicio;
+        int anterior; synchronized (sb) { anterior = sb.length(); }
+        while (System.currentTimeMillis() - inicio < maxMs) {
+            try { Thread.sleep(80); } catch (Exception e) {}
+            int tam; synchronized (sb) { tam = sb.length(); }
+            if (tam != anterior) { anterior = tam; ultima = System.currentTimeMillis(); }
+            if (tam > 0 && System.currentTimeMillis() - ultima >= quietMs) return;
+        }
+    }
+
     static int[] checkSshReal(boolean win) {
         try { Process v = new ProcessBuilder("ssh", "-V").redirectErrorStream(true).start(); v.getInputStream().readAllBytes(); v.waitFor(); }
         catch (Exception e) {
@@ -1460,9 +1507,12 @@ class TesteSSH {
         int ok = 0, total = 0;
         String devnull = win ? "NUL" : "/dev/null";
         String tok = "SSHREAL_ECHO_OK";
+        // O sentinela e escrito "quebrado" (^ no cmd, '' no bash) para o TEXTO DIGITADO nao
+        // conter SSHREAL_YNAO: so a EXECUCAO produz a palavra inteira. Sem isso, o eco do
+        // comando ja casava com o contains() e dava [PULADO] falso mesmo com o y presente.
         String yline = win
-            ? "where y >nul 2>nul && (y help | y grep only) || echo SSHREAL_YNAO"
-            : "command -v y >/dev/null 2>&1 && y help | y grep only || echo SSHREAL_YNAO";
+            ? "where y >nul 2>nul && (y help | y grep only) || echo SSHREAL_YNA^O"
+            : "command -v y >/dev/null 2>&1 && y help | y grep only || echo SSHREAL_YNA''O";
         String script = "echo " + tok + "\nwhoami\n" + yline + "\nexit\n";
         String saida = "";
         java.io.File ask = null;
@@ -1484,19 +1534,27 @@ class TesteSSH {
             pb.environment().put("SSH_ASKPASS_REQUIRE", "force");
             pb.environment().put("DISPLAY", ":0");
             Process ps = pb.start();
-            ps.getOutputStream().write(script.getBytes());
-            ps.getOutputStream().flush(); ps.getOutputStream().close();
             StringBuilder sb = new StringBuilder();
             Thread rd = new Thread(() -> {
                 try (java.io.Reader r = new java.io.InputStreamReader(ps.getInputStream())) {
                     char[] b = new char[4096]; int n;
-                    while ((n = r.read(b)) != -1) sb.append(b, 0, n);
+                    while ((n = r.read(b)) != -1) synchronized (sb) { sb.append(b, 0, n); }
                 } catch (Exception e) {}
             });
             rd.start();
+            // Digita como um humano: espera a saida assentar (login + prompt) antes de CADA linha.
+            // Mandar o script inteiro de uma vez NAO funciona com o pty: o que chega durante a
+            // inicializacao do bash e descartado como typeahead (a linha ecoa mas nao executa).
+            java.io.OutputStream ent = ps.getOutputStream();
+            for (String linha : script.split("\n")) {
+                esperarQuieto(sb, 700, 10000);
+                ent.write((linha + "\n").getBytes());
+                ent.flush();
+            }
+            ent.close();
             if (!ps.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) ps.destroyForcibly();
             rd.join(2000);
-            saida = sb.toString();
+            synchronized (sb) { saida = sb.toString(); }
         } catch (Exception e) { saida = "erro: " + e; }
         finally { if (ask != null) ask.delete(); }
 
