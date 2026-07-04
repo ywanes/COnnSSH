@@ -15,7 +15,10 @@
 //
 //   ssh -p 333 ywanes@192.168.0.100
 //
-// A ordem das opcoes e livre. Porta default = 22 (padrao SSH); use -P (ex.: -P 2223 p/ o servidor de teste).
+//   control c com bug
+//   com ssh puro ele nao faz nada depois com enter da uma msg estranha
+//   com demais conexoes o control c sai da aplicao
+//
 // Cliente e -test sem alvo: se existir a key.txt faz login automatico; senao ywanes@192.168.0.100 (pede a senha).
 // ATENCAO: nao rode "javac *.java" com este arquivo junto dos originais -> "duplicate class".
 public class SSHMini {
@@ -44,7 +47,7 @@ public class SSHMini {
         }
 
         if (mode.equals("server")) {
-            if (port <= 0) port = 2223;                 // servidor de teste
+            if (port <= 0) port = 22;                 // servidor de teste
             String user = "admin", pass = "admin123";
             String[] p = parseAccess(access);
             if (p != null) { user = p[0]; pass = p[1]; }
@@ -624,7 +627,7 @@ class SSHServerMini {
     }
 
     public static void main(String[] args) throws Exception {
-        int port = 2223;
+        int port = 22;
         String user = "admin";
         String pass = "admin123";
         if (args.length == 3) {
