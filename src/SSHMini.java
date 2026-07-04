@@ -214,17 +214,23 @@ class SSHClientMini {
         writing_stdin();
     }
 
-    // count_line_return e escrito pela thread principal (writing_stdin) e lido pela reading_stream.
-    private volatile int count_line_return = -1;
-    private boolean can_print(byte[] a) {
-        if (count_line_return == -1)
-            return true;
-        count_line_return++;
-        if (count_line_return == 1)
-            return false;
-        if (count_line_return == 2 && a.length == 1 && (int)a[0] == 10)
-            return false;
-        return true;
+    // ecoPendente e escrito pela thread principal (writing_stdin) e lido pela reading_stream.
+    // Apos enviar uma linha, a primeira coisa que volta e o eco dela (do servidor no cmd.exe;
+    // do proprio bash -i no linux). O terminal local ja mostrou a digitacao, entao o eco e
+    // suprimido ATE O PRIMEIRO \n — por CONTEUDO, nao por pacote: o eco pode chegar colado com
+    // a saida do comando no mesmo pacote (ex.: echo, builtin instantaneo do bash) e a antiga
+    // supressao do pacote inteiro (can_print) engolia a saida do comando junto.
+    private volatile boolean ecoPendente = false;
+    private byte[] filtraEcoDoComando(byte[] a) {
+        if (!ecoPendente)
+            return a;
+        for (int k = 0; k < a.length; k++) {
+            if (a[k] == barra_n) {
+                ecoPendente = false;
+                return java.util.Arrays.copyOfRange(a, k + 1, a.length);
+            }
+        }
+        return new byte[0];   // a linha do eco ainda nao terminou: continua suprimindo
     }
 
     private void connect_stream(String host, String username, int port, String password) throws Exception {
@@ -377,8 +383,9 @@ class SSHClientMini {
                     }
                     if (texto_oculto(a))
                         continue;
-                    if (can_print(a)) {
-                        System.out.write(a);
+                    byte[] visivel = filtraEcoDoComando(a);
+                    if (visivel.length > 0) {
+                        System.out.write(visivel);
                         System.out.flush();
                     }
                     continue;
@@ -566,7 +573,7 @@ class SSHClientMini {
             for (int j = 0; j < off; j++)
                 buf.buffer[j] = 0;
             debug(buf.buffer, off, i);
-            count_line_return = 0;
+            ecoPendente = true;   // a proxima linha recebida e o eco desta: suprime ate o \n
             buf.reset_command(SSH_MSG_CHANNEL_DATA);
             buf.putInt(0);
             buf.putInt(i);
@@ -910,13 +917,15 @@ class Session implements Runnable {
                             paraEco.write(c);
                         }
                     }
-                    byte[] eco = paraEco.toByteArray();
-                    Buf e = new Buf();
-                    e.reset_command(SSH_MSG_CHANNEL_DATA);
-                    e.putInt(clientChannel);
-                    e.putInt(eco.length);
-                    e.putBytes(eco);
-                    write(e);
+                    if (ecoServidor) {   // so quando o shell nao ecoa sozinho (cmd.exe); ver ecoServidor
+                        byte[] eco = paraEco.toByteArray();
+                        Buf e = new Buf();
+                        e.reset_command(SSH_MSG_CHANNEL_DATA);
+                        e.putInt(clientChannel);
+                        e.putInt(eco.length);
+                        e.putBytes(eco);
+                        write(e);
+                    }
                     shellInput.write(paraShell.toByteArray());
                     shellInput.flush();
                 }
@@ -936,6 +945,10 @@ class Session implements Runnable {
     // Cliente pediu pty (pty-req)? Com pty, a saida do shell ganha o ONLCR que um pty de verdade
     // faria (LF -> CRLF); sem pty (ssh -T / pipes) os bytes seguem crus para nao corromper dados.
     private boolean ptyPedido = false;
+    // O shell da sessao ja ecoa sozinho? bash -i ecoa no stderr cada caractere que le do pipe
+    // (echo_input_at_read) + prompt; somado ao eco do servidor, a digitacao saia duplicada no
+    // linux (yy eecchhoo 11). cmd.exe nao ecoa o que le do pipe, entao no windows o eco fica.
+    private boolean ecoServidor = true;
     private void startShell() throws Exception {
         String os = System.getProperty("os.name").toLowerCase();
         ProcessBuilder pb;
@@ -944,6 +957,7 @@ class Session implements Runnable {
             pb = new ProcessBuilder("cmd.exe");
         } else {
             pb = new ProcessBuilder("/bin/bash", "-i");
+            ecoServidor = false;   // bash -i ja ecoa cada caractere lido; ecoar aqui duplicaria a digitacao
         }
 
         pb.redirectErrorStream(true);
@@ -1336,7 +1350,7 @@ class TesteSSH {
                 total++; if (check(w, out, "echo " + REMOTO, REMOTO, "echo remoto devolve o texto")) ok++;
                 total++; if (check(w, out, "whoami", System.getProperty("user.name"), "whoami traz o usuario do remoto")) ok++;
                 // (o 'y help | y grep only -> -onlyDiff' e validado pela sessao do ssh real la embaixo,
-                //  que nao sofre o can_print nem o falso-positivo do eco do comando)
+                //  que nao sofre a supressao de eco do cliente nem o falso-positivo do eco do comando)
                 // sai da sessao -> cliente encerra -> shell local imprime LOCAL
                 enviar(w, out, "exit", 300, 900, 15000);
             }
