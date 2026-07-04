@@ -75,14 +75,14 @@ public class SSHMini {
                     System.out.println("[FALHA] auto-teste abortado: servidor de teste nao subiu na " + portaAuto + ".");
                     System.exit(1);
                 }
-                TesteSSH.runAuto("java SSHMini.java admin,admin123@localhost -P " + portaAuto);
+                TesteSSH.runAuto("java \"" + caminhoFonte(args) + "\" admin,admin123@localhost -P " + portaAuto);
                 System.exit(0);
             }
             // -test <alvo> e/ou -P -> testa um servidor EXTERNO (precisa ja estar no ar)
             if (port <= 0) port = 22;
             String alvo = resolverAcesso(access);
             if (alvo == null) return;
-            String _jar = "java SSHMini.java " + alvo + " -P " + port;   // harness roda a partir do dir atual
+            String _jar = "java \"" + caminhoFonte(args) + "\" " + alvo + " -P " + port;   // caminho real do fonte: roda de qualquer dir
             TesteSSH.run(_jar);
         } else {
             if (port <= 0) port = 22;                   // cliente: porta SSH padrao
@@ -97,6 +97,19 @@ public class SSHMini {
             }
             System.exit(0);
         }
+    }
+
+    // Caminho do proprio .java como foi invocado (sun.java.command no modo source-file vem como
+    // "[launcher ]<fonte> <args>"). Permite rodar o -test de qualquer diretorio, nao so de dentro
+    // da pasta do fonte; funciona tambem com espacos no nome ("SSHMini - Copia (N).java").
+    static String caminhoFonte(String[] args) {
+        String cmd = System.getProperty("sun.java.command", "");
+        String suf = args.length == 0 ? "" : " " + String.join(" ", args);
+        if (cmd.endsWith(suf)) cmd = cmd.substring(0, cmd.length() - suf.length());
+        if (new java.io.File(cmd).isFile()) return cmd;                  // JDKs que poem so o fonte
+        int sp = cmd.indexOf(' ');                                       // JDKs que prefixam o launcher
+        if (sp > 0 && new java.io.File(cmd.substring(sp + 1)).isFile()) return cmd.substring(sp + 1);
+        return "SSHMini.java";                                           // fallback: comportamento antigo (dir atual)
     }
 
     // Cliente sem alvo na linha de comando: tenta login automatico pela key.txt; senao, alvo default.
