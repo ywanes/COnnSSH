@@ -15,9 +15,14 @@
 //
 //   ssh -p 333 ywanes@192.168.0.100
 //
-//   control c com bug
-//   com ssh puro ele nao faz nada depois com enter da uma msg estranha
-//   com demais conexoes o control c sai da aplicao
+//   Ctrl+C (corrigido): interrompe o COMANDO remoto em execucao, como num ssh de verdade — nao
+//   encerra a sessao nem a aplicacao. Para sair use 'exit' ou Ctrl+D.
+//   - Causa do bug antigo: com o servidor no ar em background (ex.: "java ... -server &"), a JVM
+//     herda SIGINT IGNORADO, e todo comando remoto herdava isso -> o 0x03 nao interrompia nada.
+//   - Servidor: sobe o shell com 'env --default-signal=INT,QUIT' (restaura o SIGINT no default),
+//     entao o 0x03 vindo do cliente gera o SIGINT no comando em foreground (ver comReset).
+//   - Cliente puro (SSHClientMini): captura o SIGINT local e o transforma no byte 0x03 no canal,
+//     em vez de deixar a JVM morrer (ver instalaCtrlC).
 //
 // Cliente e -test sem alvo: se existir a key.txt faz login automatico; senao ywanes@192.168.0.100 (pede a senha).
 // ATENCAO: nao rode "javac *.java" com este arquivo junto dos originais -> "duplicate class".
@@ -78,7 +83,7 @@ public class SSHMini {
                     System.out.println("[FALHA] auto-teste abortado: servidor de teste nao subiu na " + portaAuto + ".");
                     System.exit(1);
                 }
-                TesteSSH.runAuto("java \"" + caminhoFonte(args) + "\" admin,admin123@localhost -P " + portaAuto);
+                TesteSSH.runAuto(caminhoFonte(args), portaAuto);
                 System.exit(0);
             }
             // -test <alvo> e/ou -P -> testa um servidor EXTERNO (precisa ja estar no ar)
@@ -561,7 +566,25 @@ class SSHClientMini {
         write(buf);
     }
 
+    // Ctrl+C no terminal local: em vez de ENCERRAR a JVM do cliente (o SIGINT padrao mataria a
+    // aplicacao), envia o byte VINTR (0x03) pelo canal. O pty do servidor gera entao o SIGINT no
+    // comando remoto — como faz um ssh de verdade. Para SAIR da sessao use 'exit' ou Ctrl+D.
+    private void instalaCtrlC() {
+        try {
+            sun.misc.Signal.handle(new sun.misc.Signal("INT"), s -> {
+                try {
+                    Buf b = new Buf();
+                    b.reset_command(SSH_MSG_CHANNEL_DATA);
+                    b.putInt(0);           // canal
+                    b.putInt(1);           // 1 byte de dados
+                    b.putByte((byte) 3);   // VINTR (Ctrl+C)
+                    write(b);
+                } catch (Exception e) {}
+            });
+        } catch (Throwable t) { /* VM/plataforma sem SIGINT: mantem o comportamento padrao */ }
+    }
     private void writing_stdin() throws Exception {
+        instalaCtrlC();   // Ctrl+C passa a interromper o comando REMOTO, sem matar o cliente
         Buf buf = new Buf(new byte[rmpsize]);
         int i = 0;
         int off = 14;
@@ -916,6 +939,10 @@ class Session implements Runnable {
                             if (edicaoLinha) { paraShell.write(linha, 0, linhaLen); linhaLen = 0; }
                             paraShell.write(10);
                             paraEco.write(13); paraEco.write(10);
+                        } else if (c == 3 && interrompeMatando) {                        // Ctrl+C sem pty (cmd.exe)
+                            matarComandoForeground();               // mata o comando em execucao, mantem o shell
+                            linhaLen = 0;                           // descarta o que estava sendo digitado
+                            paraEco.write(13); paraEco.write(10);   // pula linha; o cmd.exe reexibe o prompt
                         } else if (edicaoLinha && (c == 8 || c == 127)) {               // backspace/DEL
                             if (linhaLen > 0) { linhaLen--; paraEco.write(8); paraEco.write(32); paraEco.write(8); }
                         } else if (edicaoLinha) {
@@ -948,7 +975,10 @@ class Session implements Runnable {
     }
 
     // PID do ultimo shell aberto pelo servidor; o auto-teste compara com o PID do processo host
-    // para provar que a sessao roda num processo separado. volatile: escrito aqui, lido no -test.
+    // para provar que a sessao roda num processo separado. O -test zera este campo ANTES de cada
+    // cliente e o le DEPOIS, para conferir o PID de CADA sessao ("ssh mini" e "ssh puro") em separado
+    // (senao, sendo sobrescrito a cada sessao, so a ultima seria validada). volatile: escrito aqui,
+    // lido/zerado no -test.
     static volatile long ultimoShellPid = 0;
     // Cliente pediu pty (pty-req)? Com pty, a saida do shell ganha o ONLCR que um pty de verdade
     // faria (LF -> CRLF); sem pty (ssh -T / pipes) os bytes seguem crus para nao corromper dados.
@@ -964,21 +994,59 @@ class Session implements Runnable {
     private boolean edicaoLinha = false;
     private byte[] linha = new byte[8192];
     private int linhaLen = 0;
+    // Ctrl+C sem pty (Windows/cmd.exe): nao ha line discipline que transforme o 0x03 em SIGINT,
+    // entao o servidor intercepta o VINTR e mata o processo em foreground do shell (o comando em
+    // execucao), deixando o shell vivo. No linux isso fica desligado — quem gera o SIGINT e o pty.
+    private boolean interrompeMatando = false;
     // TERM anunciado pelo cliente no pty-req (ex.: xterm-256color); repassado ao shell do pty
     // para o readline/cores usarem as sequencias certas do terminal do cliente.
     private String termCliente = null;
+    // 'env --default-signal' existe? (coreutils >= 8.30). Testado uma unica vez.
+    private static final boolean ENV_RESET_SINAL = testaEnvReset();
+    private static boolean testaEnvReset() {
+        if (System.getProperty("os.name").toLowerCase().contains("win")) return false;
+        try { return new ProcessBuilder("env", "--default-signal=INT", "true")
+                        .redirectErrorStream(true).start().waitFor() == 0; }
+        catch (Exception e) { return false; }
+    }
+    // Prefixa o comando do shell com 'env --default-signal=INT,QUIT' quando disponivel. Isso
+    // RESTAURA para o default o SIGINT/SIGQUIT que o processo herda IGNORADO quando o servidor
+    // sobe em background (ex.: "java SSHMini.java -server ... &"): nesse caso o shell — e todo
+    // comando que ele roda — nasce com SIGINT ignorado, e o Ctrl+C (0x03) do cliente, mesmo
+    // entregue ao pty, nao gera interrupcao. Com o reset, o 0x03 volta a interromper o comando
+    // em foreground, como num ssh de verdade. Se 'env' nao suporta a flag, roda sem o prefixo.
+    private static String[] comReset(String... cmd) {
+        if (!ENV_RESET_SINAL) return cmd;
+        String[] r = new String[cmd.length + 2];
+        r[0] = "env"; r[1] = "--default-signal=INT,QUIT";
+        System.arraycopy(cmd, 0, r, 2, cmd.length);
+        return r;
+    }
+    // Ctrl+C no Windows (cmd.exe, sem pty): mata os processos que o shell iniciou — o comando em
+    // foreground — preservando o proprio shell, para a sessao continuar. E o equivalente pratico
+    // ao SIGINT que a line discipline de um pty faria. Comandos INTERNOS do cmd (dir, type...) nao
+    // sao processos separados e nao dao para interromper assim, mas sao rapidos e nao travam.
+    private void matarComandoForeground() {
+        try {
+            if (shellProcess != null)
+                shellProcess.descendants().forEach(ProcessHandle::destroyForcibly);
+        } catch (Exception e) {}
+    }
     private void startShell() throws Exception {
         String os = System.getProperty("os.name").toLowerCase();
         ProcessBuilder pb;
 
         if (os.contains("win")) {
             pb = new ProcessBuilder("cmd.exe");
-            edicaoLinha = true;   // sem pty no windows: o backspace e resolvido aqui no servidor
+            edicaoLinha = true;        // sem pty no windows: o backspace e resolvido aqui no servidor
+            interrompeMatando = true;  // e o Ctrl+C tambem: mata o comando em foreground (ver handleChannel)
         } else {
             // 'script' (util-linux) roda o bash dentro de um pty DE VERDADE: line discipline
             // completa (backspace, setas, historico, ctrl+c) e eco feito pelo proprio pty.
             // Sem pty o bash le de um pipe e o backspace vira um 0x7f literal na linha.
-            pb = new ProcessBuilder("script", "-qefc", "/bin/bash", "/dev/null");
+            // O prefixo 'env --default-signal' (ver comReset) e essencial p/ o Ctrl+C: sem ele,
+            // com o servidor em background, o comando remoto herda SIGINT ignorado e nao para.
+            pb = new ProcessBuilder(comReset("script", "-qefc", "/bin/bash", "/dev/null"));
             ecoServidor = false;   // o pty (readline) ja ecoa a digitacao; ecoar aqui duplicaria
         }
         if (termCliente != null && !termCliente.isEmpty())
@@ -991,7 +1059,7 @@ class Session implements Runnable {
             if (os.contains("win")) throw e;
             // sem o utilitario 'script' (ex.: container minimo): bash -i direto no pipe.
             // Funciona e ecoa sozinho, mas sem line discipline (backspace nao edita a linha).
-            pb = new ProcessBuilder("/bin/bash", "-i");
+            pb = new ProcessBuilder(comReset("/bin/bash", "-i"));
             pb.redirectErrorStream(true);
             shellProcess = pb.start();
         }
@@ -1367,62 +1435,23 @@ class TesteSSH {
     static final String LOCAL  = "SSHMINI_LOCAL_OK";
     static final String REMOTO = "SSHMINI_REMOTO_OK";
 
-    // AUTO-TESTE (loopback contra o servidor local da 3004): roda uma bateria de validacoes,
-    // marcando [OK]/[FALHA] em cada uma. Shell local = cmd.exe (Windows) ou bash (Linux).
-    static void runAuto(String cliCmd) {
+    // AUTO-TESTE (loopback contra o servidor local da 3004): roda a MESMA bateria de validacoes
+    // por DOIS clientes — o SSHClientMini ("ssh mini") e o OpenSSH de verdade ("ssh puro") — marcando
+    // [OK]/[FALHA]. Shell remoto = cmd.exe (Windows) ou bash no pty (Linux). O check estrutural de
+    // PID (a sessao roda num processo separado do host) faz parte da bateria de CADA cliente — um
+    // para o "ssh mini" e outro para o "ssh puro" — pois cada um abre a sua propria sessao/shell.
+    // (Antes rodava UMA vez no fim: como ultimoShellPid e sobrescrito a cada sessao, so validava a
+    // ultima — a do "ssh puro" — e o PID da sessao do "ssh mini" nunca era conferido.)
+    static void runAuto(String fonteJava, int porta) {
         boolean win = System.getProperty("os.name").toLowerCase().contains("win");
-        String shell = win ? "cmd.exe" : "/bin/bash";
-        String sep   = win ? " & " : " ; ";
-        StringBuilder out = new StringBuilder();
         int ok = 0, total = 0;
-        try {
-            Process p = new ProcessBuilder(shell).redirectErrorStream(true).start();
-            Thread leitor = leitor(p, out);
-            leitor.start();
-            try (java.io.PrintWriter w = new java.io.PrintWriter(new java.io.OutputStreamWriter(p.getOutputStream()))) {
-                // lanca o cliente; ao encerrar, o shell local roda "echo LOCAL" (mesma linha)
-                enviar(w, out, cliCmd + sep + "echo " + LOCAL, 1000, 1000, 25000);
-                // ---- validacoes no shell REMOTO (echo/whoami/exit funcionam em cmd e bash) ----
-                total++; if (check(w, out, "echo " + REMOTO, REMOTO, "echo remoto devolve o texto")) ok++;
-                total++; if (check(w, out, "whoami", System.getProperty("user.name"), "whoami traz o usuario do remoto")) ok++;
-                // (o 'y help | y grep only -> -onlyDiff' e validado pela sessao do ssh real la embaixo,
-                //  que nao sofre a supressao de eco do cliente nem o falso-positivo do eco do comando)
-                // sai da sessao -> cliente encerra -> shell local imprime LOCAL
-                enviar(w, out, "exit", 300, 900, 15000);
-            }
-            p.waitFor();
-            leitor.join();
-            // ---- validacao: voltou ao shell LOCAL depois do exit ----
-            total++;
-            boolean localOk = out.toString().contains(LOCAL);
-            System.out.println((localOk ? "[OK]    " : "[FALHA] ") + "voltou ao shell local apos o exit");
-            if (localOk) ok++;
-            // ---- validacao: PID do host != PID do shell da sessao (processo separado) ----
-            total++;
-            long hostPid  = ProcessHandle.current().pid();
-            long shellPid = Session.ultimoShellPid;
-            boolean pidOk = shellPid > 0 && shellPid != hostPid;
-            System.out.println((pidOk ? "[OK]    " : "[FALHA] ") + "PID host (" + hostPid + ") difere do PID da sessao (" + shellPid + ")");
-            if (pidOk) ok++;
-            // ---- validacoes via cliente OpenSSH REAL (loga na 3004 e roda os testes internos) ----
-            int[] rssh = checkSshReal(win);
-            ok += rssh[0]; total += rssh[1];
-            // ---- resumo ----
-            System.out.println("---- " + ok + "/" + total + " checks OK"
-                + (ok == total ? "  => AUTO-TESTE OK (" + (win ? "windows/cmd" : "linux/bash") + ")" : "  => FALHOU") + " ----");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Envia um comando ao remoto e marca [OK] se a saida nova contiver 'esperado'.
-    static boolean check(java.io.PrintWriter w, StringBuilder out, String cmd, String esperado, String nome) {
-        int pos; synchronized (out) { pos = out.length(); }
-        enviar(w, out, cmd, 300, 900, 20000);
-        String novo; synchronized (out) { novo = out.substring(Math.min(pos, out.length())); }
-        boolean ok = esperado != null && !esperado.isEmpty() && novo.contains(esperado);
-        System.out.println((ok ? "[OK]    " : "[FALHA] ") + nome + (ok ? "" : "  (esperava conter \"" + esperado + "\")"));
-        return ok;
+        // a MESMA bateria pelos dois clientes (comandos + Ctrl+C sempre pelo stdin; inclui o check de PID)
+        int[] rMini = checkCliente("ssh mini", false, win, porta, fonteJava);
+        int[] rPuro = checkCliente("ssh puro", true,  win, porta, fonteJava);
+        ok += rMini[0] + rPuro[0]; total += rMini[1] + rPuro[1];
+        // resumo
+        System.out.println("---- " + ok + "/" + total + " checks OK"
+            + (ok == total ? "  => AUTO-TESTE OK (" + (win ? "windows/cmd" : "linux/bash") + ")" : "  => FALHOU") + " ----");
     }
 
     // Teste contra servidor EXTERNO (alvo informado): confere so o round-trip remoto -> volta ao local.
@@ -1501,41 +1530,69 @@ class TesteSSH {
         }
     }
 
-    static int[] checkSshReal(boolean win) {
-        try { Process v = new ProcessBuilder("ssh", "-V").redirectErrorStream(true).start(); v.getInputStream().readAllBytes(); v.waitFor(); }
-        catch (Exception e) {
-            System.out.println("[PULADO] ssh real -p 3004 (cliente 'ssh' nao encontrado)");
-            return new int[]{0, 0};
+    // Espera a saida acumulada CONTER 'txt' (ou estourar maxMs). Usado no teste de Ctrl+C para
+    // confirmar que o comando ja esta rodando antes de mandar o 0x03 (evita o typeahead que
+    // faria o 0x03 chegar antes do comando executar).
+    static boolean esperarConter(StringBuilder sb, String txt, long maxMs) {
+        long inicio = System.currentTimeMillis();
+        while (System.currentTimeMillis() - inicio < maxMs) {
+            synchronized (sb) { if (sb.indexOf(txt) >= 0) return true; }
+            try { Thread.sleep(50); } catch (Exception e) {}
+        }
+        return false;
+    }
+
+    // Roda a MESMA bateria de checks por UM cliente e retorna {ok,total}. 'ehSshPuro' escolhe o
+    // transporte: o OpenSSH de verdade ("ssh puro", -tt + askpass) ou o SSHClientMini ("ssh mini",
+    // senha embutida). A conversa e IDENTICA nos dois — comandos e o Ctrl+C (byte 0x03) sempre pelo
+    // STDIN — e a validacao usa deteccao por POSICAO (marca em inicio de linha), robusta ao eco: o
+    // ssh puro ecoa pelo pty, o ssh mini suprime, mas em ambos a EXECUCAO cai numa linha propria.
+    static int[] checkCliente(String nome, boolean ehSshPuro, boolean win, int porta, String fonteJava) {
+        String devnull = win ? "NUL" : "/dev/null";
+        if (ehSshPuro) {   // pre-requisito: o cliente OpenSSH precisa existir (senao e ERRO, sem "pulado")
+            try { Process v = new ProcessBuilder("ssh", "-V").redirectErrorStream(true).start(); v.getInputStream().readAllBytes(); v.waitFor(); }
+            catch (Exception e) {
+                System.out.println("[FALHA] " + nome + ": cliente 'ssh' nao encontrado (necessario p/ validar)");
+                return new int[]{0, 1};
+            }
         }
         int ok = 0, total = 0;
-        String devnull = win ? "NUL" : "/dev/null";
-        String tok = "SSHREAL_ECHO_OK";
-        // O sentinela e escrito "quebrado" (^ no cmd, '' no bash) para o TEXTO DIGITADO nao
-        // conter SSHREAL_YNAO: so a EXECUCAO produz a palavra inteira. Sem isso, o eco do
-        // comando ja casava com o contains() e dava [PULADO] falso mesmo com o y presente.
+        String tok = "MINI_ECHO_OK";
+        // O sentinela do 'y' e escrito "quebrado" (^ no cmd, '' no bash) p/ o TEXTO DIGITADO nao
+        // conter MINI_YNAO: so a EXECUCAO (quando 'y' falta) produz a palavra inteira, evitando que
+        // o eco do comando de um [FALHA] falso mesmo com o 'y' presente.
         String yline = win
-            ? "where y >nul 2>nul && (y help | y grep only) || echo SSHREAL_YNA^O"
-            : "command -v y >/dev/null 2>&1 && y help | y grep only || echo SSHREAL_YNA''O";
-        String script = "echo " + tok + "\nwhoami\n" + yline + "\nexit\n";
+            ? "where y >nul 2>nul && (y help | y grep only) || echo MINI_YNA^O"
+            : "command -v y >/dev/null 2>&1 && y help | y grep only || echo MINI_YNA''O";
+        String script = "echo " + tok + "\nwhoami\n" + yline;   // o teste de Ctrl+C vem depois, dedicado
         String saida = "";
+        boolean terminou = false;
+        long shellPid = 0;   // PID do shell que ESTA sessao abriu no servidor (capturado apos o cliente encerrar)
         java.io.File ask = null;
         try {
-            ask = java.io.File.createTempFile("sshmini_askpass", win ? ".bat" : ".sh");
-            java.nio.file.Files.writeString(ask.toPath(), win ? "@echo off\r\necho admin123\r\n" : "#!/bin/sh\necho admin123\n");
-            ask.setExecutable(true);
-            // -tt: forca a alocacao de pty mesmo com stdin em pipe. E o cenario do ssh interativo
-            // real e exercita o ONLCR do servidor (LF -> CRLF), validado no check de escadinha.
-            ProcessBuilder pb = new ProcessBuilder("ssh", "-tt",
-                "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=" + devnull,
-                "-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no",
-                "-o", "NumberOfPasswordPrompts=1", "-o", "ConnectTimeout=10",
-                "-p", "3004", "admin@localhost");
-            // stderr do PROPRIO ssh (warnings de known_hosts etc.) fica de fora: ele usa \n proprio
-            // e contaminaria o check de escadinha, que mede so o que veio do canal (stdout).
+            ProcessBuilder pb;
+            if (ehSshPuro) {
+                ask = java.io.File.createTempFile("sshmini_askpass", win ? ".bat" : ".sh");
+                java.nio.file.Files.writeString(ask.toPath(), win ? "@echo off\r\necho admin123\r\n" : "#!/bin/sh\necho admin123\n");
+                ask.setExecutable(true);
+                // -tt: forca a alocacao de pty mesmo com stdin em pipe. E o cenario do ssh interativo
+                // real e exercita o ONLCR do servidor (LF -> CRLF), validado no check de escadinha.
+                pb = new ProcessBuilder("ssh", "-tt",
+                    "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=" + devnull,
+                    "-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no",
+                    "-o", "NumberOfPasswordPrompts=1", "-o", "ConnectTimeout=10",
+                    "-p", "" + porta, "admin@localhost");
+                pb.environment().put("SSH_ASKPASS", ask.getAbsolutePath());
+                pb.environment().put("SSH_ASKPASS_REQUIRE", "force");
+                pb.environment().put("DISPLAY", ":0");
+            } else {
+                // cliente MINI (SSHClientMini): senha embutida no alvo, sem askpass/console. Ele
+                // tambem pede pty (pty-req no connect_stdin), entao o servidor faz o mesmo ONLCR.
+                pb = new ProcessBuilder("java", fonteJava, "admin,admin123@localhost", "-P", "" + porta);
+            }
+            // stderr fica de fora: usa \n proprio e contaminaria o check de escadinha (mede so o stdout).
             pb.redirectError(ProcessBuilder.Redirect.DISCARD);
-            pb.environment().put("SSH_ASKPASS", ask.getAbsolutePath());
-            pb.environment().put("SSH_ASKPASS_REQUIRE", "force");
-            pb.environment().put("DISPLAY", ":0");
+            Session.ultimoShellPid = 0;   // zera p/ capturar o PID do shell DESTA sessao, nao um resquicio da anterior
             Process ps = pb.start();
             StringBuilder sb = new StringBuilder();
             Thread rd = new Thread(() -> {
@@ -1546,50 +1603,91 @@ class TesteSSH {
             });
             rd.start();
             // Digita como um humano: espera a saida assentar (login + prompt) antes de CADA linha.
-            // Mandar o script inteiro de uma vez NAO funciona com o pty: o que chega durante a
-            // inicializacao do bash e descartado como typeahead (a linha ecoa mas nao executa).
+            // Mandar tudo de uma vez NAO funciona com o pty: o que chega durante a inicializacao do
+            // bash e descartado como typeahead (a linha ecoa mas nao executa). Vale p/ os dois clientes.
             java.io.OutputStream ent = ps.getOutputStream();
             for (String linha : script.split("\n")) {
                 esperarQuieto(sb, 700, 10000);
                 ent.write((linha + "\n").getBytes());
                 ent.flush();
             }
+            // ---- Ctrl+C: comando dorme ~6s e SO ENTAO imprime a marca (via '&&'); o 0x03 vai no
+            // meio, PELO STDIN (identico nos dois clientes). Interrompido -> a marca (execucao) nunca
+            // sai em inicio de linha. PORTAVEL cmd+bash; nao depende de $?/aritmetica.
+            String cmdCtrlC = win
+                ? "ping -n 7 127.0.0.1 >nul && echo MINI_POSCTRLC"   // ping -n 7 ~= dorme 6s
+                : "sleep 6 && echo MINI_POSCTRLC";
+            esperarQuieto(sb, 800, 10000);
+            ent.write((cmdCtrlC + "\n").getBytes()); ent.flush();
+            esperarConter(sb, "MINI_POSCTRLC", 8000);           // aguarda o eco (comando recebido)
+            try { Thread.sleep(1800); } catch (Exception e) {}  // comando em plena execucao
+            ent.write(3); ent.flush();                          // <<< Ctrl+C (byte 0x03 no stdin)
+            try { Thread.sleep(6500); } catch (Exception e) {}  // tempo de COMPLETAR se NAO interrompido
+            ent.write("exit\n".getBytes()); ent.flush();
             ent.close();
-            if (!ps.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) ps.destroyForcibly();
+            terminou = ps.waitFor(30, java.util.concurrent.TimeUnit.SECONDS);
+            if (!terminou) ps.destroyForcibly();
             rd.join(2000);
             synchronized (sb) { saida = sb.toString(); }
+            shellPid = Session.ultimoShellPid;   // PID do shell desta sessao (o cliente ja encerrou)
         } catch (Exception e) { saida = "erro: " + e; }
         finally { if (ask != null) ask.delete(); }
 
         boolean logou = saida.contains(tok);   // o echo so ecoa/roda se conectou E autenticou
         if (logou) {
-            total++; ok++; System.out.println("[OK]    ssh real: login por senha + echo (host key ECDSA aceita)");
+            total++; ok++;
+            System.out.println("[OK]    " + nome + ": conecta + login" + (ehSshPuro ? " + host key ECDSA aceita" : "") + " (echo)");
+            total++;
             boolean w = saida.contains(System.getProperty("user.name"));
-            total++; if (w) ok++; System.out.println((w ? "[OK]    " : "[FALHA] ") + "ssh real: whoami traz o usuario");
-            if (saida.contains("-onlyDiff")) { total++; ok++; System.out.println("[OK]    ssh real: y help | y grep only -> -onlyDiff"); }
-            else if (saida.contains("SSHREAL_YNAO")) System.out.println("[PULADO] ssh real: y help | y grep only ('y' nao existe)");
-            else { total++; System.out.println("[FALHA] ssh real: y help | y grep only (esperava -onlyDiff)"); }
-            // ---- escadinha: com pty (-tt), TODO \n do servidor deve chegar como \r\n (ONLCR). ----
-            // Sem a conversao, programa que imprime so \n (ex.: y ls) desenha escadinha no ssh real.
-            // Removendo os \r\n corretos, nao pode sobrar \n orfao; e \r\r acusaria conversao dupla.
+            if (w) ok++; System.out.println((w ? "[OK]    " : "[FALHA] ") + nome + ": whoami traz o usuario");
+            // pipe de comandos via SSH: 'y help | y grep only' deve devolver "-onlyDiff". O 'y' e um
+            // utilitario do usuario que DEVE existir no ambiente; se faltar, e ERRO (sem estado "pulado").
+            total++;
+            if (saida.contains("-onlyDiff")) { ok++; System.out.println("[OK]    " + nome + ": y help | y grep only -> -onlyDiff"); }
+            else if (saida.contains("MINI_YNAO")) System.out.println("[FALHA] " + nome + ": y help | y grep only ('y' nao existe no ambiente)");
+            else System.out.println("[FALHA] " + nome + ": y help | y grep only (esperava -onlyDiff)");
+            // ---- escadinha: com pty, TODO \n do servidor deve chegar como \r\n (ONLCR). Sem a
+            // conversao, quem imprime so \n desenha escadinha. Removidos os \r\n corretos, nao pode
+            // sobrar \n orfao; e \r\r acusaria conversao dupla. ----
             total++;
             boolean escadaOk = !saida.replace("\r\n", "").contains("\n") && !saida.contains("\r\r");
-            System.out.println((escadaOk ? "[OK]    " : "[FALHA] ") + "ssh real: sem escadinha (todo \\n do pty chegou como \\r\\n)");
-            if (escadaOk) ok++;
-        } else {
-            boolean hs = handshakeBatch(win, devnull);
+            if (escadaOk) ok++; System.out.println((escadaOk ? "[OK]    " : "[FALHA] ") + nome + ": sem escadinha (todo \\n chegou como \\r\\n)");
+            // ---- Ctrl+C: a EXECUCAO do echo imprime a marca SOZINHA no inicio de uma linha; o ECO
+            // do comando a mostra sempre precedida de "echo ". Detectar por POSICAO e robusto ao
+            // numero de ecos (o ssh puro ecoa pelo pty; o ssh mini suprime). ----
+            total++;
+            boolean cmdCompletou = saida.contains("\nMINI_POSCTRLC") || saida.contains("\rMINI_POSCTRLC");
+            if (cmdCompletou)   // terminou apos o 0x03 => 0x03 nao chegou OU o kill do foreground falhou
+                System.out.println("        (diag: a marca saiu em inicio de linha -> o comando remoto COMPLETOU apos o Ctrl+C)");
+            if (!cmdCompletou) ok++; System.out.println((!cmdCompletou ? "[OK]    " : "[FALHA] ") + nome + ": Ctrl+C (0x03) interrompe o comando remoto");
+            // ---- exit encerra a sessao: o processo do cliente termina sozinho (equivale ao antigo
+            // "voltou ao shell local" — a sessao devolve o controle ao chamador). ----
+            total++;
+            if (terminou) ok++; System.out.println((terminou ? "[OK]    " : "[FALHA] ") + nome + ": exit encerra a sessao (processo do cliente termina)");
+            // ---- PID: a sessao roda num PROCESSO SEPARADO do host — o shell do servidor tem PID
+            // proprio, != do JVM de teste. Um check por cliente: a sessao do "ssh mini" e a do
+            // "ssh puro" sao processos distintos, abertos em momentos diferentes. ----
+            total++;
+            long hostPid = ProcessHandle.current().pid();
+            boolean pidOk = shellPid > 0 && shellPid != hostPid;
+            if (pidOk) ok++; System.out.println((pidOk ? "[OK]    " : "[FALHA] ") + nome + ": PID host (" + hostPid + ") difere do PID da sessao (" + shellPid + ")");
+        } else if (ehSshPuro) {
+            boolean hs = handshakeBatch(win, devnull, porta);
             total++; if (hs) ok++;
-            System.out.println((hs ? "[OK]    " : "[FALHA] ") + "ssh real: conecta + aceita host key ECDSA (handshake; senha nao automatizada neste host)");
+            System.out.println((hs ? "[OK]    " : "[FALHA] ") + nome + ": conecta + aceita host key ECDSA (handshake; senha nao automatizada neste host)");
+        } else {
+            total++;
+            System.out.println("[FALHA] " + nome + ": nao conectou/autenticou (o echo nao voltou)");
         }
         return new int[]{ok, total};
     }
 
     // Fallback: valida so o handshake (BatchMode, sem senha) - host key ECDSA aceita e auth oferecida.
-    static boolean handshakeBatch(boolean win, String devnull) {
+    static boolean handshakeBatch(boolean win, String devnull, int porta) {
         try {
             Process ps = new ProcessBuilder("ssh", "-v",
                 "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=" + devnull,
-                "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-p", "3004", "admin@localhost")
+                "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-p", "" + porta, "admin@localhost")
                 .redirectErrorStream(true).start();
             ps.getOutputStream().close();
             StringBuilder sb = new StringBuilder();
@@ -1609,7 +1707,7 @@ class TesteSSH {
     }
 
     // Envolve o System.out: recua 8 espacos toda linha que NAO comeca com "[" (mensagens do
-    // servidor e o resumo ficam recuados; os [OK]/[FALHA]/[PULADO] ficam na margem). Linhas em
+    // servidor e o resumo ficam recuados; os [OK]/[FALHA] ficam na margem). Linhas em
     // branco nao sao recuadas. Como cada println e atomico no PrintStream, bufferizar por linha
     // e seguro mesmo com o servidor imprimindo de outra thread.
     static java.io.PrintStream indentador(java.io.PrintStream base) {
