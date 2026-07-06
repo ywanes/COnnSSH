@@ -239,7 +239,19 @@ class SSHClientMini {
         new SSHClientMini(args[0], args[1], Integer.parseInt(args[2]), args[3]);
     }
 
+    // Marca este processo como um CLIENTE SSHMini VIVO (arquivo no temp, keyed pelo PID). O servidor usa
+    // p/ saber que um comando java em foreground e um cliente ANINHADO -> repassa o Ctrl+C (0x03) pro stdin
+    // dele em vez de matar (senao a sessao aninhada "escapa"). Necessario no Windows, onde o
+    // ProcessHandle.commandLine() vem VAZIO (nao da p/ ver o "SSHMini" nos args). deleteOnExit limpa no exit/EOF.
+    private static void marcaClienteVivo() {
+        try {
+            java.io.File m = new java.io.File(System.getProperty("java.io.tmpdir"), "sshmini_client_" + ProcessHandle.current().pid());
+            m.createNewFile();
+            m.deleteOnExit();
+        } catch (Throwable t) {}
+    }
     public SSHClientMini(String host, String username, int port, String password) throws Exception {
+        marcaClienteVivo();   // marca este PID como cliente SSHMini vivo (servidor repassa o Ctrl+C em vez de matar)
         V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
         kex = new ECDH();
         connect_stream(host, username, port, password);
@@ -254,6 +266,7 @@ class SSHClientMini {
     // sinal, publica o PID, dispara um comando que dorme e fica VIVO esperando o sinal REAL do -test.
     // NAO le stdin (o cliente e dirigido por si mesmo) para o teste independer do tipo de stdin do start /b.
     public SSHClientMini(String host, String username, int port, String password, String statusFile) throws Exception {
+        marcaClienteVivo();
         this.statusFile = statusFile;
         this.selfTest = true;
         V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
@@ -466,10 +479,8 @@ class SSHClientMini {
                                 java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); }
                         catch (Exception e) {}
                     }
-                    if (a.length == 0) {
-                        System.out.println("a.length == 0");
-                        System.exit(0);
-                    }
+                    if (a.length == 0)   // CHANNEL_DATA vazio nao e fim de sessao (fim e CHANNEL_EOF): ignora, nao sai
+                        continue;
                     if (texto_oculto(a))
                         continue;
                     if (selfTest) {   // -ctrlcselftest: detecta por POSICAO (inicio de linha) o RUN/DONE do comando
@@ -1066,11 +1077,14 @@ class Session implements Runnable {
                             paraShell.write(10);
                             paraEco.write(13); paraEco.write(10);
                         } else if (c == 3 && interrompeMatando) {                        // Ctrl+C sem pty (cmd.exe)
-                            boolean matou = matarComandoForeground(); // mata o comando em foreground, mantem o shell
+                            int r = classificaEInterrompeForeground();
                             linhaLen = 0;                           // descarta o que estava sendo digitado
-                            paraEco.write(13); paraEco.write(10);   // pula linha (como um terminal faz no ^C)
-                            if (!matou) paraShell.write(10);        // ocioso: um Enter vazio p/ o cmd redesenhar o prompt (pwd);
-                                                                    // com comando em foreground, mata-lo ja faz o cmd reexibir sozinho
+                            if (r == 2) {                           // foreground e cliente SSH aninhado: REPASSA o 0x03 (nao mata)
+                                paraShell.write(3);                 // -> stdin do cliente -> ele encaminha o Ctrl+C pro nivel de baixo
+                            } else {
+                                paraEco.write(13); paraEco.write(10);   // pula linha (como um terminal faz no ^C)
+                                if (r == 0) paraShell.write(10);        // ocioso: Enter vazio p/ o cmd redesenhar o prompt (pwd);
+                            }                                           // r==1 (matou comando normal): o cmd reexibe o prompt sozinho
                         } else if (edicaoLinha && (c == 8 || c == 127)) {               // backspace/DEL
                             if (linhaLen > 0) { linhaLen--; paraEco.write(8); paraEco.write(32); paraEco.write(8); }
                         } else if (edicaoLinha) {
@@ -1082,12 +1096,14 @@ class Session implements Runnable {
                     }
                     if (ecoServidor) {   // so quando o shell nao ecoa sozinho (cmd.exe); ver ecoServidor
                         byte[] eco = paraEco.toByteArray();
-                        Buf e = new Buf();
-                        e.reset_command(SSH_MSG_CHANNEL_DATA);
-                        e.putInt(clientChannel);
-                        e.putInt(eco.length);
-                        e.putBytes(eco);
-                        write(e);
+                        if (eco.length > 0) {   // NUNCA mandar CHANNEL_DATA vazio: o cliente trata len 0 como fim e sai
+                            Buf e = new Buf();
+                            e.reset_command(SSH_MSG_CHANNEL_DATA);
+                            e.putInt(clientChannel);
+                            e.putInt(eco.length);
+                            e.putBytes(eco);
+                            write(e);
+                        }
                     }
                     byte[] envioShell = paraShell.toByteArray();
                     if (envioShell.length > 0) { shellInput.write(envioShell); shellInput.flush(); }
@@ -1156,26 +1172,39 @@ class Session implements Runnable {
     // console (um descendente), e matar o conhost deixava o cmd sem console: os PROXIMOS programas
     // externos nasciam com o stdout quebrado (executavam e ate gravavam em arquivo com '>', mas nao
     // mostravam nada na tela; builtins como 'dir' continuavam pois saem do proprio cmd). Era o
-    // "terminal estranho" apos o Ctrl+C. AGORA mata so os FILHOS DIRETOS (o comando em foreground):
-    // no prompt ocioso nao ha filho -> no-op de verdade, e nunca toca no conhost.
-    private boolean matarComandoForeground() {
-        boolean matou = false;
+    // "terminal estranho" apos o Ctrl+C. AGORA so mexe nos FILHOS DIRETOS do cmd (o comando em foreground)
+    // e NUNCA no conhost. Alem disso decide entre MATAR e REPASSAR (ver abaixo), pro SSH aninhado cascatear.
+    // Retorno: 0 = OCIOSO (so conhost / nada rodando) -> o caller pede um prompt novo ao cmd.
+    //          1 = MATOU um comando normal (ping, y, ...) em foreground -> interrompido, como antes.
+    //          2 = REPASSAR: o foreground e um cliente SSH ANINHADO (ssh.exe ou um cliente SSHMini). NAO se
+    //              mata (matar = a sessao aninhada "escapa"); o caller escreve o 0x03 no stdin dele e ELE
+    //              encaminha o Ctrl+C pro nivel de baixo, onde o comando REAL e morto. Assim CASCATEIA.
+    // Puro Java 21: children() + ProcessHandle.info() + destroyForcibly (sem nativo, sem ConPTY, sem FFM).
+    private int classificaEInterrompeForeground() {
         try {
-            if (shellProcess == null) return false;
-            java.util.List<ProcessHandle> fg = shellProcess.children().toList();   // comando em foreground = filhos DIRETOS
-            StringBuilder log = KILLLOG != null ? new StringBuilder("Ctrl+C: " + fg.size() + " filho(s) direto(s) do cmd:\n") : null;
-            for (ProcessHandle h : fg) {
-                String cmd = h.info().command().orElse("");
-                boolean ehConhost = cmd.toLowerCase().contains("conhost");   // host de console: NUNCA matar (quebra o stdout dos proximos)
-                if (log != null) log.append("  pid=" + h.pid() + " cmd=" + (cmd.isEmpty() ? "?" : cmd) + (ehConhost ? "  [PULADO conhost]" : "  [mata]") + "\n");
-                if (!ehConhost) { h.destroyForcibly(); matou = true; }
+            if (shellProcess == null) return 0;
+            java.util.List<ProcessHandle> reais = new java.util.ArrayList<ProcessHandle>();
+            for (ProcessHandle h : shellProcess.children().toList())
+                if (!h.info().command().orElse("").toLowerCase().contains("conhost")) reais.add(h);   // conhost: nunca
+            StringBuilder log = KILLLOG != null ? new StringBuilder("Ctrl+C: " + reais.size() + " comando(s) em foreground:\n") : null;
+            boolean repassa = false;
+            for (ProcessHandle h : reais) {
+                String cmd = h.info().command().orElse("").toLowerCase();
+                String cl  = h.info().commandLine().orElse("").toLowerCase();
+                boolean cliente = cmd.endsWith("ssh.exe") || cmd.endsWith("\\ssh") || cl.contains("sshmini")   // encaminha o Ctrl+C
+                    || new java.io.File(System.getProperty("java.io.tmpdir"), "sshmini_client_" + h.pid()).exists();   // marca de cliente SSHMini vivo
+                if (cliente) repassa = true;
+                if (log != null) log.append("  pid=" + h.pid() + " cmd=" + (cmd.isEmpty() ? "?" : cmd) + (cliente ? "  [REPASSA cliente ssh]" : "  [mata]") + "\n");
             }
+            int r = reais.isEmpty() ? 0 : (repassa ? 2 : 1);
+            if (r == 1) for (ProcessHandle h : reais) h.destroyForcibly();   // comando(s) normal(is): interrompe matando
             if (log != null) {
+                if (reais.isEmpty()) log.append("  (ocioso)\n");
                 try { java.nio.file.Files.writeString(java.nio.file.Paths.get(KILLLOG), log.toString(),
                         java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); } catch (Exception e) {}
             }
-        } catch (Exception e) {}
-        return matou;   // true se havia comando em foreground (p/ o handler saber se precisa pedir prompt novo ao cmd)
+            return r;
+        } catch (Exception e) { return 0; }
     }
     private void startShell() throws Exception {
         String os = System.getProperty("os.name").toLowerCase();
