@@ -67,6 +67,14 @@ public class SSHMini {
             String user = "admin", pass = "admin123";
             String[] p = parseAccess(access);
             if (p != null) { user = p[0]; pass = p[1]; }
+            // Privilege drop AUTOMATICO (sem flag): se o servidor foi iniciado via sudo, o 'sudo' define
+            // SUDO_USER com o seu usuario original -> a sessao do cliente cai NELE em vez de root. Assim
+            // "sudo java ... -server -P 333" mantem a porta baixa (root) mas quem conecta entra como voce,
+            // NAO root. Sem sudo (rodando ja como voce), SUDO_USER nao existe e roda como voce mesmo.
+            String su = System.getenv("SUDO_USER");
+            if (su != null && !su.isEmpty() && !su.equals("root")) Session.shellUser = su;
+            System.out.println("Sessao dos clientes cai no usuario: "
+                + (Session.shellUser == null ? "(mesmo do servidor)" : Session.shellUser));
             new SSHServerMini(port, user, pass);
         } else if (mode.equals("test")) {
             if (access == null && port == -1) {
@@ -279,10 +287,10 @@ class SSHClientMini {
         instalaCtrlC();                                        // handlers de INT e BREAK
         sctMark("PID " + ProcessHandle.current().pid());       // o -test le o PID p/ mirar o sinal so neste grupo
         boolean win = System.getProperty("os.name").toLowerCase().contains("win");
-        // marca RUN, dorme ~8s e SO ENTAO marca DONE (via &&): se o sinal interromper, DONE nunca sai.
-        sendLine(win ? "echo SCT_RUN& ping -n 9 127.0.0.1 >nul && echo SCT_DONE"
-                     : "echo SCT_RUN; sleep 8 && echo SCT_DONE");
-        try { Thread.sleep(25000); } catch (Exception e) {}    // fica vivo p/ o sinal chegar e ser tratado
+        // marca RUN, dorme ~2s e SO ENTAO marca DONE (via &&): se o sinal interromper, DONE nunca sai.
+        sendLine(win ? "echo SCT_RUN& ping -n 3 127.0.0.1 >nul && echo SCT_DONE"
+                     : "echo SCT_RUN; sleep 2 && echo SCT_DONE");
+        try { Thread.sleep(10000); } catch (Exception e) {}    // fica vivo p/ o sinal chegar e ser tratado
         sctMark("EXIT");
         System.exit(0);
     }
@@ -1165,6 +1173,17 @@ class Session implements Runnable {
         System.arraycopy(cmd, 0, r, 2, cmd.length);
         return r;
     }
+    // Usuario em que a SESSAO do cliente cai (privilege drop). null = mesmo usuario do servidor (sem drop).
+    // Detectado SOZINHO: se o servidor foi iniciado via sudo, cai no usuario ORIGINAL (SUDO_USER) — ver main.
+    static String shellUser = null;
+    // Sobe o shell da sessao COMO shellUser via 'runuser -l' (login: HOME/PATH/cwd do usuario), sem pedir
+    // senha porque o servidor roda como root. E o privilege drop que o sshd faz: o servidor segue root
+    // (mantem a porta baixa), mas quem conecta cai no usuario normal. So Linux (no Windows o cmd ja roda
+    // como o usuario que subiu o -server). Sem shellUser, roda como o proprio usuario do servidor.
+    private static String[] comUsuario(String[] cmd) {
+        if (shellUser == null) return cmd;
+        return new String[] { "runuser", "-l", shellUser, "-c", String.join(" ", cmd) };
+    }
     // Debug (servidor): se setado, loga o que o Ctrl+C ve/mata no cmd. Via env SSHMINI_KILLLOG ou -killlog.
     static String KILLLOG = System.getenv("SSHMINI_KILLLOG");
     // Ctrl+C no Windows (cmd.exe, sem pty): interrompe o comando em foreground, preservando o shell.
@@ -1220,7 +1239,7 @@ class Session implements Runnable {
             // Sem pty o bash le de um pipe e o backspace vira um 0x7f literal na linha.
             // O prefixo 'env --default-signal' (ver comReset) e essencial p/ o Ctrl+C: sem ele,
             // com o servidor em background, o comando remoto herda SIGINT ignorado e nao para.
-            pb = new ProcessBuilder(comReset("script", "-qefc", "/bin/bash", "/dev/null"));
+            pb = new ProcessBuilder(comUsuario(comReset("script", "-qefc", "/bin/bash", "/dev/null")));
             ecoServidor = false;   // o pty (readline) ja ecoa a digitacao; ecoar aqui duplicaria
         }
         if (termCliente != null && !termCliente.isEmpty())
@@ -1233,7 +1252,7 @@ class Session implements Runnable {
             if (os.contains("win")) throw e;
             // sem o utilitario 'script' (ex.: container minimo): bash -i direto no pipe.
             // Funciona e ecoa sozinho, mas sem line discipline (backspace nao edita a linha).
-            pb = new ProcessBuilder(comReset("/bin/bash", "-i"));
+            pb = new ProcessBuilder(comUsuario(comReset("/bin/bash", "-i")));
             pb.redirectErrorStream(true);
             shellProcess = pb.start();
         }
@@ -1720,6 +1739,7 @@ class TesteSSH {
     // senha embutida). A conversa e IDENTICA nos dois — comandos e o Ctrl+C (byte 0x03) sempre pelo
     // STDIN — e a validacao usa deteccao por POSICAO (marca em inicio de linha), robusta ao eco: o
     // ssh puro ecoa pelo pty, o ssh mini suprime, mas em ambos a EXECUCAO cai numa linha propria.
+    static String tempo(long ms) { return "  (" + ms + " ms)"; }   // sufixo de tempo mostrado em cada check
     static int[] checkCliente(String nome, boolean ehSshPuro, boolean win, int porta, String fonteJava) {
         String devnull = win ? "NUL" : "/dev/null";
         if (ehSshPuro) {   // pre-requisito: o cliente OpenSSH precisa existir (senao e ERRO, sem "pulado")
@@ -1749,6 +1769,10 @@ class TesteSSH {
         boolean vivoAntes = false, vivoDepois = false, vivoOcioso = false;
         boolean sessaoMorreu = false;   // apos o exit: o shell da sessao (server-side) tem de morrer tambem
         boolean sinalEntregue = false, clienteVivoAposSinal = false, sctInterrompeu = false;   // Ctrl+C por SINAL real de verdade (so mini)
+        // tempos (ms) por fase da sessao, mostrados em cada check. Os checks "instantaneos" (avaliados
+        // no fim a partir do texto ja capturado: escadinha e os PIDs) aparecem com 0 ms — o tempo real
+        // fica nas OPERACOES (connect, whoami, cada Ctrl+C, o y, o exit). 'marco' corre pela sessao.
+        long marco = 0, msConnect = 0, msWhoami = 0, msCtrlC = 0, msIdle = 0, msSinal = 0, msY = 0, msExit = 0;
         java.io.File ask = null;
         try {
             ProcessBuilder pb;
@@ -1774,6 +1798,7 @@ class TesteSSH {
             // stderr fica de fora: usa \n proprio e contaminaria o check de escadinha (mede so o stdout).
             pb.redirectError(ProcessBuilder.Redirect.DISCARD);
             Session.ultimoShellPid = 0;   // zera p/ capturar o PID do shell DESTA sessao, nao um resquicio da anterior
+            marco = System.currentTimeMillis();   // t0 do CONNECT (inclui o compile do cliente + handshake + login)
             Process ps = pb.start();
             StringBuilder sb = new StringBuilder();
             Thread rd = new Thread(() -> {
@@ -1789,6 +1814,7 @@ class TesteSSH {
             java.io.OutputStream ent = ps.getOutputStream();
             for (String linha : script.split("\n")) {
                 esperarQuieto(sb, 700, 10000);
+                if (msConnect == 0) { msConnect = System.currentTimeMillis() - marco; marco = System.currentTimeMillis(); }   // 1a espera assentar = conectado + login pronto
                 ent.write((linha + "\n").getBytes());
                 ent.flush();
             }
@@ -1796,6 +1822,7 @@ class TesteSSH {
             // e confere (mais abaixo) que e um processo VIVO e separado do host. Comparado ao PID
             // DEPOIS, prova que o Ctrl+C mata so o comando — a sessao (o shell) sobrevive intacta.
             esperarQuieto(sb, 700, 10000);
+            msWhoami = System.currentTimeMillis() - marco; marco = System.currentTimeMillis();   // echo + whoami assentarem
             pidAntes = Session.ultimoShellPid;
             vivoAntes = pidAntes > 0 && ProcessHandle.of(pidAntes).map(ProcessHandle::isAlive).orElse(false);
             // ---- Ctrl+C: o comando imprime uma marca de INICIO, dorme ~6s e SO ENTAO a marca FINAL
@@ -1805,14 +1832,15 @@ class TesteSSH {
             // de INICIO, o 0x03 vai no MEIO do sleep nos dois clientes. Interrompido -> a marca FINAL
             // nunca sai em inicio de linha. PORTAVEL cmd+bash; nao depende de $?/aritmetica.
             String cmdCtrlC = win
-                ? "echo MINI_PRECTRLC& ping -n 7 127.0.0.1 >nul && echo MINI_POSCTRLC"   // ping -n 7 ~= dorme 6s
-                : "echo MINI_PRECTRLC; sleep 6 && echo MINI_POSCTRLC";
+                ? "echo MINI_PRECTRLC& ping -n 3 127.0.0.1 >nul && echo MINI_POSCTRLC"   // ping -n 3 ~= dorme 2s
+                : "echo MINI_PRECTRLC; sleep 2 && echo MINI_POSCTRLC";
             esperarQuieto(sb, 800, 10000);
             ent.write((cmdCtrlC + "\n").getBytes()); ent.flush();
             esperarConter(sb, "MINI_PRECTRLC", 10000);          // marca de INICIO: comando em execucao (sleep rodando)
-            try { Thread.sleep(1500); } catch (Exception e) {}  // 0x03 no MEIO do sleep (que dorme 6s)
+            try { Thread.sleep(500); } catch (Exception e) {}   // 0x03 logo no inicio do sleep (dorme ~2s; margem p/ o 0x03 chegar)
             ent.write(3); ent.flush();                          // <<< Ctrl+C (byte 0x03 no stdin)
-            try { Thread.sleep(6500); } catch (Exception e) {}  // tempo de COMPLETAR se NAO interrompido
+            try { Thread.sleep(2500); } catch (Exception e) {}  // tempo de COMPLETAR se NAO interrompido (comando ~2s)
+            msCtrlC = System.currentTimeMillis() - marco; marco = System.currentTimeMillis();   // Ctrl+C (0x03) em andamento
             // PID DEPOIS do Ctrl+C: o shell tem de continuar VIVO e com o MESMO PID (o Ctrl+C matou
             // so o comando em foreground, nao a sessao). Robusto: vale mesmo que o Ctrl+C falhe.
             pidDepois = Session.ultimoShellPid;
@@ -1830,6 +1858,7 @@ class TesteSSH {
             ent.write((cmdIdle + "\n").getBytes()); ent.flush();
             esperarConter(sb, "MINI_POSIDLE", 10000);           // apareceu (eco ou execucao) -> a sessao respondeu
             esperarQuieto(sb, 800, 10000);
+            msIdle = System.currentTimeMillis() - marco; marco = System.currentTimeMillis();   // Ctrl+C (0x03) ocioso
             pidOcioso = Session.ultimoShellPid;
             vivoOcioso = pidOcioso > 0 && ProcessHandle.of(pidOcioso).map(ProcessHandle::isAlive).orElse(false);
             // ---- Ctrl+C por SINAL REAL (so no cliente mini): um SIGINT de verdade no processo do cliente
@@ -1839,14 +1868,15 @@ class TesteSSH {
             // mandar CTRL_C_EVENT a um processo so, sem matar o proprio -test, exige helper nativo.
             if (!ehSshPuro && !win) {   // Linux: SIGINT real via kill -INT. Windows e testado a parte (ver ctrlCRealWindows)
                 esperarQuieto(sb, 800, 10000);
-                String cmdKill = win ? "echo MINI_PREKILL& ping -n 7 127.0.0.1 >nul && echo MINI_POSKILL"
-                                     : "echo MINI_PREKILL; sleep 6 && echo MINI_POSKILL";
+                String cmdKill = win ? "echo MINI_PREKILL& ping -n 3 127.0.0.1 >nul && echo MINI_POSKILL"
+                                     : "echo MINI_PREKILL; sleep 2 && echo MINI_POSKILL";
                 ent.write((cmdKill + "\n").getBytes()); ent.flush();
                 esperarConter(sb, "MINI_PREKILL", 10000);           // comando em execucao (sleep rodando)
-                try { Thread.sleep(1500); } catch (Exception e) {}  // sinal no MEIO do sleep
+                try { Thread.sleep(500); } catch (Exception e) {}   // sinal logo no inicio do sleep (dorme ~2s)
                 sinalEntregue = enviarSigintReal(ps, win);          // SIGINT de verdade no processo do cliente
-                try { Thread.sleep(6500); } catch (Exception e) {}  // tempo de COMPLETAR se NAO interrompido
+                try { Thread.sleep(2500); } catch (Exception e) {}  // tempo de COMPLETAR se NAO interrompido (comando ~2s)
                 clienteVivoAposSinal = ps.isAlive();                // anti-"escape": o cliente sobreviveu ao Ctrl+C?
+                msSinal = System.currentTimeMillis() - marco; marco = System.currentTimeMillis();   // sinal real (linux, kill -INT)
             }
             // ---- 'y' (a pedido, DEPOIS do Ctrl+C): pipe de comandos via SSH ----
             // O 'y' e um processo JAVA (startup lento) e imprime varias linhas. Sem esperar ele
@@ -1858,6 +1888,7 @@ class TesteSSH {
             ent.write((yline + " " + fimY + "\n").getBytes()); ent.flush();
             esperarConter(sb, "MINI_YDONE", 12000);   // espera o y (java) concluir antes de mandar o exit
             esperarQuieto(sb, 500, 3000);
+            msY = System.currentTimeMillis() - marco; marco = System.currentTimeMillis();   // y (pipe via SSH)
             ent.write("exit\n".getBytes()); ent.flush();
             ent.close();
             terminou = ps.waitFor(30, java.util.concurrent.TimeUnit.SECONDS);
@@ -1867,6 +1898,7 @@ class TesteSSH {
             for (int i = 0; i < 30 && pidAntes > 0 && ProcessHandle.of(pidAntes).map(ProcessHandle::isAlive).orElse(false); i++)
                 try { Thread.sleep(100); } catch (Exception e) {}
             sessaoMorreu = pidAntes > 0 && !ProcessHandle.of(pidAntes).map(ProcessHandle::isAlive).orElse(false);
+            msExit = System.currentTimeMillis() - marco; marco = System.currentTimeMillis();   // exit + fim da sessao
             rd.join(2000);
             synchronized (sb) { saida = sb.toString(); }
         } catch (Exception e) { saida = "erro: " + e; }
@@ -1876,7 +1908,9 @@ class TesteSSH {
         // -test (mesmo console). Entao sobe um cliente DEDICADO no proprio grupo de processos e dispara
         // CTRL_BREAK so nele (ver ctrlCRealWindows). Isolado: nao afeta o JVM de teste nem o shell do servidor.
         if (!ehSshPuro && win) {
+            long ts = System.currentTimeMillis();
             boolean[] r = ctrlCRealWindows(fonteJava, porta);
+            msSinal = System.currentTimeMillis() - ts;
             sinalEntregue = r[0]; sctInterrompeu = r[1]; clienteVivoAposSinal = r[2];
         }
 
@@ -1887,21 +1921,21 @@ class TesteSSH {
             // connectada" (o shell da sessao, um processo separado e vivo). Nao conta como check.
             System.out.println(nome + ": PID host(" + hostPid + ")");
             total++; ok++;
-            System.out.println("[OK]    " + nome + ": conecta + login" + (ehSshPuro ? " + host key ECDSA aceita" : "") + " (echo)");
+            System.out.println("[OK]    " + nome + ": conecta + login" + (ehSshPuro ? " + host key ECDSA aceita" : "") + " (echo)" + tempo(msConnect));
             total++;
             boolean w = saida.contains(System.getProperty("user.name"));
-            if (w) ok++; System.out.println((w ? "[OK]    " : "[FALHA] ") + nome + ": whoami traz o usuario");
+            if (w) ok++; System.out.println((w ? "[OK]    " : "[FALHA] ") + nome + ": whoami traz o usuario" + tempo(msWhoami));
             // ---- escadinha: com pty, TODO \n do servidor deve chegar como \r\n (ONLCR). Sem a
             // conversao, quem imprime so \n desenha escadinha. Removidos os \r\n corretos, nao pode
             // sobrar \n orfao; e \r\r acusaria conversao dupla. ----
             total++;
             boolean escadaOk = !saida.replace("\r\n", "").contains("\n") && !saida.contains("\r\r");
-            if (escadaOk) ok++; System.out.println((escadaOk ? "[OK]    " : "[FALHA] ") + nome + ": sem escadinha (todo \\n chegou como \\r\\n)");
+            if (escadaOk) ok++; System.out.println((escadaOk ? "[OK]    " : "[FALHA] ") + nome + ": sem escadinha (todo \\n chegou como \\r\\n)" + tempo(0));
             // ---- PID ANTES do Ctrl+C: a sessao roda num PROCESSO SEPARADO do host e VIVO (o shell
             // do servidor tem PID proprio, != do JVM de teste). ----
             total++;
             boolean pidAntesOk = vivoAntes && pidAntes != hostPid;
-            if (pidAntesOk) ok++; System.out.println((pidAntesOk ? "[OK]    " : "[FALHA] ") + nome + ": PID connectada(" + pidAntes + ")");
+            if (pidAntesOk) ok++; System.out.println((pidAntesOk ? "[OK]    " : "[FALHA] ") + nome + ": PID connectada(" + pidAntes + ")" + tempo(0));
             // ---- Ctrl+C: a EXECUCAO do echo imprime a marca FINAL SOZINHA no inicio de uma linha; o
             // ECO do comando a mostra sempre precedida de "echo ". Detectar por POSICAO e robusto ao
             // numero de ecos (o ssh puro ecoa pelo pty; o ssh mini suprime). ----
@@ -1909,59 +1943,55 @@ class TesteSSH {
             boolean cmdCompletou = saida.contains("\nMINI_POSCTRLC") || saida.contains("\rMINI_POSCTRLC");
             if (cmdCompletou)   // terminou apos o 0x03 => 0x03 nao chegou OU o kill do foreground falhou
                 System.out.println("        (diag: a marca saiu em inicio de linha -> o comando remoto COMPLETOU apos o Ctrl+C)");
-            if (!cmdCompletou) ok++; System.out.println((!cmdCompletou ? "[OK]    " : "[FALHA] ") + nome + ": Ctrl+C (0x03) interrompe o comando remoto em andamento");
+            if (!cmdCompletou) ok++; System.out.println((!cmdCompletou ? "[OK]    " : "[FALHA] ") + nome + ": Ctrl+C (0x03) interrompe o comando remoto em andamento" + tempo(msCtrlC));
             // ---- PID DEPOIS do Ctrl+C: a sessao SOBREVIVEU — mesmo PID de antes e ainda vivo. Prova
             // que o Ctrl+C interrompeu so o comando em foreground, nao o shell/a sessao. ----
             total++;
             boolean pidDepoisOk = vivoDepois && pidDepois == pidAntes;
-            if (pidDepoisOk) ok++; System.out.println((pidDepoisOk ? "[OK]    " : "[FALHA] ") + nome + ": PID connectada(" + pidDepois + ") - continuo na sessao");
+            if (pidDepoisOk) ok++; System.out.println((pidDepoisOk ? "[OK]    " : "[FALHA] ") + nome + ": PID connectada(" + pidDepois + ") - continuo na sessao" + tempo(0));
             // ---- Ctrl+C no prompt OCIOSO: num ssh de verdade so cancela a linha e devolve um prompt
             // novo, sem encerrar a sessao. Prova: o echo sentinela mandado APOS o 0x03 executa (cai
             // numa linha propria). Se a sessao tivesse caido, MINI_POSIDLE nao teria voltado. ----
             total++;
             boolean idleOk = saida.contains("\nMINI_POSIDLE") || saida.contains("\rMINI_POSIDLE");
-            if (idleOk) ok++; System.out.println((idleOk ? "[OK]    " : "[FALHA] ") + nome + ": Ctrl+C (0x03) sem comando em execucao");
+            if (idleOk) ok++; System.out.println((idleOk ? "[OK]    " : "[FALHA] ") + nome + ": Ctrl+C (0x03) sem comando em execucao" + tempo(msIdle));
             // ---- PID connectada DEPOIS do Ctrl+C ocioso: a sessao continua a mesma e viva. ----
             total++;
             boolean pidOciosoOk = vivoOcioso && pidOcioso == pidAntes;
-            if (pidOciosoOk) ok++; System.out.println((pidOciosoOk ? "[OK]    " : "[FALHA] ") + nome + ": PID connectada(" + pidOcioso + ") - continuo na sessao");
+            if (pidOciosoOk) ok++; System.out.println((pidOciosoOk ? "[OK]    " : "[FALHA] ") + nome + ": PID connectada(" + pidOcioso + ") - continuo na sessao" + tempo(0));
             // ---- Ctrl+C por SINAL REAL (so mini): o caminho de verdade do Ctrl+C do mini (SIGINT/BREAK ->
             // instalaCtrlC -> 0x03). (1) interrompeu o comando? (2) o cliente SOBREVIVEU (nao escapou)?
             // Linux: kill -INT no cliente da sessao (interrupcao lida em 'saida'). Windows: cliente dedicado
             // no proprio grupo + CTRL_BREAK (interrupcao lida do statusFile via ctrlCRealWindows -> sctInterrompeu). ----
-            if (!ehSshPuro) {
-                if (!sinalEntregue) {
-                    System.out.println(nome + ": Ctrl+C (sinal real via instalaCtrlC) NAO testado neste SO (no Windows precisa de PowerShell; teste manual: Ctrl+C durante um sleep deve interromper e o cliente NAO sair)");
-                } else {
-                    total++;
-                    boolean sinalInterrompeu = win ? sctInterrompeu
-                                                   : !(saida.contains("\nMINI_POSKILL") || saida.contains("\rMINI_POSKILL"));
-                    if (sinalInterrompeu) ok++; System.out.println((sinalInterrompeu ? "[OK]    " : "[FALHA] ") + nome + ": Ctrl+C (sinal real) interrompe o comando via instalaCtrlC");
-                    total++;
-                    if (clienteVivoAposSinal) ok++; System.out.println((clienteVivoAposSinal ? "[OK]    " : "[FALHA] ") + nome + ": cliente SOBREVIVE ao Ctrl+C real (nao escapou)");
-                }
+            if (!ehSshPuro && sinalEntregue) {   // sinal real (so mini, e so quando foi de fato entregue)
+                total++;
+                boolean sinalInterrompeu = win ? sctInterrompeu
+                                               : !(saida.contains("\nMINI_POSKILL") || saida.contains("\rMINI_POSKILL"));
+                if (sinalInterrompeu) ok++; System.out.println((sinalInterrompeu ? "[OK]    " : "[FALHA] ") + nome + ": Ctrl+C (sinal real) interrompe o comando via instalaCtrlC" + tempo(msSinal));
+                total++;
+                if (clienteVivoAposSinal) ok++; System.out.println((clienteVivoAposSinal ? "[OK]    " : "[FALHA] ") + nome + ": cliente SOBREVIVE ao Ctrl+C real (nao escapou)" + tempo(0));
             }
             // ---- 'y' (a pedido, DEPOIS do Ctrl+C): pipe 'y help | y grep only' deve devolver
             // "-onlyDiff". O 'y' e um utilitario do usuario que DEVE existir no ambiente; se faltar,
             // e ERRO (sem estado "pulado"). ----
             total++;
-            if (saida.contains("-onlyDiff")) { ok++; System.out.println("[OK]    " + nome + ": y help | y grep only (esperava -onlyDiff)"); }
-            else if (saida.contains("MINI_YNAO")) System.out.println("[FALHA] " + nome + ": y help | y grep only ('y' nao existe no ambiente)");
+            if (saida.contains("-onlyDiff")) { ok++; System.out.println("[OK]    " + nome + ": y help | y grep only (esperava -onlyDiff)" + tempo(msY)); }
+            else if (saida.contains("MINI_YNAO")) System.out.println("[FALHA] " + nome + ": y help | y grep only ('y' nao existe no ambiente)" + tempo(msY));
             else {
                 // 'y' existe (where/command-v achou) mas o pipe nao devolveu -onlyDiff: mostra a saida crua
                 // p/ diagnosticar (pipe do cmd.exe sem ConPTY, exit code do y.bat, etc.). \\r e \\n visiveis.
-                System.out.println("[FALHA] " + nome + ": y help | y grep only ('y' existe mas o pipe nao devolveu -onlyDiff)");
+                System.out.println("[FALHA] " + nome + ": y help | y grep only ('y' existe mas o pipe nao devolveu -onlyDiff)" + tempo(msY));
                 String d = saida.length() > 500 ? saida.substring(saida.length() - 500) : saida;
                 System.out.println("        (diag) ultimos 500 chars da saida: <<<" + d.replace("\r", "\\r").replace("\n", "\\n") + ">>>");
             }
             // ---- exit encerra a sessao: o processo do cliente termina sozinho (equivale ao antigo
             // "voltou ao shell local" — a sessao devolve o controle ao chamador). ----
             total++;
-            if (terminou) ok++; System.out.println((terminou ? "[OK]    " : "[FALHA] ") + nome + ": exit encerra a sessao (processo do cliente termina)");
+            if (terminou) ok++; System.out.println((terminou ? "[OK]    " : "[FALHA] ") + nome + ": exit encerra a sessao (processo do cliente termina)" + tempo(msExit));
             // ---- de volta ao host: apos o exit, o shell da sessao (PID connectada) tem de estar MORTO.
             // Junto ao check acima (cliente terminou), prova que a sessao acabou de ponta a ponta. ----
             total++;
-            if (sessaoMorreu) ok++; System.out.println((sessaoMorreu ? "[OK]    " : "[FALHA] ") + nome + ": PID host(" + hostPid + ") - sessao (" + pidAntes + ") encerrada apos o exit");
+            if (sessaoMorreu) ok++; System.out.println((sessaoMorreu ? "[OK]    " : "[FALHA] ") + nome + ": PID host(" + hostPid + ") - sessao (" + pidAntes + ") encerrada apos o exit" + tempo(0));
         } else if (ehSshPuro) {
             boolean hs = handshakeBatch(win, devnull, porta);
             total++; if (hs) ok++;
@@ -2006,7 +2036,7 @@ class TesteSSH {
                     "-ctrlcselftest", status.getAbsolutePath(), "-P", "" + porta)
                 .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
-                .redirectInput(ProcessBuilder.Redirect.DISCARD)
+                .redirectInput(ProcessBuilder.Redirect.INHERIT)   // DISCARD e INVALIDO p/ stdin; o cliente self-test nao le stdin
                 .start();
             // espera o cliente publicar o PID e o comando remoto comecar (marca RUN) — ate ~25s
             String s = "";
@@ -2017,7 +2047,7 @@ class TesteSSH {
             for (String ln : s.split("\\R"))
                 if (ln.startsWith("PID ")) { try { pid = Long.parseLong(ln.substring(4).trim()); } catch (Exception e) {} }
             if (pid <= 0 || !s.contains("RUN")) return new boolean[]{false, false, false};   // cliente nao subiu/conectou
-            try { Thread.sleep(1500); } catch (Exception e) {}   // sinal no MEIO do ping (que dorme ~8s)
+            try { Thread.sleep(500); } catch (Exception e) {}    // sinal logo no inicio do ping (dorme ~2s)
             // dispara CTRL_BREAK (evento 1) SO no grupo do cliente, via PowerShell + GenerateConsoleCtrlEvent
             ps1 = java.io.File.createTempFile("sshmini_break", ".ps1");
             java.nio.file.Files.writeString(ps1.toPath(),
@@ -2031,7 +2061,7 @@ class TesteSSH {
             String pwout = new String(pw.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             pw.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
             entregue = pwout.contains("BREAK_SENT");
-            try { Thread.sleep(8500); } catch (Exception e) {}   // tempo do ping COMPLETAR (marcar DONE) se NAO interrompido
+            try { Thread.sleep(2500); } catch (Exception e) {}   // tempo do ping COMPLETAR (marcar DONE) se NAO interrompido (~2s)
             String s2 = "";
             try { s2 = java.nio.file.Files.readString(status.toPath()); } catch (Exception e) {}
             interrompeu = !s2.contains("DONE");                                        // ping nao terminou => interrompido
