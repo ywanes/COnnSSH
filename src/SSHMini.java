@@ -1693,9 +1693,15 @@ class TesteSSH {
                 clienteVivoAposSinal = ps.isAlive();                // anti-"escape": o cliente sobreviveu ao Ctrl+C?
             }
             // ---- 'y' (a pedido, DEPOIS do Ctrl+C): pipe de comandos via SSH ----
+            // O 'y' e um processo JAVA (startup lento) e imprime varias linhas. Sem esperar ele
+            // TERMINAR, o exit era enviado no meio e — so no mini — o envio do exit re-armava a
+            // supressao de eco (ecoPendente), que engolia a saida atrasada do y. Fix: um marcador
+            // MINI_YDONE ao fim e esperar por ele ANTES do exit -> a saida do y ja chegou e foi capturada.
             esperarQuieto(sb, 800, 10000);
-            ent.write((yline + "\n").getBytes()); ent.flush();
-            esperarQuieto(sb, 800, 10000);
+            String fimY = win ? "& echo MINI_YDONE" : "; echo MINI_YDONE";
+            ent.write((yline + " " + fimY + "\n").getBytes()); ent.flush();
+            esperarConter(sb, "MINI_YDONE", 12000);   // espera o y (java) concluir antes de mandar o exit
+            esperarQuieto(sb, 500, 3000);
             ent.write("exit\n".getBytes()); ent.flush();
             ent.close();
             terminou = ps.waitFor(30, java.util.concurrent.TimeUnit.SECONDS);
