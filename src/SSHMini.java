@@ -31,12 +31,17 @@ public class SSHMini {
         String mode = "client";
         String access = null;
         int port = -1;
+        String statusFile = null;
         for (int i = 0; i < args.length; i++) {
             String a = args[i];
             if (a.equals("-server")) {
                 mode = "server";
             } else if (a.equals("-test")) {
                 mode = "test";
+            } else if (a.equals("-ctrlcselftest")) {   // modo interno do auto-teste (Ctrl+C real no Windows)
+                mode = "ctrlcselftest";
+                if (i + 1 >= args.length) { erro("-ctrlcselftest exige o caminho do arquivo de status"); return; }
+                statusFile = args[++i];
             } else if (a.equals("-P")) {
                 if (i + 1 >= args.length) { erro("-P exige um numero de porta"); return; }
                 try {
@@ -92,6 +97,9 @@ public class SSHMini {
             if (alvo == null) return;
             String _jar = "java \"" + caminhoFonte(args) + "\" " + alvo + " -P " + port;   // caminho real do fonte: roda de qualquer dir
             TesteSSH.run(_jar);
+        } else if (mode.equals("ctrlcselftest")) {
+            if (port <= 0) port = 22;
+            new SSHClientMini("localhost", "admin", port, "admin123", statusFile);   // conecta e espera o sinal real
         } else {
             if (port <= 0) port = 22;                   // cliente: porta SSH padrao
             String alvo = resolverAcesso(access);       // sem alvo: key.txt (login automatico) ou ywanes (pede senha)
@@ -199,6 +207,15 @@ class SSHClientMini {
     private java.io.OutputStream out = null;
     // channel_opened e escrito pela thread reading_stream e lido pela thread principal em connect_stdin.
     private volatile boolean channel_opened = false;
+    // lastCtrlC: instante do ultimo Ctrl+C (INT/BREAK). O writing_stdin usa isto p/ distinguir o read
+    // abortado pelo Ctrl+C do console (Windows) de um EOF de verdade — e assim NAO sair da sessao.
+    private volatile long lastCtrlC = 0;
+    // Modo -ctrlcselftest (auto-teste do Ctrl+C real no Windows): o cliente conecta sozinho, roda um
+    // comando que dorme, publica marcadores (PID/RUN/DONE) no statusFile e fica vivo esperando o sinal.
+    private boolean selfTest = false;
+    private String statusFile = null;
+    private final StringBuilder sctAcc = new StringBuilder();
+    private boolean sctRun = false, sctDone = false;
     private boolean verbose = false;
     private ECDH kex = null;
     private java.security.SecureRandom random = null;
@@ -220,6 +237,54 @@ class SSHClientMini {
         }}.start();
         connect_stdin();
         writing_stdin();
+    }
+
+    // Modo auto-teste do Ctrl+C real (usado pelo -test no Windows): conecta, instala os handlers de
+    // sinal, publica o PID, dispara um comando que dorme e fica VIVO esperando o sinal REAL do -test.
+    // NAO le stdin (o cliente e dirigido por si mesmo) para o teste independer do tipo de stdin do start /b.
+    public SSHClientMini(String host, String username, int port, String password, String statusFile) throws Exception {
+        this.statusFile = statusFile;
+        this.selfTest = true;
+        V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
+        kex = new ECDH();
+        connect_stream(host, username, port, password);
+        new Thread() { public void run() {
+            reading_stream();
+        }}.start();
+        connect_stdin();
+        instalaCtrlC();                                        // handlers de INT e BREAK
+        sctMark("PID " + ProcessHandle.current().pid());       // o -test le o PID p/ mirar o sinal so neste grupo
+        boolean win = System.getProperty("os.name").toLowerCase().contains("win");
+        // marca RUN, dorme ~8s e SO ENTAO marca DONE (via &&): se o sinal interromper, DONE nunca sai.
+        sendLine(win ? "echo SCT_RUN& ping -n 9 127.0.0.1 >nul && echo SCT_DONE"
+                     : "echo SCT_RUN; sleep 8 && echo SCT_DONE");
+        try { Thread.sleep(25000); } catch (Exception e) {}    // fica vivo p/ o sinal chegar e ser tratado
+        sctMark("EXIT");
+        System.exit(0);
+    }
+
+    // Acrescenta uma linha ao statusFile do auto-teste (linhas curtas em append; o -test faz polling).
+    private synchronized void sctMark(String linha) {
+        if (statusFile == null) return;
+        try {
+            java.nio.file.Files.writeString(java.nio.file.Paths.get(statusFile), linha + "\n",
+                java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (Exception e) {}
+    }
+
+    // Envia UMA linha de comando como CHANNEL_DATA (mesmo formato do writing_stdin, mas sem ler stdin).
+    private void sendLine(String cmd) throws Exception {
+        byte[] c = (cmd + "\r\n").getBytes("UTF-8");
+        Buf b = new Buf(new byte[c.length + 64]);
+        int off = 14;
+        System.arraycopy(c, 0, b.buffer, off, c.length);
+        for (int j = 0; j < off; j++) b.buffer[j] = 0;
+        ecoPendente = true;
+        b.reset_command(SSH_MSG_CHANNEL_DATA);
+        b.putInt(0);
+        b.putInt(c.length);
+        b.i_put += c.length;
+        write(b);
     }
 
     // ecoPendente e escrito pela thread principal (writing_stdin) e lido pela reading_stream.
@@ -391,6 +456,11 @@ class SSHClientMini {
                     }
                     if (texto_oculto(a))
                         continue;
+                    if (selfTest) {   // -ctrlcselftest: detecta por POSICAO (inicio de linha) o RUN/DONE do comando
+                        sctAcc.append(new String(a, java.nio.charset.StandardCharsets.UTF_8));
+                        if (!sctRun  && (sctAcc.indexOf("\nSCT_RUN")  >= 0 || sctAcc.indexOf("\rSCT_RUN")  >= 0)) { sctRun  = true; sctMark("RUN"); }
+                        if (!sctDone && (sctAcc.indexOf("\nSCT_DONE") >= 0 || sctAcc.indexOf("\rSCT_DONE") >= 0)) { sctDone = true; sctMark("DONE"); }
+                    }
                     byte[] visivel = filtraEcoDoComando(a);
                     if (visivel.length > 0) {
                         System.out.write(visivel);
@@ -570,8 +640,13 @@ class SSHClientMini {
     // aplicacao), envia o byte VINTR (0x03) pelo canal. O pty do servidor gera entao o SIGINT no
     // comando remoto — como faz um ssh de verdade. Para SAIR da sessao use 'exit' ou Ctrl+D.
     private void instalaCtrlC() {
+        instalaSinal("INT");     // Ctrl+C
+        instalaSinal("BREAK");   // Ctrl+Break: no auto-teste do Windows o sinal REAL chega como BREAK
+    }                            // (o cliente roda no proprio grupo e o -test dispara CTRL_BREAK nele)
+    private void instalaSinal(String nome) {
         try {
-            sun.misc.Signal.handle(new sun.misc.Signal("INT"), s -> {
+            sun.misc.Signal.handle(new sun.misc.Signal(nome), s -> {
+                lastCtrlC = System.currentTimeMillis();   // marca p/ o writing_stdin NAO tratar o read abortado como EOF
                 try {
                     Buf b = new Buf();
                     b.reset_command(SSH_MSG_CHANNEL_DATA);
@@ -581,15 +656,29 @@ class SSHClientMini {
                     write(b);
                 } catch (Exception e) {}
             });
-        } catch (Throwable t) { /* VM/plataforma sem SIGINT: mantem o comportamento padrao */ }
+        } catch (Throwable t) { /* VM/plataforma sem esse sinal (ex.: BREAK no linux): ignora */ }
     }
     private void writing_stdin() throws Exception {
         instalaCtrlC();   // Ctrl+C passa a interromper o comando REMOTO, sem matar o cliente
         Buf buf = new Buf(new byte[rmpsize]);
         int i = 0;
         int off = 14;
-        while ((i = System.in.read(buf.buffer, off, buf.buffer.length - off - 128)) >= 0) {
-            if (i <= 0)   // nada lido: nao mexe no buffer (i-2+off apontaria pro cabecalho)
+        while (true) {
+            try {
+                i = System.in.read(buf.buffer, off, buf.buffer.length - off - 128);
+            } catch (java.io.IOException ioe) {
+                i = -1;   // Windows: o Ctrl+C aborta o ReadConsole pendente (ERROR_OPERATION_ABORTED)
+            }
+            if (i < 0) {
+                // -1 pode ser EOF real (Ctrl+Z / stdin fechado) OU o Ctrl+C do Windows abortando o read.
+                // Sem isto, o Ctrl+C do console fazia o read voltar -1, o laco terminava e o CLIENTE SAIA
+                // da sessao (bug). Se um Ctrl+C acabou de acontecer, o 0x03 ja seguiu pelo handler: nao e
+                // EOF -> CONTINUA a sessao (recomeca a leitura). So encerra no EOF de verdade.
+                try { Thread.sleep(120); } catch (Exception e) {}   // deixa o handler marcar o Ctrl+C
+                if (System.currentTimeMillis() - lastCtrlC < 2000) continue;
+                break;
+            }
+            if (i == 0)   // nada lido: nao mexe no buffer (i-2+off apontaria pro cabecalho)
                 continue;
             if (i == 1 && (buf.buffer[off] & 0xff) == 3) {   // VINTR (0x03) solto no stdin (ex.: pipe / -test)
                 // repassa o 0x03 CRU (mesmo pacote do instalaCtrlC), sem virar \r\n: assim um Ctrl+C que
@@ -1057,9 +1146,9 @@ class Session implements Runnable {
         ProcessBuilder pb;
 
         if (os.contains("win")) {
-            pb = new ProcessBuilder("cmd.exe");
-            edicaoLinha = true;        // sem pty no windows: o backspace e resolvido aqui no servidor
-            interrompeMatando = true;  // e o Ctrl+C tambem: mata o comando em foreground (ver handleChannel)
+            pb = new ProcessBuilder("cmd.exe", "/q");   // /q = ECHO OFF: sem isso o cmd reexibe cada comando lido
+            edicaoLinha = true;        // do pipe (eco dobrado no terminal). O servidor ja ecoa (ecoServidor).
+            interrompeMatando = true;  // Ctrl+C: mata o comando em foreground (ver handleChannel)
         } else {
             // 'script' (util-linux) roda o bash dentro de um pty DE VERDADE: line discipline
             // completa (backspace, setas, historico, ctrl+c) e eco feito pelo proprio pty.
@@ -1577,12 +1666,14 @@ class TesteSSH {
         }
         int ok = 0, total = 0;
         String tok = "MINI_ECHO_OK";
-        // O sentinela do 'y' e escrito "quebrado" (^ no cmd, '' no bash) p/ o TEXTO DIGITADO nao
-        // conter MINI_YNAO: so a EXECUCAO (quando 'y' falta) produz a palavra inteira, evitando que
-        // o eco do comando de um [FALHA] falso mesmo com o 'y' presente.
+        // Sentinela MINI_YNAO escrito "quebrado" (^ no cmd, '' no bash) p/ o TEXTO DIGITADO nao conter
+        // a palavra inteira: so a EXECUCAO a produz. IMPORTANTE: o where/command-v (detecta se o 'y'
+        // EXISTE) fica SEPARADO do pipe, com o pipe rodando SEMPRE depois. Antes o '|| echo MINI_YNAO'
+        // pegava tambem o pipe: se o 'y' existia mas o pipe saia com erro, marcava "y nao existe"
+        // (falso). Agora MINI_YNAO == 'y' realmente ausente; pipe sem -onlyDiff == outro problema.
         String yline = win
-            ? "where y >nul 2>nul && (y help | y grep only) || echo MINI_YNA^O"
-            : "command -v y >/dev/null 2>&1 && y help | y grep only || echo MINI_YNA''O";
+            ? "(where y >nul 2>nul || echo MINI_YNA^O) & y help | y grep only"
+            : "{ command -v y >/dev/null 2>&1 || echo MINI_YNA''O ; } ; y help | y grep only";
         String script = "echo " + tok + "\nwhoami";   // o 'y' e o Ctrl+C vem DEPOIS (dedicados)
         String saida = "";
         boolean terminou = false;
@@ -1592,7 +1683,7 @@ class TesteSSH {
         long pidAntes = 0, pidDepois = 0, pidOcioso = 0;
         boolean vivoAntes = false, vivoDepois = false, vivoOcioso = false;
         boolean sessaoMorreu = false;   // apos o exit: o shell da sessao (server-side) tem de morrer tambem
-        boolean sinalEntregue = false, clienteVivoAposSinal = false;   // Ctrl+C por SINAL real de verdade (so mini)
+        boolean sinalEntregue = false, clienteVivoAposSinal = false, sctInterrompeu = false;   // Ctrl+C por SINAL real de verdade (so mini)
         java.io.File ask = null;
         try {
             ProcessBuilder pb;
@@ -1681,7 +1772,7 @@ class TesteSSH {
             // E o cliente tem de SOBREVIVER (nao "escapar"/morrer). E o caminho REAL do Ctrl+C do mini (a
             // tecla no terminal), que o teste por 0x03-no-stdin NAO exercita. Linux: kill -INT. Windows:
             // mandar CTRL_C_EVENT a um processo so, sem matar o proprio -test, exige helper nativo.
-            if (!ehSshPuro) {
+            if (!ehSshPuro && !win) {   // Linux: SIGINT real via kill -INT. Windows e testado a parte (ver ctrlCRealWindows)
                 esperarQuieto(sb, 800, 10000);
                 String cmdKill = win ? "echo MINI_PREKILL& ping -n 7 127.0.0.1 >nul && echo MINI_POSKILL"
                                      : "echo MINI_PREKILL; sleep 6 && echo MINI_POSKILL";
@@ -1715,6 +1806,14 @@ class TesteSSH {
             synchronized (sb) { saida = sb.toString(); }
         } catch (Exception e) { saida = "erro: " + e; }
         finally { if (ask != null) ask.delete(); }
+
+        // Windows: o Ctrl+C REAL nao pode ser injetado no cliente da sessao acima sem atingir o proprio
+        // -test (mesmo console). Entao sobe um cliente DEDICADO no proprio grupo de processos e dispara
+        // CTRL_BREAK so nele (ver ctrlCRealWindows). Isolado: nao afeta o JVM de teste nem o shell do servidor.
+        if (!ehSshPuro && win) {
+            boolean[] r = ctrlCRealWindows(fonteJava, porta);
+            sinalEntregue = r[0]; sctInterrompeu = r[1]; clienteVivoAposSinal = r[2];
+        }
 
         boolean logou = saida.contains(tok);   // o echo so ecoa/roda se conectou E autenticou
         if (logou) {
@@ -1761,15 +1860,17 @@ class TesteSSH {
             total++;
             boolean pidOciosoOk = vivoOcioso && pidOcioso == pidAntes;
             if (pidOciosoOk) ok++; System.out.println((pidOciosoOk ? "[OK]    " : "[FALHA] ") + nome + ": PID connectada(" + pidOcioso + ") - continuo na sessao");
-            // ---- Ctrl+C por SINAL REAL (so mini): o caminho de verdade do Ctrl+C do mini (SIGINT ->
+            // ---- Ctrl+C por SINAL REAL (so mini): o caminho de verdade do Ctrl+C do mini (SIGINT/BREAK ->
             // instalaCtrlC -> 0x03). (1) interrompeu o comando? (2) o cliente SOBREVIVEU (nao escapou)?
-            // No Windows o sinal nao e entregue (falta helper) -> linha informativa, nao conta. ----
+            // Linux: kill -INT no cliente da sessao (interrupcao lida em 'saida'). Windows: cliente dedicado
+            // no proprio grupo + CTRL_BREAK (interrupcao lida do statusFile via ctrlCRealWindows -> sctInterrompeu). ----
             if (!ehSshPuro) {
                 if (!sinalEntregue) {
-                    System.out.println(nome + ": Ctrl+C (sinal real via instalaCtrlC) NAO testado neste SO (precisa de helper; no Windows, teste manual: Ctrl+C durante um sleep deve interromper e o cliente NAO sair)");
+                    System.out.println(nome + ": Ctrl+C (sinal real via instalaCtrlC) NAO testado neste SO (no Windows precisa de PowerShell; teste manual: Ctrl+C durante um sleep deve interromper e o cliente NAO sair)");
                 } else {
                     total++;
-                    boolean sinalInterrompeu = !(saida.contains("\nMINI_POSKILL") || saida.contains("\rMINI_POSKILL"));
+                    boolean sinalInterrompeu = win ? sctInterrompeu
+                                                   : !(saida.contains("\nMINI_POSKILL") || saida.contains("\rMINI_POSKILL"));
                     if (sinalInterrompeu) ok++; System.out.println((sinalInterrompeu ? "[OK]    " : "[FALHA] ") + nome + ": Ctrl+C (sinal real) interrompe o comando via instalaCtrlC");
                     total++;
                     if (clienteVivoAposSinal) ok++; System.out.println((clienteVivoAposSinal ? "[OK]    " : "[FALHA] ") + nome + ": cliente SOBREVIVE ao Ctrl+C real (nao escapou)");
@@ -1781,7 +1882,13 @@ class TesteSSH {
             total++;
             if (saida.contains("-onlyDiff")) { ok++; System.out.println("[OK]    " + nome + ": y help | y grep only (esperava -onlyDiff)"); }
             else if (saida.contains("MINI_YNAO")) System.out.println("[FALHA] " + nome + ": y help | y grep only ('y' nao existe no ambiente)");
-            else System.out.println("[FALHA] " + nome + ": y help | y grep only (esperava -onlyDiff)");
+            else {
+                // 'y' existe (where/command-v achou) mas o pipe nao devolveu -onlyDiff: mostra a saida crua
+                // p/ diagnosticar (pipe do cmd.exe sem ConPTY, exit code do y.bat, etc.). \\r e \\n visiveis.
+                System.out.println("[FALHA] " + nome + ": y help | y grep only ('y' existe mas o pipe nao devolveu -onlyDiff)");
+                String d = saida.length() > 500 ? saida.substring(saida.length() - 500) : saida;
+                System.out.println("        (diag) ultimos 500 chars da saida: <<<" + d.replace("\r", "\\r").replace("\n", "\\n") + ">>>");
+            }
             // ---- exit encerra a sessao: o processo do cliente termina sozinho (equivale ao antigo
             // "voltou ao shell local" — a sessao devolve o controle ao chamador). ----
             total++;
@@ -1801,17 +1908,79 @@ class TesteSSH {
         return new int[]{ok, total};
     }
 
-    // Manda um Ctrl+C/SIGINT REAL ao processo do cliente (nao um 0x03 no stdin). Linux: kill -INT <pid>
-    // -> o JVM do cliente cai no handler do instalaCtrlC e converte em 0x03 no canal. Windows: mandar
-    // CTRL_C_EVENT a um processo especifico em Java puro atingiria o proprio -test (mesmo console) e o
-    // mataria -> retorna false (nao-entregue) ate existir um helper nativo (GenerateConsoleCtrlEvent +
-    // CREATE_NEW_PROCESS_GROUP). Retorna true so se o sinal foi realmente disparado.
+    // Manda um Ctrl+C/SIGINT REAL ao processo do cliente da sessao (nao um 0x03 no stdin). Linux: kill
+    // -INT <pid> -> o JVM do cliente cai no handler do instalaCtrlC e converte em 0x03 no canal. No
+    // Windows retorna false: la o Ctrl+C real e testado a parte por ctrlCRealWindows (cliente dedicado
+    // no proprio grupo + CTRL_BREAK), pois injetar no cliente da sessao atingiria o proprio -test.
     static boolean enviarSigintReal(Process ps, boolean win) {
         if (win) return false;
         try {
             Process k = new ProcessBuilder("kill", "-INT", Long.toString(ps.pid())).start();
             return k.waitFor(5, java.util.concurrent.TimeUnit.SECONDS) && k.exitValue() == 0;
         } catch (Exception e) { return false; }
+    }
+
+    // Windows: testa o Ctrl+C REAL de forma ISOLADA do -test. Sobe um cliente DEDICADO no PROPRIO grupo
+    // de processos (cmd 'start /b' => CREATE_NEW_PROCESS_GROUP; java vira lider, PID == id do grupo),
+    // espera o comando remoto (ping) estar rodando (marca RUN no statusFile) e dispara CTRL_BREAK SO
+    // nesse grupo via PowerShell (GenerateConsoleCtrlEvent). O cliente converte o sinal em 0x03
+    // (instalaCtrlC trata INT e BREAK) e deve: (1) interromper o comando (DONE nunca sai) e (2)
+    // SOBREVIVER (o processo segue vivo). CTRL_BREAK e mirado num grupo especifico -> NAO atinge o JVM
+    // de teste nem o shell do servidor. Retorna {entregue, interrompeu, vivo}; entregue=false degrada
+    // p/ a linha informativa. (O caminho do console-abort de um Ctrl+C real no teclado, so o teste
+    // MANUAL cobre a fundo; aqui exercitamos o handler -> 0x03 -> interrompe -> cliente vivo.)
+    static boolean[] ctrlCRealWindows(String fonteJava, int porta) {
+        java.io.File status = null, ps1 = null;
+        long pid = 0;
+        boolean entregue = false, interrompeu = false, vivo = false;
+        try {
+            status = java.io.File.createTempFile("sshmini_sct", ".txt");
+            java.nio.file.Files.writeString(status.toPath(), "");
+            // cliente dedicado NO PROPRIO grupo de processos (start /b). O "" e o titulo vazio do 'start'.
+            new ProcessBuilder("cmd", "/c", "start", "", "/b", "java", fonteJava,
+                    "-ctrlcselftest", status.getAbsolutePath(), "-P", "" + porta)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .redirectInput(ProcessBuilder.Redirect.DISCARD)
+                .start();
+            // espera o cliente publicar o PID e o comando remoto comecar (marca RUN) — ate ~25s
+            String s = "";
+            for (int i = 0; i < 250 && !(s.contains("PID ") && s.contains("RUN")); i++) {
+                try { Thread.sleep(100); } catch (Exception e) {}
+                try { s = java.nio.file.Files.readString(status.toPath()); } catch (Exception e) {}
+            }
+            for (String ln : s.split("\\R"))
+                if (ln.startsWith("PID ")) { try { pid = Long.parseLong(ln.substring(4).trim()); } catch (Exception e) {} }
+            if (pid <= 0 || !s.contains("RUN")) return new boolean[]{false, false, false};   // cliente nao subiu/conectou
+            try { Thread.sleep(1500); } catch (Exception e) {}   // sinal no MEIO do ping (que dorme ~8s)
+            // dispara CTRL_BREAK (evento 1) SO no grupo do cliente, via PowerShell + GenerateConsoleCtrlEvent
+            ps1 = java.io.File.createTempFile("sshmini_break", ".ps1");
+            java.nio.file.Files.writeString(ps1.toPath(),
+                "param([int]$TargetPid)\n" +
+                "$src = 'using System;using System.Runtime.InteropServices;public static class K{[DllImport(\"kernel32.dll\",SetLastError=true)]public static extern bool GenerateConsoleCtrlEvent(uint e,uint p);}'\n" +
+                "Add-Type -TypeDefinition $src\n" +
+                "if ([K]::GenerateConsoleCtrlEvent(1,[uint32]$TargetPid)) { 'BREAK_SENT' } else { 'BREAK_FAIL ' + [System.Runtime.InteropServices.Marshal]::GetLastWin32Error() }\n");
+            Process pw = new ProcessBuilder("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                    "-File", ps1.getAbsolutePath(), "" + pid)
+                .redirectErrorStream(true).start();
+            String pwout = new String(pw.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            pw.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+            entregue = pwout.contains("BREAK_SENT");
+            try { Thread.sleep(8500); } catch (Exception e) {}   // tempo do ping COMPLETAR (marcar DONE) se NAO interrompido
+            String s2 = "";
+            try { s2 = java.nio.file.Files.readString(status.toPath()); } catch (Exception e) {}
+            interrompeu = !s2.contains("DONE");                                        // ping nao terminou => interrompido
+            vivo = ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false);    // cliente sobreviveu ao sinal
+            if (!entregue) { System.out.println("        (diag) Ctrl+C real: PowerShell nao confirmou o envio: " + pwout.trim()); return new boolean[]{false, false, false}; }
+            return new boolean[]{true, interrompeu, vivo};
+        } catch (Exception e) {
+            System.out.println("        (diag) Ctrl+C real (windows) falhou: " + e);
+            return new boolean[]{false, false, false};
+        } finally {
+            if (pid > 0) { final long fp = pid; ProcessHandle.of(fp).ifPresent(h -> { h.descendants().forEach(ProcessHandle::destroyForcibly); h.destroyForcibly(); }); }
+            if (status != null) status.delete();
+            if (ps1 != null) ps1.delete();
+        }
     }
 
     // Fallback: valida so o handshake (BatchMode, sem senha) - host key ECDSA aceita e auth oferecida.
