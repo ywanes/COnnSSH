@@ -42,6 +42,12 @@ public class SSHMini {
                 mode = "ctrlcselftest";
                 if (i + 1 >= args.length) { erro("-ctrlcselftest exige o caminho do arquivo de status"); return; }
                 statusFile = args[++i];
+            } else if (a.equals("-rawlog")) {   // debug: grava os bytes CRUS recebidos do servidor no arquivo dado
+                if (i + 1 >= args.length) { erro("-rawlog exige o caminho do arquivo"); return; }
+                SSHClientMini.RAWLOG = args[++i];
+            } else if (a.equals("-killlog")) {   // debug (servidor): loga o que o Ctrl+C ve/mata no cmd
+                if (i + 1 >= args.length) { erro("-killlog exige o caminho do arquivo"); return; }
+                Session.KILLLOG = args[++i];
             } else if (a.equals("-P")) {
                 if (i + 1 >= args.length) { erro("-P exige um numero de porta"); return; }
                 try {
@@ -217,6 +223,11 @@ class SSHClientMini {
     private final StringBuilder sctAcc = new StringBuilder();
     private boolean sctRun = false, sctDone = false;
     private boolean verbose = false;
+    // Debug: se a variavel de ambiente SSHMINI_RAWLOG apontar um arquivo, grava os bytes CRUS recebidos
+    // do servidor (antes de qualquer filtro de eco). Diagnostico do "terminal estranho": apos um Ctrl+C,
+    // mostra se o servidor MANDOU a saida do comando (ai o problema e EXIBIR, lado cliente) ou NAO (lado
+    // servidor), e se os bytes de acento mudaram (code page). Ex.: set SSHMINI_RAWLOG=Z:\sshcustom\raw.log
+    static String RAWLOG = System.getenv("SSHMINI_RAWLOG");   // tambem setavel pela flag -rawlog (ver SSHMini.main)
     private ECDH kex = null;
     private java.security.SecureRandom random = null;
 
@@ -450,6 +461,11 @@ class SSHClientMini {
                 if (msgType == SSH_MSG_CHANNEL_DATA) {
                     buf.add_i_get(10);
                     byte[] a = buf.getValue();
+                    if (RAWLOG != null) {   // grava os bytes CRUS do servidor (diagnostico do "terminal estranho")
+                        try { java.nio.file.Files.write(java.nio.file.Paths.get(RAWLOG), a,
+                                java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); }
+                        catch (Exception e) {}
+                    }
                     if (a.length == 0) {
                         System.out.println("a.length == 0");
                         System.exit(0);
@@ -1050,9 +1066,11 @@ class Session implements Runnable {
                             paraShell.write(10);
                             paraEco.write(13); paraEco.write(10);
                         } else if (c == 3 && interrompeMatando) {                        // Ctrl+C sem pty (cmd.exe)
-                            matarComandoForeground();               // mata o comando em execucao, mantem o shell
+                            boolean matou = matarComandoForeground(); // mata o comando em foreground, mantem o shell
                             linhaLen = 0;                           // descarta o que estava sendo digitado
-                            paraEco.write(13); paraEco.write(10);   // pula linha; o cmd.exe reexibe o prompt
+                            paraEco.write(13); paraEco.write(10);   // pula linha (como um terminal faz no ^C)
+                            if (!matou) paraShell.write(10);        // ocioso: um Enter vazio p/ o cmd redesenhar o prompt (pwd);
+                                                                    // com comando em foreground, mata-lo ja faz o cmd reexibir sozinho
                         } else if (edicaoLinha && (c == 8 || c == 127)) {               // backspace/DEL
                             if (linhaLen > 0) { linhaLen--; paraEco.write(8); paraEco.write(32); paraEco.write(8); }
                         } else if (edicaoLinha) {
@@ -1131,15 +1149,33 @@ class Session implements Runnable {
         System.arraycopy(cmd, 0, r, 2, cmd.length);
         return r;
     }
-    // Ctrl+C no Windows (cmd.exe, sem pty): mata os processos que o shell iniciou — o comando em
-    // foreground — preservando o proprio shell, para a sessao continuar. E o equivalente pratico
-    // ao SIGINT que a line discipline de um pty faria. Comandos INTERNOS do cmd (dir, type...) nao
-    // sao processos separados e nao dao para interromper assim, mas sao rapidos e nao travam.
-    private void matarComandoForeground() {
+    // Debug (servidor): se setado, loga o que o Ctrl+C ve/mata no cmd. Via env SSHMINI_KILLLOG ou -killlog.
+    static String KILLLOG = System.getenv("SSHMINI_KILLLOG");
+    // Ctrl+C no Windows (cmd.exe, sem pty): interrompe o comando em foreground, preservando o shell.
+    // ANTES matava a ARVORE inteira (descendants()) — e no Windows isso pegava JUNTO o conhost/host de
+    // console (um descendente), e matar o conhost deixava o cmd sem console: os PROXIMOS programas
+    // externos nasciam com o stdout quebrado (executavam e ate gravavam em arquivo com '>', mas nao
+    // mostravam nada na tela; builtins como 'dir' continuavam pois saem do proprio cmd). Era o
+    // "terminal estranho" apos o Ctrl+C. AGORA mata so os FILHOS DIRETOS (o comando em foreground):
+    // no prompt ocioso nao ha filho -> no-op de verdade, e nunca toca no conhost.
+    private boolean matarComandoForeground() {
+        boolean matou = false;
         try {
-            if (shellProcess != null)
-                shellProcess.descendants().forEach(ProcessHandle::destroyForcibly);
+            if (shellProcess == null) return false;
+            java.util.List<ProcessHandle> fg = shellProcess.children().toList();   // comando em foreground = filhos DIRETOS
+            StringBuilder log = KILLLOG != null ? new StringBuilder("Ctrl+C: " + fg.size() + " filho(s) direto(s) do cmd:\n") : null;
+            for (ProcessHandle h : fg) {
+                String cmd = h.info().command().orElse("");
+                boolean ehConhost = cmd.toLowerCase().contains("conhost");   // host de console: NUNCA matar (quebra o stdout dos proximos)
+                if (log != null) log.append("  pid=" + h.pid() + " cmd=" + (cmd.isEmpty() ? "?" : cmd) + (ehConhost ? "  [PULADO conhost]" : "  [mata]") + "\n");
+                if (!ehConhost) { h.destroyForcibly(); matou = true; }
+            }
+            if (log != null) {
+                try { java.nio.file.Files.writeString(java.nio.file.Paths.get(KILLLOG), log.toString(),
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); } catch (Exception e) {}
+            }
         } catch (Exception e) {}
+        return matou;   // true se havia comando em foreground (p/ o handler saber se precisa pedir prompt novo ao cmd)
     }
     private void startShell() throws Exception {
         String os = System.getProperty("os.name").toLowerCase();
