@@ -1,8 +1,5 @@
-// SSHMini.java — projeto inteiro num unico arquivo, para rodar SEM javac.
-// Single-file source launcher (JEP 330): "java SSHMini.java ..." compila tudo em memoria.
-//
-// Formatos aceitos:
-//   java SSHMini.java                                    cliente: key.txt (login automatico) ou ywanes@192.168.0.100
+// Usage:
+//   java SSHMini.java                                    
 //   java SSHMini.java -P 333                             idem, na porta 333
 //   java SSHMini.java admin,admin123@localhost           cliente para o alvo informado
 //   java SSHMini.java admin,admin123@localhost -P 333    cliente para o alvo, porta 333
@@ -13,19 +10,13 @@
 //   java SSHMini.java -test -P 333                               auto-teste na porta 333
 //   java SSHMini.java -test admin,admin123@localhost -P 333      auto-teste na porta 333
 //
-//   ssh -p 333 ywanes@192.168.0.100
+//   ssh -p 333 user1@10.0.0.1
 //
-//   Ctrl+C (corrigido): interrompe o COMANDO remoto em execucao, como num ssh de verdade — nao
-//   encerra a sessao nem a aplicacao. Para sair use 'exit' ou Ctrl+D.
-//   - Causa do bug antigo: com o servidor no ar em background (ex.: "java ... -server &"), a JVM
-//     herda SIGINT IGNORADO, e todo comando remoto herdava isso -> o 0x03 nao interrompia nada.
-//   - Servidor: sobe o shell com 'env --default-signal=INT,QUIT' (restaura o SIGINT no default),
-//     entao o 0x03 vindo do cliente gera o SIGINT no comando em foreground (ver comReset).
-//   - Cliente puro (SSHClientMini): captura o SIGINT local e o transforma no byte 0x03 no canal,
-//     em vez de deixar a JVM morrer (ver instalaCtrlC).
+//     GRAALVM
+//     1) javac SSHMini.java
+//     2) java -agentlib:native-image-agent=config-output-dir=nic -cp . SSHMini -test   (captura a config)
+//     3) native-image --no-fallback -H:ConfigurationFileDirectories=nic --initialize-at-run-time=Session -cp . SSHMini -o sshmini
 //
-// Cliente e -test sem alvo: se existir a key.txt faz login automatico; senao ywanes@192.168.0.100 (pede a senha).
-// ATENCAO: nao rode "javac *.java" com este arquivo junto dos originais -> "duplicate class".
 public class SSHMini {
     public static void main(String[] args) throws Exception {
         String mode = "client";
