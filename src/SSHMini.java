@@ -671,6 +671,7 @@ class SSHClientMini {
     }                            // (o cliente roda no proprio grupo e o -test dispara CTRL_BREAK nele)
     private void instalaSinal(String nome) {
         try {
+			// Signal com warning inevitavel para javac 
             sun.misc.Signal.handle(new sun.misc.Signal(nome), s -> {
                 lastCtrlC = System.currentTimeMillis();   // marca p/ o writing_stdin NAO tratar o read abortado como EOF
                 try {
