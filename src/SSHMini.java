@@ -1,5 +1,5 @@
 // Usage:
-//   java SSHMini.java                                    
+//   java SSHMini.java
 //   java SSHMini.java -P 333                             idem, na porta 333
 //   java SSHMini.java admin,admin123@localhost           cliente para o alvo informado
 //   java SSHMini.java admin,admin123@localhost -P 333    cliente para o alvo, porta 333
@@ -10,7 +10,21 @@
 //   java SSHMini.java -test -P 333                               auto-teste na porta 333
 //   java SSHMini.java -test admin,admin123@localhost -P 333      auto-teste na porta 333
 //
+//     --- conexao por arquivo de chave (pubkey): classico ed25519 e pos-quantico mldsa44 ---
+//   java SSHMini.java -sshgen ed25519 id_ed25519                 gera 'id_ed25519' + 'id_ed25519.pub'
+//   java SSHMini.java -sshgen mldsa44-ed25519 id_mldsa44_ed25519 idem, pos-quantico (hibrido)
+//   java SSHMini.java -sshgen ed25519 id_ed25519 -pass "sua frase"   geracao deterministica (PBKDF2)
+//   java SSHMini.java -sshgen ed25519 id_ed25519 -C "comentario1"     define o comentario (default: usuario@host; nao afeta a chave)
+//   java SSHMini.java -sshgen ed25519                            so imprime a chave publica (nao grava)
+//   java SSHMini.java admin@10.0.0.1 -i id_ed25519 -P 333        cliente: login por chave (senha ignorada)
+//   java SSHMini.java admin@10.0.0.1 -i id_ed25519 -hostpub ssh_host_key.pub -P 333   idem + verifica/pina a host key (anti-MITM)
+//   (-hostpub pode REPETIR e cada arquivo aceita varias linhas: pina ed25519 E mldsa44 juntas; casa a que o servidor apresentar)
+//   java SSHMini.java -server admin,admin123@localhost -hostkey ssh_host_key -authkeys authorized_keys -P 333
+//                                                                servidor: host key por arquivo + login por chave
+//   (authorized_keys aceita varias linhas e tipos misturados: ed25519 e mldsa44 juntos)
+//
 //   ssh -p 333 user1@10.0.0.1
+//   ssh -i id_ed25519 -p 333 admin@10.0.0.1                      cliente OpenSSH nativo usando a chave gerada (ed25519)
 //
 //     GRAALVM
 //     1) javac SSHMini.java
@@ -23,12 +37,35 @@ public class SSHMini {
         String access = null;
         int port = -1;
         String statusFile = null;
+        String passphrase = null, identityFile = null, hostKeyFile = null, authKeysFile = null, comentario = null;
+        java.util.List<String> pos = new java.util.ArrayList<String>();   // args posicionais (alvo, ou tipo/nome do -sshgen)
+        java.util.List<String> hostPubFiles = new java.util.ArrayList<String>();   // -hostpub (pode repetir): host keys pinadas
         for (int i = 0; i < args.length; i++) {
             String a = args[i];
             if (a.equals("-server")) {
                 mode = "server";
             } else if (a.equals("-test")) {
                 mode = "test";
+            } else if (a.equals("-sshgen")) {   // gera par de chaves (ed25519 ou mldsa44-ed25519)
+                mode = "sshgen";
+            } else if (a.equals("-pass")) {     // passphrase p/ geracao deterministica (-sshgen)
+                if (i + 1 >= args.length) { erro("-pass exige a passphrase"); return; }
+                passphrase = args[++i];
+            } else if (a.equals("-C")) {        // comentario da chave gerada (-sshgen), estilo ssh-keygen -C
+                if (i + 1 >= args.length) { erro("-C exige o comentario"); return; }
+                comentario = args[++i];
+            } else if (a.equals("-i")) {        // cliente: chave privada para login por chave (conexao por file)
+                if (i + 1 >= args.length) { erro("-i exige o caminho da chave privada"); return; }
+                identityFile = args[++i];
+            } else if (a.equals("-hostkey")) {  // servidor: host key gerada por arquivo (em vez da ECDSA fixa)
+                if (i + 1 >= args.length) { erro("-hostkey exige o caminho da host key"); return; }
+                hostKeyFile = args[++i];
+            } else if (a.equals("-authkeys")) { // servidor: authorized_keys aceitos no login por chave
+                if (i + 1 >= args.length) { erro("-authkeys exige o caminho do authorized_keys"); return; }
+                authKeysFile = args[++i];
+            } else if (a.equals("-hostpub")) {  // cliente: pino da host key (.pub) — pode repetir p/ aceitar varias
+                if (i + 1 >= args.length) { erro("-hostpub exige o caminho do .pub da host key"); return; }
+                hostPubFiles.add(args[++i]);
             } else if (a.equals("-ctrlcselftest")) {   // modo interno do auto-teste (Ctrl+C real no Windows)
                 mode = "ctrlcselftest";
                 if (i + 1 >= args.length) { erro("-ctrlcselftest exige o caminho do arquivo de status"); return; }
@@ -47,11 +84,12 @@ public class SSHMini {
                     erro("porta invalida: " + args[i]); return;
                 }
             } else if (!a.startsWith("-")) {
-                access = a;
+                pos.add(a);
             } else {
                 erro("opcao desconhecida: " + a); return;
             }
         }
+        access = pos.isEmpty() ? null : pos.get(0);
 
         if (mode.equals("server")) {
             if (port <= 0) port = 22;                 // servidor de teste
@@ -64,8 +102,11 @@ public class SSHMini {
             // NAO root. Sem sudo (rodando ja como voce), SUDO_USER nao existe e roda como voce mesmo.
             String su = System.getenv("SUDO_USER");
             if (su != null && !su.isEmpty() && !su.equals("root")) Session.shellUser = su;
+            Session.authKeysFile = authKeysFile;   // login por chave: authorized_keys aceitos
+            Session.hostKeyFile  = hostKeyFile;    // host key por arquivo (senao, ECDSA fixa)
             System.out.println("Sessao dos clientes cai no usuario: "
                 + (Session.shellUser == null ? "(mesmo do servidor)" : Session.shellUser));
+            if (authKeysFile != null) System.out.println("Login por chave habilitado (authorized_keys: " + authKeysFile + ")");
             new SSHServerMini(port, user, pass);
         } else if (mode.equals("test")) {
             if (access == null && port == -1) {
@@ -102,11 +143,53 @@ public class SSHMini {
             if (alvo == null) return;
             String _jar = "java \"" + caminhoFonte(args) + "\" " + alvo + " -P " + port;   // caminho real do fonte: roda de qualquer dir
             TesteSSH.run(_jar);
+        } else if (mode.equals("sshgen")) {
+            // Gera par de chaves em caminho DINAMICO (nome/dir informado; nada hardcoded).
+            //   -sshgen <tipo> <nome>   grava <nome> e <nome>.pub
+            //   -sshgen <tipo>          imprime so a publica (nao grava)
+            //   -pass <phrase>          torna a geracao deterministica (PBKDF2)
+            //   -C "<comentario>"       comentario da chave (default: usuario@host); nao afeta a chave
+            if (pos.isEmpty()) { erro("-sshgen exige o tipo: ed25519 | mldsa44-ed25519 [nome]"); return; }
+            String tipo = pos.get(0);
+            String nome = pos.size() > 1 ? pos.get(1) : "";
+            String com = (comentario != null) ? comentario : usuarioArroba();   // comentario independente do nome
+            SshKeys keys = new SshKeys();
+            String[] par;
+            try { par = keys.generate(tipo, passphrase, nome, com); }
+            catch (Exception e) { erro(e.getMessage()); return; }
+            if (nome.isEmpty()) {
+                System.out.print(par[1]);              // so a publica (nao grava arquivo)
+            } else {
+                java.nio.file.Files.writeString(java.nio.file.Path.of(nome), par[0]);
+                java.nio.file.Files.writeString(java.nio.file.Path.of(nome + ".pub"), par[1]);
+                try { java.nio.file.Files.setPosixFilePermissions(java.nio.file.Path.of(nome),
+                        java.nio.file.attribute.PosixFilePermissions.fromString("rw-------")); } catch (Throwable t) {}
+                System.out.println("Chave gerada (" + tipo + "):");
+                System.out.println("  privada: " + java.nio.file.Path.of(nome).toAbsolutePath());
+                System.out.println("  publica: " + java.nio.file.Path.of(nome + ".pub").toAbsolutePath());
+                System.out.print(par[1]);
+            }
         } else if (mode.equals("ctrlcselftest")) {
             if (port <= 0) port = 22;
             new SSHClientMini("localhost", "admin", port, "admin123", statusFile);   // conecta e espera o sinal real
         } else {
             if (port <= 0) port = 22;                   // cliente: porta SSH padrao
+            SSHClientMini.HOSTPUB = hostPubFiles;        // pinos da host key (um ou varios), se informados
+            if (identityFile != null) {
+                // login por CHAVE (conexao por file): alvo = usuario@host (senha ignorada; nao pergunta)
+                String alvo = (access != null) ? access : autoAccess();
+                int at = alvo.lastIndexOf('@');
+                if (at < 0) { erro("informe usuario@host para login por chave"); return; }
+                String up = alvo.substring(0, at); int vc = up.indexOf(',');
+                String user = (vc >= 0) ? up.substring(0, vc) : up;
+                String host = alvo.substring(at + 1);
+                try {
+                    new SSHClientMini(host, user, port, identityFile, true);
+                } catch (Exception e) {
+                    System.err.println(e.toString().contains("UserAuth Fail") ? "UserAuth Fail!!" : e.toString());
+                }
+                System.exit(0);
+            }
             String alvo = resolverAcesso(access);       // sem alvo: key.txt (login automatico) ou ywanes (pede senha)
             if (alvo == null) return;
             int c = alvo.indexOf(','), at = alvo.lastIndexOf('@');
@@ -189,6 +272,15 @@ public class SSHMini {
         System.err.println("erro: " + msg);
         System.err.println("uso: java SSHMini.java [-server|-test] [usuario,senha@host] [-P porta]");
     }
+
+    // usuario@host: comentario default da chave gerada (-sshgen sem -C), estilo ssh-keygen. Robusto a falhas.
+    static String usuarioArroba() {
+        String u = System.getProperty("user.name", "user");
+        String h;
+        try { h = java.net.InetAddress.getLocalHost().getHostName(); } catch (Throwable t) { h = "localhost"; }
+        if (h == null || h.isEmpty()) h = "localhost";
+        return u + "@" + h;
+    }
 }
 
 class SSHClientMini {
@@ -219,6 +311,9 @@ class SSHClientMini {
     // comando que dorme, publica marcadores (PID/RUN/DONE) no statusFile e fica vivo esperando o sinal.
     private boolean selfTest = false;
     private String statusFile = null;
+    // Login por chave (conexao por file): caminho do privado openssh-key-v1; null = login por senha.
+    private String identityFile = null;
+    private SshKeys keys = null;
     private final StringBuilder sctAcc = new StringBuilder();
     private boolean sctRun = false, sctDone = false;
     private boolean verbose = false;
@@ -227,6 +322,10 @@ class SSHClientMini {
     // mostra se o servidor MANDOU a saida do comando (ai o problema e EXIBIR, lado cliente) ou NAO (lado
     // servidor), e se os bytes de acento mudaram (code page). Ex.: set SSHMINI_RAWLOG=Z:\sshcustom\raw.log
     static String RAWLOG = System.getenv("SSHMINI_RAWLOG");   // tambem setavel pela flag -rawlog (ver SSHMini.main)
+    // Pinos da host key (-hostpub <arquivo.pub>, pode repetir; cada arquivo aceita varias linhas):
+    // se nao-vazio, o cliente EXIGE que a host key apresentada seja UMA das pinadas E que a assinatura
+    // sobre H confira. Aceitar varias permite pinar ed25519 E mldsa44 juntas (rotacao/PQ). Fecha o MITM.
+    static java.util.List<String> HOSTPUB = new java.util.ArrayList<String>();
     private ECDH kex = null;
     private java.security.SecureRandom random = null;
 
@@ -254,6 +353,22 @@ class SSHClientMini {
         V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
         kex = new ECDH();
         connect_stream(host, username, port, password);
+        new Thread() { public void run() {
+            reading_stream();
+        }}.start();
+        connect_stdin();
+        writing_stdin();
+    }
+
+    // Cliente com login por CHAVE (conexao por file): identityFile aponta o privado openssh-key-v1.
+    // A senha nao e usada (autenticacao por assinatura). O boolean keyMode desambigua do construtor
+    // de -ctrlcselftest (que tem statusFile String na mesma posicao).
+    public SSHClientMini(String host, String username, int port, String identityFile, boolean keyMode) throws Exception {
+        this.identityFile = identityFile;
+        marcaClienteVivo();
+        V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
+        kex = new ECDH();
+        connect_stream(host, username, port, null);
         new Thread() { public void run() {
             reading_stream();
         }}.start();
@@ -393,6 +508,19 @@ class SSHClientMini {
         debug("connect stream ->: ", buf);
         buf = read();
         kex.next(buf);
+        // Verificacao da host key (se -hostpub): a chave apresentada tem de ser a pinada E a
+        // assinatura sobre H tem de conferir. So p/ os tipos suportados (ed25519/mldsa); ECDSA fixa
+        // do proprio SSHMini nao e verificada aqui (fluxo legado sem pino).
+        if (HOSTPUB != null && !HOSTPUB.isEmpty()) {
+            if (keys == null) keys = new SshKeys();
+            java.util.List<byte[]> pinos = keys.parsePubFiles(HOSTPUB);   // varios arquivos, cada um c/ varias linhas
+            boolean confere = false;
+            for (byte[] b : pinos) if (java.util.Arrays.equals(b, kex.hostKeyBlob)) { confere = true; break; }
+            if (!confere)
+                throw new Exception("host key nao confere com nenhum pino (-hostpub)");
+            if (kex.hostSig == null || !keys.verifyBlob(kex.hostKeyBlob, kex.H, kex.hostSig))
+                throw new Exception("assinatura da host key invalida");
+        }
         buf.reset_command(SSH_MSG_NEWKEYS);
         write(buf);
         buf = read();
@@ -437,14 +565,42 @@ class SSHClientMini {
         buf.putString("ssh-userauth");
         write(buf);
 
-        buf = read();
-        buf.reset_command(SSH_MSG_USERAUTH_REQUEST);
-        buf.putString(username);
-        buf.putString("ssh-connection");
-        buf.putString("password");
-        buf.putByte((byte) 0);
-        buf.putString(password);
-        write(buf);
+        buf = read();   // SERVICE_ACCEPT
+        if (identityFile != null) {
+            // ---- login por CHAVE (publickey, RFC 4252 §7) ----
+            if (keys == null) keys = new SshKeys();
+            SshKeys.Priv pv = keys.parsePriv(java.nio.file.Files.readString(java.nio.file.Path.of(identityFile)));
+            // blob assinado: session_id ‖ 50 ‖ user ‖ "ssh-connection" ‖ "publickey" ‖ TRUE ‖ alg ‖ pubkey
+            Buf sb = new Buf();
+            sb.putValue(kex.H);
+            sb.putByte((byte) SSH_MSG_USERAUTH_REQUEST);
+            sb.putString(username);
+            sb.putString("ssh-connection");
+            sb.putString("publickey");
+            sb.putByte((byte) 1);
+            sb.putString(pv.type);
+            sb.putValue(pv.pubBlob);
+            byte[] signed = java.util.Arrays.copyOfRange(sb.buffer, 0, sb.i_put);
+            byte[] sig = keys.signSSH(pv.type, pv.seeds, signed);
+            buf.reset_command(SSH_MSG_USERAUTH_REQUEST);
+            buf.putString(username);
+            buf.putString("ssh-connection");
+            buf.putString("publickey");
+            buf.putByte((byte) 1);
+            buf.putString(pv.type);
+            buf.putValue(pv.pubBlob);
+            buf.putValue(sig);
+            write(buf);
+        } else {
+            // ---- login por SENHA (existente) ----
+            buf.reset_command(SSH_MSG_USERAUTH_REQUEST);
+            buf.putString(username);
+            buf.putString("ssh-connection");
+            buf.putString("password");
+            buf.putByte((byte) 0);
+            buf.putString(password);
+            write(buf);
+        }
 
         buf = read();
         int command = buf.getCommand();
@@ -671,7 +827,7 @@ class SSHClientMini {
     }                            // (o cliente roda no proprio grupo e o -test dispara CTRL_BREAK nele)
     private void instalaSinal(String nome) {
         try {
-			// Signal com warning inevitavel para javac 
+                        // Signal com warning inevitavel para javac
             sun.misc.Signal.handle(new sun.misc.Signal(nome), s -> {
                 lastCtrlC = System.currentTimeMillis();   // marca p/ o writing_stdin NAO tratar o read abortado como EOF
                 try {
@@ -796,7 +952,7 @@ class Session implements Runnable {
     final int SSH_MSG_DISCONNECT = 1, SSH_MSG_IGNORE = 2, SSH_MSG_UNIMPLEMENTED = 3, SSH_MSG_DEBUG = 4,
             SSH_MSG_SERVICE_REQUEST = 5, SSH_MSG_SERVICE_ACCEPT = 6, SSH_MSG_KEXINIT = 20, SSH_MSG_NEWKEYS = 21,
             SSH_MSG_KEXDH_INIT = 30, SSH_MSG_KEXDH_REPLY = 31, SSH_MSG_USERAUTH_REQUEST = 50,
-            SSH_MSG_USERAUTH_FAILURE = 51, SSH_MSG_USERAUTH_SUCCESS = 52,
+            SSH_MSG_USERAUTH_FAILURE = 51, SSH_MSG_USERAUTH_SUCCESS = 52, SSH_MSG_USERAUTH_PK_OK = 60,
             SSH_MSG_CHANNEL_OPEN = 90, SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91,
             SSH_MSG_CHANNEL_DATA = 94, SSH_MSG_CHANNEL_EOF = 96, SSH_MSG_CHANNEL_CLOSE = 97,
             SSH_MSG_CHANNEL_REQUEST = 98, SSH_MSG_CHANNEL_SUCCESS = 99;
@@ -825,6 +981,24 @@ class Session implements Runnable {
     private java.io.InputStream shellOutput = null;
     private java.io.OutputStream shellInput = null;
     private boolean authenticated = false;
+    // Login por chave (conexao por file): authorized_keys aceitos e host key por arquivo (setados no main).
+    static String authKeysFile = null, hostKeyFile = null;
+    private SshKeys sshKeys = null;                 // cripto de chave (lazy)
+    private SshKeys.Priv hostKey = null;            // host key carregada de -hostkey (senao, ECDSA fixa)
+    private byte[] sessionId = null;                // = kex.H do primeiro KEX (usado no blob do publickey)
+    private SshKeys sshKeys() { if (sshKeys == null) sshKeys = new SshKeys(); return sshKeys; }
+    // pubBlob esta autorizado? (compara byte-a-byte com as linhas do authorized_keys)
+    private boolean pubKeyAutorizada(byte[] pubBlob) {
+        if (authKeysFile == null) return false;
+        try {
+            for (String ln : java.nio.file.Files.readAllLines(java.nio.file.Path.of(authKeysFile))) {
+                ln = ln.trim(); if (ln.isEmpty() || ln.startsWith("#")) continue;
+                String[] p = ln.split("\\s+"); if (p.length < 2) continue;
+                if (java.util.Arrays.equals(java.util.Base64.getDecoder().decode(p[1]), pubBlob)) return true;
+            }
+        } catch (Exception e) {}
+        return false;
+    }
 
     public Session(java.net.Socket socket, String user, String pass) {
         this.socket = socket;
@@ -906,11 +1080,18 @@ class Session implements Runnable {
         I_C = new byte[payloadLen];
         System.arraycopy(buf.buffer, 5, I_C, 0, payloadLen);
 
+        // Host key: por arquivo (-hostkey, ed25519/mldsa) ou a ECDSA fixa. O algoritmo anunciado no
+        // KEXINIT tem de casar com o tipo da chave, senao o ssh nativo rejeita a negociacao.
+        String hostAlg = "ecdsa-sha2-nistp256";
+        if (hostKeyFile != null) {
+            if (hostKey == null) hostKey = sshKeys().parsePriv(java.nio.file.Files.readString(java.nio.file.Path.of(hostKeyFile)));
+            hostAlg = hostKey.type;
+        }
         buf = new Buf();
         buf.reset_command(SSH_MSG_KEXINIT);
         buf.putBytes(get_random_bytes(16)); // Cookie
         buf.putString("ecdh-sha2-nistp256");
-        buf.putString("ecdsa-sha2-nistp256");
+        buf.putString(hostAlg);
         buf.putString("aes256-ctr");
         buf.putString("aes256-ctr");
         buf.putString("hmac-sha2-256");
@@ -930,13 +1111,16 @@ class Session implements Runnable {
         buf = read(); // KEXDH_INIT
         buf.getInt(); buf.getByte(); buf.getByte(); // Skip headers
         byte[] Q_C = buf.getValue();
-        byte[] K_S = generateHostKey();
+        byte[] K_S = (hostKey != null) ? hostKey.pubBlob : generateHostKey();
         kex.next(Q_C, K_S);
+        sessionId = kex.H;   // identificador de sessao (primeiro KEX) — assinado no publickey auth
+        // Assinatura do hash de troca H com a host key: por arquivo (ed25519/mldsa) ou ECDSA fixa.
+        byte[] hostSig = (hostKey != null) ? sshKeys().signSSH(hostKey.type, hostKey.seeds, kex.H) : generateSignature();
         buf = new Buf();
         buf.reset_command(SSH_MSG_KEXDH_REPLY);
         buf.putValue(K_S);
         buf.putValue(kex.Q_S);
-        buf.putValue(generateSignature());
+        buf.putValue(hostSig);
         write(buf);
         buf = new Buf();
         buf.reset_command(SSH_MSG_NEWKEYS);
@@ -988,8 +1172,8 @@ class Session implements Runnable {
         buf.putString(service);
         write(buf);
 
-        // O OpenSSH manda um probe "none" (e talvez "publickey") antes da senha.
-        // Responde FAILURE (oferecendo "password") ate chegar a senha correta.
+        // O OpenSSH manda um probe "none" (e "publickey") antes da senha/chave. Responde FAILURE
+        // (oferecendo "publickey,password") ate um metodo aceitar: senha correta OU chave autorizada.
         while (true) {
             buf = read();
             if (buf.getCommand() != SSH_MSG_USERAUTH_REQUEST) continue;
@@ -1007,10 +1191,43 @@ class Session implements Runnable {
                     authenticated = true;
                     return;
                 }
+            } else if (method.equals("publickey")) {
+                byte hasSig = buf.getByte();                      // TRUE = vem assinatura; FALSE = so probe
+                String alg = new String(buf.getValue(), "UTF-8"); // nome do algoritmo (= tipo da chave)
+                byte[] pubBlob = buf.getValue();                  // string tipo ‖ string chave
+                if (hasSig == 0) {   // probe: responde PK_OK ecoando alg+chave (o cliente entao manda assinado)
+                    Buf pk = new Buf();
+                    pk.reset_command(SSH_MSG_USERAUTH_PK_OK);
+                    pk.putString(alg);
+                    pk.putValue(pubBlob);
+                    write(pk);
+                    continue;
+                }
+                byte[] sig = buf.getValue();                      // assinatura SSH: string alg ‖ string sigcrua
+                if (u.equals(expectedUsername) && pubKeyAutorizada(pubBlob)) {
+                    // reconstroi o blob assinado (RFC 4252 §7) e verifica a assinatura
+                    Buf sb = new Buf();
+                    sb.putValue(sessionId);
+                    sb.putByte((byte) SSH_MSG_USERAUTH_REQUEST);
+                    sb.putString(u);
+                    sb.putString("ssh-connection");
+                    sb.putString("publickey");
+                    sb.putByte((byte) 1);
+                    sb.putString(alg);
+                    sb.putValue(pubBlob);
+                    byte[] signed = java.util.Arrays.copyOfRange(sb.buffer, 0, sb.i_put);
+                    if (sshKeys().verifyBlob(pubBlob, signed, sig)) {
+                        Buf ok = new Buf();
+                        ok.reset_command(SSH_MSG_USERAUTH_SUCCESS);
+                        write(ok);
+                        authenticated = true;
+                        return;
+                    }
+                }
             }
             Buf f = new Buf();
             f.reset_command(SSH_MSG_USERAUTH_FAILURE);
-            f.putString("password");
+            f.putString("publickey,password");
             f.putByte((byte) 0);
             write(f);
         }
@@ -1463,6 +1680,7 @@ class Session implements Runnable {
 
 class ECDH {
     public byte[] K, H, Q_C, Q_S;
+    public byte[] hostKeyBlob, hostSig;   // (cliente) K_S apresentado pelo servidor e a assinatura sobre H
     private byte[] V_S, V_C, I_S, I_C;
     public java.security.MessageDigest sha = null;
     private java.security.spec.ECParameterSpec params = null;
@@ -1504,6 +1722,8 @@ class ECDH {
         buf.add_i_get(6);
         byte[] KS = buf.getValue();
         byte[] remoteQS = buf.getValue();
+        this.hostKeyBlob = KS;                                  // p/ o cliente verificar a host key
+        try { this.hostSig = buf.getValue(); } catch (Exception e) {}   // assinatura do host sobre H
         this.Q_S = remoteQS;
         calculateSharedSecret(this.Q_S);
         calculateHash(KS);
@@ -1633,9 +1853,165 @@ class TesteSSH {
         int[] rMini = checkCliente("ssh mini", false, win, porta, fonteJava);
         int[] rPuro = checkCliente("ssh puro", true,  win, porta, fonteJava);
         ok += rMini[0] + rPuro[0]; total += rMini[1] + rPuro[1];
+        // bateria de CHAVES: sshgen + conexao por file (pubkey auth) + host key, ed25519 e mldsa44,
+        // com o ssh nativo participando onde o host permite (ed25519). Tudo em dir temp dinamico.
+        int[] rKeys = runAutoKeys(fonteJava, porta);
+        ok += rKeys[0]; total += rKeys[1];
         // resumo
         System.out.println("---- " + ok + "/" + total + " checks OK"
             + (ok == total ? "  => AUTO-TESTE OK (" + (win ? "windows/cmd" : "linux/bash") + ")" : "  => FALHOU") + " ----");
+    }
+
+    // ===== Bateria de CHAVES (sshgen, conexao por file/pubkey, host key) — ed25519 + mldsa44 =====
+    // Gera chaves em dir TEMP dinamico (sem pastas prefixadas), sobe servidores dedicados e roda:
+    // sign<->verify, determinismo, interop com ssh-keygen nativo, login por chave (SSHMini e ssh nativo),
+    // verificacao de host key (ed25519 e mldsa) e o negativo (pino errado recusado). Retorna {ok,total}.
+    static int[] runAutoKeys(String fonteJava, int porta) {
+        int ok = 0, total = 0;
+        boolean temSsh = false;
+        try { Process v = new ProcessBuilder("ssh", "-V").redirectErrorStream(true).start(); v.getInputStream().readAllBytes(); temSsh = (v.waitFor() == 0); } catch (Exception e) {}
+        int pEd = porta + 1, pPq = porta + 2;
+        java.io.File tmp = null;
+        try {
+            tmp = java.nio.file.Files.createTempDirectory("sshmini_keys_").toFile();
+            // Compila o fonte UMA vez p/ os clientes spawnados usarem -cp (senao cada 'java <fonte>'
+            // recompila o arquivo inteiro -> lento e, somado ao ML-DSA, estoura os timeouts de login).
+            java.io.File classes = new java.io.File(tmp, "classes"); classes.mkdirs();
+            try {
+                Process jc = new ProcessBuilder("javac", "-d", classes.getAbsolutePath(), fonteJava).redirectErrorStream(true).start();
+                jc.getInputStream().readAllBytes();
+                spawnCp = (jc.waitFor() == 0) ? classes.getAbsolutePath() : null;
+            } catch (Exception e) { spawnCp = null; }
+            SshKeys keys = new SshKeys();
+            String uEd = novoPar(keys, "ed25519", tmp, "user_ed");
+            String uPq = novoPar(keys, "mldsa44-ed25519", tmp, "user_pq");
+            String hEd = novoPar(keys, "ed25519", tmp, "host_ed");
+            String hPq = novoPar(keys, "mldsa44-ed25519", tmp, "host_pq");
+            java.io.File authkeys = new java.io.File(tmp, "authorized_keys");
+            java.nio.file.Files.writeString(authkeys.toPath(),
+                java.nio.file.Files.readString(java.nio.file.Path.of(uEd + ".pub"))
+                + java.nio.file.Files.readString(java.nio.file.Path.of(uPq + ".pub")));
+            System.out.println("chaves: sshgen + conexao por file (ed25519 + mldsa44 pos-quantico)  [dir temp dinamico]");
+
+            // ---- unit: sign<->verify (aceita valida, rejeita adulterada) p/ ed25519 e mldsa ----
+            byte[] msg = "sshmini-selftest".getBytes("UTF-8");
+            for (String tipo : new String[]{ "ed25519", "mldsa44-ed25519" }) {
+                String base = tipo.equals("ed25519") ? uEd : uPq;
+                SshKeys.Priv pv = keys.parsePriv(java.nio.file.Files.readString(java.nio.file.Path.of(base)));
+                String pub = java.nio.file.Files.readString(java.nio.file.Path.of(base + ".pub"));
+                byte[] sig = keys.signSSH(pv.type, pv.seeds, msg);
+                byte[] alt = msg.clone(); alt[0] ^= 1;
+                boolean c = keys.verifySSH(pub, msg, sig) && !keys.verifySSH(pub, alt, sig);
+                total++; if (c) ok++; System.out.println((c ? "[OK]    " : "[FALHA] ") + "chaves: sign<->verify " + tipo);
+            }
+            // ---- determinismo por passphrase (mesma frase+nome -> mesma pub) ----
+            boolean det = keys.generate("mldsa44-ed25519", "seed-test-det", "det")[1].equals(keys.generate("mldsa44-ed25519", "seed-test-det", "det")[1]);
+            total++; if (det) ok++; System.out.println((det ? "[OK]    " : "[FALHA] ") + "chaves: determinismo por passphrase (mldsa)");
+
+            // ---- interop com ssh-keygen NATIVO (ed25519): -y re-deriva a pub; -l da fingerprint ----
+            if (temSsh) {
+                String der = execOut(new ProcessBuilder("ssh-keygen", "-y", "-f", uEd));
+                String pub = java.nio.file.Files.readString(java.nio.file.Path.of(uEd + ".pub"));
+                boolean c = der != null && dois(der).equals(dois(pub));
+                total++; if (c) ok++; System.out.println((c ? "[OK]    " : "[FALHA] ") + "chaves: ssh-keygen NATIVO -y re-deriva a pub ed25519 (interop)");
+                String fp = execOut(new ProcessBuilder("ssh-keygen", "-l", "-f", uEd + ".pub"));
+                boolean c2 = fp != null && fp.contains("ED25519");
+                total++; if (c2) ok++; System.out.println((c2 ? "[OK]    " : "[FALHA] ") + "chaves: ssh-keygen NATIVO -l aceita a pub ed25519 (fingerprint)");
+            }
+
+            // ---- servidor com host key ed25519 + authorized_keys (porta pEd) ----
+            Session.authKeysFile = authkeys.getAbsolutePath();
+            Session.hostKeyFile  = hEd;
+            if (!sobeServidor(pEd)) { total++; System.out.println("[FALHA] chaves: servidor de teste nao subiu na " + pEd); }
+            else {
+                total++; boolean c1 = sessaoMarcador(cliMini(fonteJava, uEd, hEd + ".pub", pEd));
+                if (c1) ok++; System.out.println((c1 ? "[OK]    " : "[FALHA] ") + "chaves: SSHMini cliente ed25519 (conexao por file) + verifica host key");
+                total++; boolean c2 = sessaoMarcador(cliMini(fonteJava, uPq, hEd + ".pub", pEd));
+                if (c2) ok++; System.out.println((c2 ? "[OK]    " : "[FALHA] ") + "chaves: SSHMini cliente mldsa44 (conexao por file, POS-QUANTICO)");
+                total++; boolean c3 = !sessaoMarcador(cliMini(fonteJava, uEd, uEd + ".pub", pEd));
+                if (c3) ok++; System.out.println((c3 ? "[OK]    " : "[FALHA] ") + "chaves: SSHMini RECUSA host key errada (pino -hostpub incorreto)");
+                if (temSsh) {
+                    java.io.File kh = new java.io.File(tmp, "known_hosts");
+                    total++; boolean c4 = sessaoMarcador(cliNativo(uEd, kh.getAbsolutePath(), pEd));
+                    if (c4) ok++; System.out.println((c4 ? "[OK]    " : "[FALHA] ") + "chaves: ssh NATIVO ed25519 (conexao por file) -> servidor SSHMini");
+                    total++; boolean c5 = false;
+                    try { c5 = kh.exists() && java.nio.file.Files.readString(kh.toPath()).contains("ssh-ed25519"); } catch (Exception e) {}
+                    if (c5) ok++; System.out.println((c5 ? "[OK]    " : "[FALHA] ") + "chaves: ssh nativo aceitou a host key ed25519 do SSHMini (known_hosts)");
+                }
+            }
+            // ---- servidor com host key MLDSA (porta pPq): SSHMini verifica host key pos-quantica ----
+            Session.hostKeyFile = hPq;
+            if (sobeServidor(pPq)) {
+                total++; boolean c6 = sessaoMarcador(cliMini(fonteJava, uEd, hPq + ".pub", pPq));
+                if (c6) ok++; System.out.println((c6 ? "[OK]    " : "[FALHA] ") + "chaves: SSHMini verifica host key mldsa44 (POS-QUANTICA) + auth");
+            }
+        } catch (Exception e) {
+            total++; System.out.println("[FALHA] chaves: excecao na bateria: " + e);
+        } finally {
+            Session.hostKeyFile = null; Session.authKeysFile = null;   // nao vaza p/ o servidor de senha (3004)
+            if (tmp != null) apagaDir(tmp);
+        }
+        return new int[]{ ok, total };
+    }
+    // gera <nome> e <nome>.pub no dir temp (privado 600) e devolve o caminho absoluto do privado.
+    // Passphrase deterministica "seed-test-<nome>": as chaves do -test sao reproduziveis e rotuladas.
+    static String novoPar(SshKeys keys, String tipo, java.io.File dir, String nome) throws Exception {
+        String[] par = keys.generate(tipo, "seed-test-" + nome, nome);
+        java.io.File priv = new java.io.File(dir, nome);
+        java.nio.file.Files.writeString(priv.toPath(), par[0]);
+        java.nio.file.Files.writeString(new java.io.File(dir, nome + ".pub").toPath(), par[1]);
+        try { java.nio.file.Files.setPosixFilePermissions(priv.toPath(), java.nio.file.attribute.PosixFilePermissions.fromString("rw-------")); } catch (Throwable t) {}
+        return priv.getAbsolutePath();
+    }
+    static boolean sobeServidor(int porta) {
+        try (java.net.ServerSocket probe = new java.net.ServerSocket(porta)) {} catch (Exception e) { return false; }   // ocupada
+        boolean[] up = { false };
+        Thread t = new Thread(() -> { try { up[0] = true; new SSHServerMini(porta, "admin", "admin123"); } catch (Exception e) { up[0] = false; } });
+        t.setDaemon(true); t.start();
+        try { Thread.sleep(400); } catch (Exception e) {}
+        return up[0];
+    }
+    static String spawnCp = null;   // classpath compilado uma vez p/ os clientes spawnados (senao recompila cada spawn)
+    static ProcessBuilder cliMini(String fonteJava, String priv, String hostpub, int porta) {
+        if (spawnCp != null)
+            return new ProcessBuilder("java", "-cp", spawnCp, "SSHMini", "admin@localhost", "-i", priv, "-hostpub", hostpub, "-P", "" + porta);
+        return new ProcessBuilder("java", fonteJava, "admin@localhost", "-i", priv, "-hostpub", hostpub, "-P", "" + porta);
+    }
+    static ProcessBuilder cliNativo(String priv, String knownHosts, int porta) {
+        return new ProcessBuilder("ssh", "-tt", "-i", priv, "-o", "StrictHostKeyChecking=accept-new",
+            "-o", "UserKnownHostsFile=" + knownHosts, "-o", "IdentitiesOnly=yes",
+            "-o", "PreferredAuthentications=publickey", "-p", "" + porta, "admin@localhost");
+    }
+    // Conecta, espera o prompt assentar, manda um marcador anti-eco e confere que a EXECUCAO apareceu.
+    static boolean sessaoMarcador(ProcessBuilder pb) {
+        final String MARK = "SSHMINIMARK";
+        try {
+            pb.redirectErrorStream(true);
+            Process ps = pb.start();
+            StringBuilder sb = new StringBuilder();
+            Thread rd = new Thread(() -> { try (java.io.Reader r = new java.io.InputStreamReader(ps.getInputStream())) {
+                char[] b = new char[4096]; int n; while ((n = r.read(b)) != -1) synchronized (sb) { sb.append(b, 0, n); } } catch (Exception e) {} });
+            rd.start();
+            java.io.OutputStream ent = ps.getOutputStream();
+            esperarQuieto(sb, 800, 25000);                          // login + prompt (ML-DSA é lento; folga p/ nao virar typeahead)
+            ent.write("echo SSHMINI''MARK\n".getBytes()); ent.flush();   // digitado tem aspas; execucao imprime SSHMINIMARK
+            esperarConter(sb, MARK, 15000);
+            esperarQuieto(sb, 400, 4000);
+            try { ent.write("exit\n".getBytes()); ent.flush(); ent.close(); } catch (Exception e) {}
+            if (!ps.waitFor(20, java.util.concurrent.TimeUnit.SECONDS)) ps.destroyForcibly();
+            rd.join(2000);
+            synchronized (sb) { return sb.toString().contains(MARK); }
+        } catch (Exception e) { return false; }
+    }
+    static String execOut(ProcessBuilder pb) {
+        try { pb.redirectErrorStream(true); Process p = pb.start();
+            String s = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            p.waitFor(); return s; } catch (Exception e) { return null; }
+    }
+    static String dois(String linha) { String[] p = linha.trim().split("\\s+"); return p.length >= 2 ? p[0] + " " + p[1] : linha.trim(); }
+    static void apagaDir(java.io.File d) {
+        java.io.File[] fs = d.listFiles(); if (fs != null) for (java.io.File f : fs) { if (f.isDirectory()) apagaDir(f); else f.delete(); }
+        d.delete();
     }
 
     // Teste contra servidor EXTERNO (alvo informado): confere so o round-trip remoto -> volta ao local.
@@ -2127,5 +2503,630 @@ class TesteSSH {
             lastIndex = currentIndex;
         }
         return true;
+    }
+}
+
+// =====================================================================
+// CRIPTO (portada de ~/claude/mldsa_ssh/DeriveSSHKey.java) — ML-DSA-44 (FIPS 204),
+// Ed25519 e SHAKE do zero. O DeriveSSHKey tinha keygen+verify; aqui foi ADICIONADA a
+// assinatura (ML-DSA Sign, Alg.7; Ed25519 Sign, RFC 8032). verify validado byte-a-byte
+// vs NIST ACVP; sign validado por sign<->verify e (ed25519) contra o ssh nativo.
+// =====================================================================
+
+// Keccak-f[1600] + SHAKE-128/256 (XOF) com squeeze incremental.
+class Shake {
+    final long[] RC = {
+        0x0000000000000001L,0x0000000000008082L,0x800000000000808aL,0x8000000080008000L,
+        0x000000000000808bL,0x0000000080000001L,0x8000000080008081L,0x8000000000008009L,
+        0x000000000000008aL,0x0000000000000088L,0x0000000080008009L,0x000000008000000aL,
+        0x000000008000808bL,0x800000000000008bL,0x8000000000008089L,0x8000000000008003L,
+        0x8000000000008002L,0x8000000000000080L,0x000000000000800aL,0x800000008000000aL,
+        0x8000000080008081L,0x8000000000008080L,0x0000000080000001L,0x8000000080008008L };
+    final int[] ROTC = {1,3,6,10,15,21,28,36,45,55,2,14,27,41,56,8,25,43,62,18,39,61,20,44};
+    final int[] PILN = {10,7,11,17,18,3,5,16,8,21,24,4,15,23,19,13,12,2,20,14,22,9,6,1};
+    final long[] s = new long[25];
+    final int rate;
+    final byte[] queued; int qlen;
+    boolean squeezing;
+    final byte[] block; int blkPos;
+
+    Shake(int bits) { rate = (bits == 128) ? 168 : 136; queued = new byte[rate]; block = new byte[rate]; }
+
+    Shake update(byte[] in) { return update(in, 0, in.length); }
+    Shake update(byte[] in, int off, int len) {
+        for (int i = 0; i < len; i++) { queued[qlen++] = in[off + i]; if (qlen == rate) { absorb(queued); qlen = 0; } }
+        return this;
+    }
+    void absorb(byte[] blk) { for (int i = 0; i < rate/8; i++) s[i] ^= le64(blk, 8*i); keccak(); }
+    void finishAbsorb() {
+        byte[] pad = new byte[rate];
+        System.arraycopy(queued, 0, pad, 0, qlen);
+        pad[qlen] ^= 0x1F; pad[rate-1] ^= (byte)0x80;
+        for (int i = 0; i < rate/8; i++) s[i] ^= le64(pad, 8*i);
+        keccak(); squeezing = true; fill();
+    }
+    void fill() { for (int i = 0; i < rate/8; i++) putLe64(block, 8*i, s[i]); blkPos = 0; }
+    byte[] squeeze(int n) {
+        if (!squeezing) finishAbsorb();
+        byte[] out = new byte[n];
+        for (int i = 0; i < n; i++) { if (blkPos == rate) { keccak(); fill(); } out[i] = block[blkPos++]; }
+        return out;
+    }
+    void keccak() {
+        long[] a = s, bc = new long[5];
+        for (int r = 0; r < 24; r++) {
+            for (int i = 0; i < 5; i++) bc[i] = a[i]^a[i+5]^a[i+10]^a[i+15]^a[i+20];
+            for (int i = 0; i < 5; i++) { long t = bc[(i+4)%5] ^ java.lang.Long.rotateLeft(bc[(i+1)%5],1); for (int j = 0; j < 25; j += 5) a[j+i] ^= t; }
+            long t = a[1];
+            for (int i = 0; i < 24; i++) { int j = PILN[i]; long tmp = a[j]; a[j] = java.lang.Long.rotateLeft(t, ROTC[i]); t = tmp; }
+            for (int j = 0; j < 25; j += 5) { for (int i = 0; i < 5; i++) bc[i] = a[j+i]; for (int i = 0; i < 5; i++) a[j+i] ^= (~bc[(i+1)%5]) & bc[(i+2)%5]; }
+            a[0] ^= RC[r];
+        }
+    }
+    long le64(byte[] b, int o) { long r = 0; for (int i = 0; i < 8; i++) r |= (b[o+i]&0xFFL) << (8*i); return r; }
+    void putLe64(byte[] b, int o, long v) { for (int i = 0; i < 8; i++) b[o+i] = (byte)(v >>> (8*i)); }
+}
+
+// ML-DSA-44 (FIPS 204): KeyGen (pública), Verify e Sign (Alg.7, determinístico).
+class MlDsa {
+    final int Q = 8380417, N = 256, D = 13, K = 4, L = 4, ETA = 2, TAU = 39, BETA = 78, OMEGA = 80;
+    final int GAMMA1 = 1 << 17;
+    final int GAMMA2 = (Q - 1) / 88;
+    final int CTILDE = 32, SIGLEN = 2420, PKLEN = 1312;
+    final int[] zetas = new int[N];
+    final long NINV;
+
+    MlDsa() { for (int i = 0; i < N; i++) zetas[i] = (int) modpow(1753, brv8(i), Q); NINV = modpow(N, Q - 2, Q); }
+
+    long modpow(long b, long e, long m) { long r = 1; b %= m; while (e > 0) { if ((e&1)==1) r = r*b%m; b = b*b%m; e >>= 1; } return r; }
+    int brv8(int x) { int r = 0; for (int i = 0; i < 8; i++) r = (r<<1)|((x>>i)&1); return r; }
+    int modq(int x) { x %= Q; if (x < 0) x += Q; return x; }
+    int cen(int x) { x %= Q; if (x < 0) x += Q; if (x > Q/2) x -= Q; return x; }
+    int[] toModQ(int[] c) { int[] r = new int[N]; for (int i = 0; i < N; i++) r[i] = modq(c[i]); return r; }
+    int[] nttOf(int[] a) { int[] c = toModQ(a); ntt(c); return c; }
+
+    void ntt(int[] a) {
+        int k = 0;
+        for (int len = 128; len > 0; len >>= 1)
+            for (int start = 0; start < N; start += 2*len) {
+                long z = zetas[++k];
+                for (int j = start; j < start+len; j++) {
+                    long t = (z * a[j+len]) % Q; int u = a[j];
+                    a[j+len] = (int)(((u - t) % Q + Q) % Q); a[j] = (int)((u + t) % Q);
+                }
+            }
+    }
+    void invntt(int[] a) {
+        int k = N;
+        for (int len = 1; len < N; len <<= 1)
+            for (int start = 0; start < N; start += 2*len) {
+                long z = Q - zetas[--k];
+                for (int j = start; j < start+len; j++) {
+                    int u = a[j], v = a[j+len];
+                    a[j] = (int)(((long)u + v) % Q);
+                    int diff = (int)(((u - v) % Q + Q) % Q);
+                    a[j+len] = (int)((z * diff) % Q);
+                }
+            }
+        for (int j = 0; j < N; j++) a[j] = (int)((NINV * a[j]) % Q);
+    }
+    int[] pointwise(int[] a, int[] b) { int[] c = new int[N]; for (int i = 0; i < N; i++) c[i] = (int)(((long)a[i]*b[i]) % Q); return c; }
+
+    byte[] shake(int bits, int outLen, byte[]... parts) { Shake s = new Shake(bits); for (byte[] p : parts) s.update(p); return s.squeeze(outLen); }
+
+    int[][][] expandA(byte[] rho) {
+        int[][][] A = new int[K][L][];
+        for (int r = 0; r < K; r++) for (int c = 0; c < L; c++) {
+            Shake x = new Shake(128); x.update(rho); x.update(new byte[]{ (byte)c, (byte)r });
+            int[] a = new int[N]; int ctr = 0;
+            while (ctr < N) { byte[] b = x.squeeze(3); int d = (b[0]&0xFF)|((b[1]&0xFF)<<8)|((b[2]&0x7F)<<16); if (d < Q) a[ctr++] = d; }
+            A[r][c] = a;
+        }
+        return A;
+    }
+    int[] rejBounded(byte[] rhoprime, int nonce) {
+        Shake x = new Shake(256); x.update(rhoprime); x.update(new byte[]{ (byte)(nonce&0xFF), (byte)((nonce>>8)&0xFF) });
+        int[] a = new int[N]; int ctr = 0;
+        while (ctr < N) { int b = x.squeeze(1)[0]&0xFF; int z0 = b&0x0F, z1 = b>>4;
+            if (z0 < 15) { a[ctr++] = 2 - (z0 % 5); if (ctr == N) break; }
+            if (z1 < 15) { a[ctr++] = 2 - (z1 % 5); } }
+        return a;
+    }
+    int[] expandMask(byte[] rhopp, int nonce) {
+        Shake x = new Shake(256); x.update(rhopp); x.update(new byte[]{ (byte)(nonce&0xFF), (byte)((nonce>>8)&0xFF) });
+        byte[] buf = x.squeeze(N*18/8);
+        int[] v = unpack(buf, 0, 18); int[] y = new int[N];
+        for (int j = 0; j < N; j++) y[j] = GAMMA1 - v[j];
+        return y;
+    }
+
+    /** KeyGen_internal(ξ) → apenas a chave pública. */
+    byte[] keyGenPk(byte[] xi) {
+        byte[] H = shake(256, 128, xi, new byte[]{ (byte)K }, new byte[]{ (byte)L });
+        byte[] rho = java.util.Arrays.copyOfRange(H, 0, 32);
+        byte[] rhoprime = java.util.Arrays.copyOfRange(H, 32, 96);
+        int[][][] A = expandA(rho);
+        int[][] s1 = new int[L][], s2 = new int[K][];
+        for (int i = 0; i < L; i++) s1[i] = rejBounded(rhoprime, i);
+        for (int i = 0; i < K; i++) s2[i] = rejBounded(rhoprime, L + i);
+        int[][] s1hat = new int[L][]; for (int i = 0; i < L; i++) s1hat[i] = nttOf(s1[i]);
+        int[][] t1 = new int[K][N];
+        for (int r = 0; r < K; r++) {
+            int[] acc = new int[N];
+            for (int c = 0; c < L; c++) { int[] p = pointwise(A[r][c], s1hat[c]); for (int j = 0; j < N; j++) acc[j] = (int)(((long)acc[j]+p[j])%Q); }
+            invntt(acc);
+            for (int j = 0; j < N; j++) { int v = modq(acc[j] + s2[r][j]); int a1 = (v + (1<<(D-1)) - 1) >> D; t1[r][j] = a1; }
+        }
+        byte[] pk = new byte[PKLEN];
+        System.arraycopy(rho, 0, pk, 0, 32);
+        for (int r = 0; r < K; r++) pack(pk, 32 + r*(N*10/8), t1[r], 10);
+        return pk;
+    }
+
+    /** Sign_internal(sk=ξ, M, ctx) → assinatura de SIGLEN bytes. Determinístico (rnd = 0^256). */
+    byte[] sign(byte[] xi, byte[] msg, byte[] ctx) {
+        byte[] H = shake(256, 128, xi, new byte[]{ (byte)K }, new byte[]{ (byte)L });
+        byte[] rho = java.util.Arrays.copyOfRange(H, 0, 32);
+        byte[] rhoprime = java.util.Arrays.copyOfRange(H, 32, 96);
+        byte[] Kk = java.util.Arrays.copyOfRange(H, 96, 128);
+        int[][][] A = expandA(rho);
+        int[][] s1 = new int[L][], s2 = new int[K][];
+        for (int i = 0; i < L; i++) s1[i] = rejBounded(rhoprime, i);
+        for (int i = 0; i < K; i++) s2[i] = rejBounded(rhoprime, L + i);
+        int[][] s1hat = new int[L][]; for (int i = 0; i < L; i++) s1hat[i] = nttOf(s1[i]);
+        int[][] t0 = new int[K][N], t1 = new int[K][N];
+        for (int r = 0; r < K; r++) {
+            int[] acc = new int[N];
+            for (int c = 0; c < L; c++) { int[] p = pointwise(A[r][c], s1hat[c]); for (int j = 0; j < N; j++) acc[j] = (int)(((long)acc[j]+p[j])%Q); }
+            invntt(acc);
+            for (int j = 0; j < N; j++) { int v = modq(acc[j] + s2[r][j]); int a1 = (v + (1<<(D-1)) - 1) >> D; t1[r][j] = a1; t0[r][j] = v - (a1 << D); }
+        }
+        byte[] pk = new byte[PKLEN];
+        System.arraycopy(rho, 0, pk, 0, 32);
+        for (int r = 0; r < K; r++) pack(pk, 32 + r*(N*10/8), t1[r], 10);
+        byte[] tr = shake(256, 64, pk);
+        Shake sm = new Shake(256); sm.update(tr); sm.update(new byte[]{ 0, (byte)ctx.length }); sm.update(ctx); sm.update(msg);
+        byte[] mu = sm.squeeze(64);
+        byte[] rhopp = shake(256, 64, Kk, new byte[32], mu);
+        int[][] s2hat = new int[K][]; for (int r = 0; r < K; r++) s2hat[r] = nttOf(s2[r]);
+        int[][] t0hat = new int[K][]; for (int r = 0; r < K; r++) t0hat[r] = nttOf(t0[r]);
+        int kappa = 0;
+        while (true) {
+            int[][] y = new int[L][]; for (int i = 0; i < L; i++) y[i] = expandMask(rhopp, kappa + i);
+            int[][] yhat = new int[L][]; for (int i = 0; i < L; i++) yhat[i] = nttOf(y[i]);
+            int[][] w = new int[K][N];
+            for (int r = 0; r < K; r++) {
+                int[] acc = new int[N];
+                for (int c = 0; c < L; c++) { int[] p = pointwise(A[r][c], yhat[c]); for (int j = 0; j < N; j++) acc[j] = (int)(((long)acc[j]+p[j])%Q); }
+                invntt(acc);
+                for (int j = 0; j < N; j++) w[r][j] = modq(acc[j]);
+            }
+            int[][] w1 = new int[K][N];
+            for (int r = 0; r < K; r++) for (int j = 0; j < N; j++) w1[r][j] = decompose(w[r][j])[0];
+            byte[] w1enc = new byte[K*(N*6/8)];
+            for (int r = 0; r < K; r++) pack(w1enc, r*(N*6/8), w1[r], 6);
+            byte[] ctilde = shake(256, CTILDE, mu, w1enc);
+            int[] chat = toModQ(sampleInBall(ctilde)); ntt(chat);
+            // z = y + c*s1
+            int[][] z = new int[L][N]; int zmax = 0;
+            for (int i = 0; i < L; i++) { int[] cs1 = pointwise(chat, s1hat[i]); invntt(cs1);
+                for (int j = 0; j < N; j++) { int zc = cen(y[i][j] + cs1[j]); z[i][j] = zc; int a = zc<0?-zc:zc; if (a > zmax) zmax = a; } }
+            if (zmax >= GAMMA1 - BETA) { kappa += L; continue; }
+            // r0 = LowBits(w - c*s2)
+            int[][] wmcs2 = new int[K][N]; int r0max = 0;
+            for (int r = 0; r < K; r++) { int[] cs2 = pointwise(chat, s2hat[r]); invntt(cs2);
+                for (int j = 0; j < N; j++) { int val = modq(w[r][j] - cs2[j]); wmcs2[r][j] = val; int r0 = decompose(val)[1]; int a = r0<0?-r0:r0; if (a > r0max) r0max = a; } }
+            if (r0max >= GAMMA2 - BETA) { kappa += L; continue; }
+            // ct0 = c*t0
+            int[][] ct0 = new int[K][N]; int ct0max = 0;
+            for (int r = 0; r < K; r++) { int[] cc = pointwise(chat, t0hat[r]); invntt(cc);
+                for (int j = 0; j < N; j++) { int v = cen(cc[j]); ct0[r][j] = v; int a = v<0?-v:v; if (a > ct0max) ct0max = a; } }
+            if (ct0max >= GAMMA2) { kappa += L; continue; }
+            // h = MakeHint(-ct0, w - c*s2 + ct0)
+            int[][] h = new int[K][N]; int hw = 0;
+            for (int r = 0; r < K; r++) for (int j = 0; j < N; j++) {
+                int rr = modq(wmcs2[r][j] + ct0[r][j]);
+                int hb = (decompose(rr)[0] != decompose(wmcs2[r][j])[0]) ? 1 : 0;
+                h[r][j] = hb; hw += hb;
+            }
+            if (hw > OMEGA) { kappa += L; continue; }
+            return sigEncode(ctilde, z, h);
+        }
+    }
+    byte[] sigEncode(byte[] ctilde, int[][] z, int[][] h) {
+        byte[] sig = new byte[SIGLEN];
+        System.arraycopy(ctilde, 0, sig, 0, CTILDE);
+        for (int i = 0; i < L; i++) { int[] enc = new int[N]; for (int j = 0; j < N; j++) enc[j] = GAMMA1 - z[i][j]; pack(sig, CTILDE + i*(N*18/8), enc, 18); }
+        int off = CTILDE + L*(N*18/8); int idx = 0;
+        for (int r = 0; r < K; r++) { for (int j = 0; j < N; j++) if (h[r][j] == 1) { sig[off + idx] = (byte)j; idx++; } sig[off + OMEGA + r] = (byte)idx; }
+        return sig;
+    }
+
+    boolean verify(byte[] pk, byte[] msg, byte[] ctx, byte[] sig) {
+        if (sig.length != SIGLEN || pk.length != PKLEN) return false;
+        byte[] rho = java.util.Arrays.copyOfRange(pk, 0, 32);
+        int[][] t1 = new int[K][];
+        for (int r = 0; r < K; r++) t1[r] = unpack(pk, 32 + r*(N*10/8), 10);
+
+        byte[] ctilde = java.util.Arrays.copyOfRange(sig, 0, CTILDE);
+        int[][] z = new int[L][];
+        for (int i = 0; i < L; i++) { int[] v = unpack(sig, CTILDE + i*(N*18/8), 18); int[] zi = new int[N]; for (int j = 0; j < N; j++) zi[j] = GAMMA1 - v[j]; z[i] = zi; }
+        int[][] h = hintUnpack(sig, CTILDE + L*(N*18/8));
+        if (h == null) return false;
+        for (int i = 0; i < L; i++) for (int j = 0; j < N; j++) { int a = z[i][j]; if (a < 0) a = -a; if (a >= GAMMA1 - BETA) return false; }
+
+        int[][][] A = expandA(rho);
+        byte[] tr = shake(256, 64, pk);
+        Shake sm = new Shake(256); sm.update(tr); sm.update(new byte[]{ 0, (byte)ctx.length }); sm.update(ctx); sm.update(msg);
+        byte[] mu = sm.squeeze(64);
+
+        int[] chat = toModQ(sampleInBall(ctilde)); ntt(chat);
+        int[][] zhat = new int[L][]; for (int i = 0; i < L; i++) { zhat[i] = toModQ(z[i]); ntt(zhat[i]); }
+
+        int[][] w1 = new int[K][N];
+        for (int r = 0; r < K; r++) {
+            int[] acc = new int[N];
+            for (int c = 0; c < L; c++) { int[] p = pointwise(A[r][c], zhat[c]); for (int j = 0; j < N; j++) acc[j] = (int)(((long)acc[j]+p[j])%Q); }
+            int[] t1x = new int[N]; for (int j = 0; j < N; j++) t1x[j] = (int)(((long)t1[r][j] << D) % Q); ntt(t1x);
+            int[] ct1 = pointwise(chat, t1x);
+            for (int j = 0; j < N; j++) { int v = (int)(((long)acc[j] - ct1[j]) % Q); if (v < 0) v += Q; acc[j] = v; }
+            invntt(acc);
+            for (int j = 0; j < N; j++) w1[r][j] = useHint(h[r][j], acc[j]);
+        }
+        byte[] w1enc = new byte[K*(N*6/8)];
+        for (int r = 0; r < K; r++) pack(w1enc, r*(N*6/8), w1[r], 6);
+        byte[] ct2 = shake(256, CTILDE, mu, w1enc);
+        return java.util.Arrays.equals(ctilde, ct2);
+    }
+
+    int[] sampleInBall(byte[] ctilde) {
+        Shake s = new Shake(256); s.update(ctilde);
+        byte[] buf = s.squeeze(8);
+        long signs = 0; for (int i = 0; i < 8; i++) signs |= (buf[i]&0xFFL) << (8*i);
+        int[] c = new int[N];
+        for (int i = N - TAU; i < N; i++) {
+            int j; do { j = s.squeeze(1)[0] & 0xFF; } while (j > i);
+            c[i] = c[j]; c[j] = 1 - 2*(int)(signs & 1); signs >>= 1;
+        }
+        return c;
+    }
+    int[] decompose(int r) {
+        r = modq(r);
+        int r0 = r % (2*GAMMA2); if (r0 > GAMMA2) r0 -= 2*GAMMA2;
+        int r1;
+        if (r - r0 == Q - 1) { r1 = 0; r0 = r0 - 1; } else r1 = (r - r0) / (2*GAMMA2);
+        return new int[]{ r1, r0 };
+    }
+    int useHint(int hbit, int r) {
+        int m = (Q - 1) / (2*GAMMA2);
+        int[] d = decompose(r); int r1 = d[0], r0 = d[1];
+        if (hbit == 1) { if (r0 > 0) r1 = (r1 + 1) % m; else { r1 = (r1 - 1) % m; if (r1 < 0) r1 += m; } }
+        return r1;
+    }
+    int[][] hintUnpack(byte[] sig, int off) {
+        int[][] h = new int[K][N]; int idx = 0;
+        for (int i = 0; i < K; i++) {
+            int cnt = sig[off + OMEGA + i] & 0xFF;
+            if (cnt < idx || cnt > OMEGA) return null;
+            int first = idx;
+            while (idx < cnt) {
+                int pos = sig[off + idx] & 0xFF;
+                if (idx > first) { int prev = sig[off + idx - 1] & 0xFF; if (prev >= pos) return null; }
+                h[i][pos] = 1; idx++;
+            }
+        }
+        for (int i = idx; i < OMEGA; i++) if (sig[off + i] != 0) return null;
+        return h;
+    }
+    void pack(byte[] out, int off, int[] vals, int bits) {
+        int acc = 0, nb = 0, o = off, mask = (1<<bits)-1;
+        for (int i = 0; i < N; i++) { acc |= (vals[i]&mask) << nb; nb += bits; while (nb >= 8) { out[o++] = (byte)acc; acc >>>= 8; nb -= 8; } }
+    }
+    int[] unpack(byte[] in, int off, int bits) {
+        int[] out = new int[N]; int acc = 0, nb = 0, o = off, mask = (1<<bits)-1;
+        for (int i = 0; i < N; i++) { while (nb < bits) { acc |= (in[o++]&0xFF) << nb; nb += 8; } out[i] = acc & mask; acc >>>= bits; nb -= bits; }
+        return out;
+    }
+}
+
+// Ed25519 (RFC 8032) do zero via BigInteger: pública a partir da seed, Sign e Verify.
+class Ed {
+    final java.math.BigInteger P, D, SQRT_M1, ORDER;
+    final java.math.BigInteger[] BASE;
+
+    Ed() {
+        P = java.math.BigInteger.TWO.pow(255).subtract(java.math.BigInteger.valueOf(19));
+        D = modInv(java.math.BigInteger.valueOf(121666)).multiply(java.math.BigInteger.valueOf(-121665).mod(P)).mod(P);
+        SQRT_M1 = java.math.BigInteger.TWO.modPow(P.subtract(java.math.BigInteger.ONE).divide(java.math.BigInteger.valueOf(4)), P);
+        java.math.BigInteger gy = modInv(java.math.BigInteger.valueOf(5)).multiply(java.math.BigInteger.valueOf(4)).mod(P);
+        BASE = new java.math.BigInteger[]{ recoverX(gy, 0), gy };
+        ORDER = java.math.BigInteger.TWO.pow(252).add(new java.math.BigInteger("27742317777372353535851937790883648493"));
+    }
+
+    byte[] cat(byte[] x, byte[] y) { byte[] r = new byte[x.length + y.length]; System.arraycopy(x,0,r,0,x.length); System.arraycopy(y,0,r,x.length,y.length); return r; }
+
+    byte[] publicFromSeed(byte[] seed) throws java.lang.Exception {
+        byte[] h = sha512(seed); h[0] &= 248; h[31] &= 127; h[31] |= 64;
+        return encodePoint(scalarMul(BASE, fromLE(h, 0, 32)));
+    }
+    byte[] sign(byte[] seed, byte[] msg) throws java.lang.Exception {
+        byte[] h = sha512(seed);
+        byte[] a = java.util.Arrays.copyOfRange(h, 0, 32); a[0] &= 248; a[31] &= 127; a[31] |= 64;
+        java.math.BigInteger s = fromLE(a, 0, 32);
+        byte[] prefix = java.util.Arrays.copyOfRange(h, 32, 64);
+        byte[] A = encodePoint(scalarMul(BASE, s));
+        java.math.BigInteger r = fromLE(sha512(cat(prefix, msg)), 0, 64).mod(ORDER);
+        byte[] R = encodePoint(scalarMulId(BASE, r));
+        java.math.BigInteger k = fromLE(sha512(cat(cat(R, A), msg)), 0, 64).mod(ORDER);
+        java.math.BigInteger S = r.add(k.multiply(s)).mod(ORDER);
+        byte[] out = new byte[64]; System.arraycopy(R, 0, out, 0, 32); System.arraycopy(toLE32(S), 0, out, 32, 32);
+        return out;
+    }
+    boolean verify(byte[] pk, byte[] msg, byte[] sig) throws java.lang.Exception {
+        if (pk.length != 32 || sig.length != 64) return false;
+        java.math.BigInteger[] A = decodePoint(pk); if (A == null) return false;
+        java.math.BigInteger[] R = decodePoint(java.util.Arrays.copyOfRange(sig, 0, 32)); if (R == null) return false;
+        java.math.BigInteger S = fromLE(sig, 32, 32); if (S.compareTo(ORDER) >= 0) return false;
+        byte[] rab = new byte[32 + 32 + msg.length];
+        System.arraycopy(sig, 0, rab, 0, 32); System.arraycopy(pk, 0, rab, 32, 32); System.arraycopy(msg, 0, rab, 64, msg.length);
+        java.math.BigInteger k = fromLE(sha512(rab), 0, 64).mod(ORDER);
+        java.math.BigInteger[] lhs = scalarMulId(BASE, S);
+        java.math.BigInteger[] rhs = pointAdd(R, scalarMulId(A, k));
+        return java.util.Arrays.equals(encodePoint(lhs), encodePoint(rhs));
+    }
+    java.math.BigInteger[] decodePoint(byte[] e) {
+        byte[] le = e.clone(); int sign = (le[31] >> 7) & 1; le[31] &= 0x7f;
+        java.math.BigInteger y = fromLE(le, 0, 32); if (y.compareTo(P) >= 0) return null;
+        return new java.math.BigInteger[]{ recoverX(y, sign), y };
+    }
+    java.math.BigInteger modInv(java.math.BigInteger x) { return x.modPow(P.subtract(java.math.BigInteger.TWO), P); }
+    java.math.BigInteger recoverX(java.math.BigInteger y, int xSign) {
+        java.math.BigInteger y2 = y.multiply(y).mod(P);
+        java.math.BigInteger u = y2.subtract(java.math.BigInteger.ONE).mod(P);
+        java.math.BigInteger v = D.multiply(y2).add(java.math.BigInteger.ONE).mod(P);
+        java.math.BigInteger x2 = u.multiply(modInv(v)).mod(P);
+        if (x2.equals(java.math.BigInteger.ZERO)) return java.math.BigInteger.ZERO;
+        java.math.BigInteger exp = P.add(java.math.BigInteger.valueOf(3)).divide(java.math.BigInteger.valueOf(8));
+        java.math.BigInteger x = x2.modPow(exp, P);
+        if (!x.multiply(x).mod(P).equals(x2)) x = x.multiply(SQRT_M1).mod(P);
+        if (x.testBit(0) != (xSign == 1)) x = P.subtract(x);
+        return x;
+    }
+    java.math.BigInteger[] pointAdd(java.math.BigInteger[] A, java.math.BigInteger[] B) {
+        java.math.BigInteger x1 = A[0], y1 = A[1], x2 = B[0], y2 = B[1];
+        java.math.BigInteger dxy = D.multiply(x1).multiply(x2).multiply(y1).multiply(y2).mod(P);
+        java.math.BigInteger x3 = x1.multiply(y2).add(y1.multiply(x2)).multiply(modInv(java.math.BigInteger.ONE.add(dxy))).mod(P);
+        java.math.BigInteger y3 = y1.multiply(y2).add(x1.multiply(x2)).multiply(modInv(java.math.BigInteger.ONE.subtract(dxy).mod(P))).mod(P);
+        return new java.math.BigInteger[]{ x3, y3 };
+    }
+    java.math.BigInteger[] scalarMul(java.math.BigInteger[] point, java.math.BigInteger scalar) {
+        java.math.BigInteger[] result = null, cur = point;
+        while (scalar.signum() > 0) {
+            if (scalar.testBit(0)) result = (result == null) ? cur : pointAdd(result, cur);
+            cur = pointAdd(cur, cur); scalar = scalar.shiftRight(1);
+        }
+        return result;
+    }
+    java.math.BigInteger[] scalarMulId(java.math.BigInteger[] point, java.math.BigInteger scalar) {
+        java.math.BigInteger[] r = scalarMul(point, scalar);
+        return (r == null) ? new java.math.BigInteger[]{ java.math.BigInteger.ZERO, java.math.BigInteger.ONE } : r;
+    }
+    byte[] encodePoint(java.math.BigInteger[] pt) { byte[] out = toLE32(pt[1]); if (pt[0].testBit(0)) out[31] |= (byte)0x80; return out; }
+    byte[] sha512(byte[] d) throws java.lang.Exception { return java.security.MessageDigest.getInstance("SHA-512").digest(d); }
+    java.math.BigInteger fromLE(byte[] b, int off, int len) {
+        byte[] le = java.util.Arrays.copyOfRange(b, off, off + len);
+        for (int i = 0, j = le.length - 1; i < j; i++, j--) { byte t = le[i]; le[i] = le[j]; le[j] = t; }
+        return new java.math.BigInteger(1, le);
+    }
+    byte[] toLE32(java.math.BigInteger n) {
+        byte[] be = n.toByteArray(); int off = (be.length > 32 && be[0] == 0) ? 1 : 0; int len = be.length - off;
+        byte[] out = new byte[32]; for (int i = 0; i < len && i < 32; i++) out[i] = be[off + len - 1 - i]; return out;
+    }
+}
+
+// Facade: geração/assinatura/verificação/parse de chaves SSH (ed25519 e mldsa44-ed25519).
+class SshKeys {
+    final int ITERATIONS = 400_000;
+    final java.security.SecureRandom RNG = new java.security.SecureRandom();
+    final Ed ed = new Ed();
+    final MlDsa mldsa = new MlDsa();
+    final String MLDSA_TYPE = "ssh-mldsa44-ed25519@openssh.com";
+    final String ED_TYPE    = "ssh-ed25519";
+    final byte[] COMPOSITE_PREFIX = "CompositeAlgorithmSignatures2025".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    final byte[] COMPOSITE_LABEL  = "COMPSIG-MLDSA44-Ed25519-SHA512".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+    boolean isPqType(String t) { return t.equals("mldsa44-ed25519") || t.equals(MLDSA_TYPE); }
+    boolean isEdType(String t) { return t.equals("ed25519") || t.equals(ED_TYPE); }
+
+    // { privadaPEM(openssh-key-v1), publicaLine(authorized_keys) }
+    // Comentario = nome (comportamento padrao; usado pelos testes internos).
+    String[] generate(String tipo, String passphrase, String nome) throws java.lang.Exception {
+        return generate(tipo, passphrase, nome, nome);
+    }
+    // 'nome' define o nome de arquivo e o salt do PBKDF2 (determinismo); 'comment' e so o rotulo da
+    // .pub/privada e NAO afeta a chave (igual ao ssh-keygen -C).
+    String[] generate(String tipo, String passphrase, String nome, String comment) throws java.lang.Exception {
+        if (nome == null) nome = "";
+        if (comment == null) comment = nome;
+        boolean pq = isPqType(tipo), ec = isEdType(tipo);
+        if (!pq && !ec) throw new java.lang.IllegalArgumentException("tipo desconhecido: " + tipo);
+        String saltBase = nome.isEmpty() ? "sshmini" : nome;   // evita salt vazio no PBKDF2
+        String priv, pub;
+        if (pq) {
+            byte[] mldsaSeed, edSeed;
+            if (passphrase == null) { mldsaSeed = rand(32); edSeed = rand(32); }
+            else { mldsaSeed = pbkdf2(passphrase, saltBase + " mldsa44", 32); edSeed = pbkdf2(passphrase, saltBase + " ed25519", 32); }
+            byte[] mldsaPk = mldsa.keyGenPk(mldsaSeed);
+            byte[] edPk    = ed.publicFromSeed(edSeed);
+            priv = compositePrivatePem(mldsaPk, edPk, mldsaSeed, edSeed, comment);
+            pub  = compositePublicLine(mldsaPk, edPk, comment);
+        } else {
+            byte[] seed = (passphrase == null) ? rand(32) : pbkdf2(passphrase, saltBase, 32);
+            byte[] edPk = ed.publicFromSeed(seed);
+            priv = ed25519PrivatePem(seed, edPk, comment);
+            pub  = ed25519PublicLine(edPk, comment);
+        }
+        return new String[]{ priv, pub };
+    }
+
+    // assina 'message' produzindo a assinatura no formato SSH (string tipo ‖ string sig)
+    byte[] signSSH(String type, byte[][] seeds, byte[] message) throws java.lang.Exception {
+        if (isEdType(type)) return blob(ED_TYPE, ed.sign(seeds[0], message));
+        if (isPqType(type)) {
+            byte[] mp = constructMPrime(message);
+            byte[] ms = mldsa.sign(seeds[0], mp, COMPOSITE_LABEL);
+            byte[] es = ed.sign(seeds[1], mp);
+            return blob(MLDSA_TYPE, cat(ms, es));
+        }
+        throw new java.lang.IllegalArgumentException("tipo desconhecido: " + type);
+    }
+
+    boolean verifySSH(String publicaLine, byte[] mensagem, byte[] assinaturaSSH) throws java.lang.Exception {
+        String[] parts = publicaLine.trim().split("\\s+");
+        if (parts.length < 2) return false;
+        return verifyBlob(java.util.Base64.getDecoder().decode(parts[1]), mensagem, assinaturaSSH);
+    }
+    boolean verifyBlob(byte[] pubBlob, byte[] mensagem, byte[] assinaturaSSH) throws java.lang.Exception {
+        Reader pr = new Reader(pubBlob); String ptype = pr.str();
+        Reader sr = new Reader(assinaturaSSH); String stype = sr.str(); byte[] sigRaw = sr.bytes();
+        if (!ptype.equals(stype)) return false;
+        if (ptype.equals(MLDSA_TYPE)) {
+            byte[] comp = pr.bytes();
+            if (comp.length != 1344 || sigRaw.length != 2484) return false;
+            byte[] mldsaPk  = java.util.Arrays.copyOfRange(comp, 0, 1312);
+            byte[] edPk     = java.util.Arrays.copyOfRange(comp, 1312, 1344);
+            byte[] mldsaSig = java.util.Arrays.copyOfRange(sigRaw, 0, 2420);
+            byte[] edSig    = java.util.Arrays.copyOfRange(sigRaw, 2420, 2484);
+            byte[] mp = constructMPrime(mensagem);
+            return mldsa.verify(mldsaPk, mp, COMPOSITE_LABEL, mldsaSig) && ed.verify(edPk, mp, edSig);
+        } else if (ptype.equals(ED_TYPE)) {
+            byte[] edPk = pr.bytes();
+            if (edPk.length != 32 || sigRaw.length != 64) return false;
+            return ed.verify(edPk, mensagem, sigRaw);
+        }
+        return false;
+    }
+
+    // Privado openssh-key-v1 -> { tipo, seeds, pubBlob, comentario }
+    Priv parsePriv(String pem) throws java.lang.Exception {
+        StringBuilder b64 = new StringBuilder();
+        for (String ln : pem.split("\\R")) { if (ln.startsWith("-----") || ln.isBlank()) continue; b64.append(ln.trim()); }
+        byte[] outer = java.util.Base64.getDecoder().decode(b64.toString());
+        Reader r = new Reader(outer);
+        r.skip(15);          // "openssh-key-v1\0"
+        r.str(); r.str();    // cipher, kdf ("none")
+        r.bytes();           // kdfoptions
+        r.u32();             // numkeys
+        byte[] pubBlob = r.bytes();
+        byte[] privSection = r.bytes();
+        Reader pr = new Reader(privSection);
+        pr.u32(); pr.u32();  // check1, check2
+        String type = pr.str();
+        Priv out = new Priv(); out.type = type; out.pubBlob = pubBlob;
+        if (type.equals(ED_TYPE)) {
+            pr.bytes();                       // pub
+            byte[] priv64 = pr.bytes();       // seed(32)‖pub(32)
+            out.comment = pr.str();
+            out.seeds = new byte[][]{ java.util.Arrays.copyOfRange(priv64, 0, 32) };
+        } else if (type.equals(MLDSA_TYPE)) {
+            pr.bytes();                       // compPub
+            byte[] compPriv = pr.bytes();     // mldsaSeed(32)‖edSeed(32)
+            out.comment = pr.str();
+            out.seeds = new byte[][]{ java.util.Arrays.copyOfRange(compPriv, 0, 32), java.util.Arrays.copyOfRange(compPriv, 32, 64) };
+        } else throw new java.lang.Exception("tipo de chave privada desconhecido: " + type);
+        return out;
+    }
+    // linha authorized_keys -> pubBlob (string tipo ‖ string chave)
+    byte[] parsePub(String publicaLine) { String[] p = publicaLine.trim().split("\\s+"); return java.util.Base64.getDecoder().decode(p[1]); }
+    // Le varios arquivos de pubs (cada um pode ter varias linhas, estilo known_hosts/authorized_keys)
+    // e devolve todos os blobs (string tipo ‖ string chave). Pula vazias, comentarios e linhas invalidas.
+    java.util.List<byte[]> parsePubFiles(java.util.List<String> arquivos) throws java.lang.Exception {
+        java.util.List<byte[]> out = new java.util.ArrayList<byte[]>();
+        for (String f : arquivos)
+            for (String ln : java.nio.file.Files.readAllLines(java.nio.file.Path.of(f))) {
+                ln = ln.trim(); if (ln.isEmpty() || ln.startsWith("#")) continue;
+                String[] p = ln.split("\\s+"); if (p.length < 2) continue;
+                try { out.add(java.util.Base64.getDecoder().decode(p[1])); } catch (Exception e) {}
+            }
+        return out;
+    }
+    String typeOfBlob(byte[] pubBlob) { return new Reader(pubBlob).str(); }
+    String pubLineFromBlob(byte[] pubBlob, String comment) {
+        String type = typeOfBlob(pubBlob);
+        return type + " " + java.util.Base64.getEncoder().encodeToString(pubBlob) + (comment == null || comment.isEmpty() ? "" : " " + comment);
+    }
+
+    static class Priv { String type; byte[][] seeds; byte[] pubBlob; String comment; }
+
+    // ---- apoio ----
+    byte[] constructMPrime(byte[] msg) throws java.lang.Exception {
+        byte[] h = sha512(msg);
+        java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
+        b.write(COMPOSITE_PREFIX); b.write(COMPOSITE_LABEL); b.write(0); b.write(h);
+        return b.toByteArray();
+    }
+    byte[] sha512(byte[] d) throws java.lang.Exception { return java.security.MessageDigest.getInstance("SHA-512").digest(d); }
+    byte[] pbkdf2(String pass, String salt, int nbytes) throws java.lang.Exception {
+        javax.crypto.spec.PBEKeySpec spec = new javax.crypto.spec.PBEKeySpec(
+                pass.toCharArray(), salt.getBytes(java.nio.charset.StandardCharsets.UTF_8), ITERATIONS, nbytes * 8);
+        return javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512").generateSecret(spec).getEncoded();
+    }
+    byte[] rand(int n) { byte[] b = new byte[n]; RNG.nextBytes(b); return b; }
+    byte[] utf8(String s) { return s.getBytes(java.nio.charset.StandardCharsets.UTF_8); }
+    byte[] cat(byte[] a, byte[] b) { byte[] r = new byte[a.length + b.length]; System.arraycopy(a,0,r,0,a.length); System.arraycopy(b,0,r,a.length,b.length); return r; }
+    byte[] blob(String type, byte[] raw) throws java.lang.Exception {
+        java.io.ByteArrayOutputStream o = new java.io.ByteArrayOutputStream(); wstr(o, utf8(type)); wstr(o, raw); return o.toByteArray();
+    }
+    void wu32(java.io.ByteArrayOutputStream os, int v) { os.write((v>>>24)&0xFF); os.write((v>>>16)&0xFF); os.write((v>>>8)&0xFF); os.write(v&0xFF); }
+    void wstr(java.io.ByteArrayOutputStream os, byte[] d) throws java.io.IOException { wu32(os, d.length); os.write(d); }
+
+    String compositePublicLine(byte[] mldsaPk, byte[] edPk, String comment) throws java.io.IOException {
+        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+        wstr(buf, utf8(MLDSA_TYPE)); wstr(buf, cat(mldsaPk, edPk));
+        return MLDSA_TYPE + " " + java.util.Base64.getEncoder().encodeToString(buf.toByteArray()) + (comment.isEmpty() ? "" : " " + comment) + "\n";
+    }
+    String ed25519PublicLine(byte[] edPk, String comment) throws java.io.IOException {
+        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+        wstr(buf, utf8(ED_TYPE)); wstr(buf, edPk);
+        return ED_TYPE + " " + java.util.Base64.getEncoder().encodeToString(buf.toByteArray()) + (comment.isEmpty() ? "" : " " + comment) + "\n";
+    }
+    String compositePrivatePem(byte[] mldsaPk, byte[] edPk, byte[] mldsaSeed, byte[] edSeed, String comment) throws java.io.IOException {
+        byte[] compPub = cat(mldsaPk, edPk), compPriv = cat(mldsaSeed, edSeed);
+        java.io.ByteArrayOutputStream pubBlob = new java.io.ByteArrayOutputStream();
+        wstr(pubBlob, utf8(MLDSA_TYPE)); wstr(pubBlob, compPub);
+        java.io.ByteArrayOutputStream block = new java.io.ByteArrayOutputStream();
+        wu32(block, 0x12345678); wu32(block, 0x12345678);
+        wstr(block, utf8(MLDSA_TYPE)); wstr(block, compPub); wstr(block, compPriv); wstr(block, utf8(comment));
+        return wrapOpenssh(pubBlob.toByteArray(), block.toByteArray());
+    }
+    String ed25519PrivatePem(byte[] seed, byte[] edPk, String comment) throws java.io.IOException {
+        byte[] priv64 = cat(seed, edPk);
+        java.io.ByteArrayOutputStream pubBlob = new java.io.ByteArrayOutputStream();
+        wstr(pubBlob, utf8(ED_TYPE)); wstr(pubBlob, edPk);
+        java.io.ByteArrayOutputStream block = new java.io.ByteArrayOutputStream();
+        wu32(block, 0x12345678); wu32(block, 0x12345678);
+        wstr(block, utf8(ED_TYPE)); wstr(block, edPk); wstr(block, priv64); wstr(block, utf8(comment));
+        return wrapOpenssh(pubBlob.toByteArray(), block.toByteArray());
+    }
+    String wrapOpenssh(byte[] pubBlob, byte[] block) throws java.io.IOException {
+        int padLen = (8 - (block.length % 8)) % 8;
+        byte[] padded = java.util.Arrays.copyOf(block, block.length + padLen);
+        for (int i = 0; i < padLen; i++) padded[block.length + i] = (byte)(i + 1);
+        java.io.ByteArrayOutputStream outer = new java.io.ByteArrayOutputStream();
+        outer.write("openssh-key-v1\0".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        wstr(outer, utf8("none")); wstr(outer, utf8("none")); wstr(outer, new byte[0]);
+        wu32(outer, 1); wstr(outer, pubBlob); wstr(outer, padded);
+        String b64 = java.util.Base64.getMimeEncoder(70, new byte[]{'\n'}).encodeToString(outer.toByteArray());
+        return "-----BEGIN OPENSSH PRIVATE KEY-----\n" + b64 + "\n-----END OPENSSH PRIVATE KEY-----\n";
+    }
+
+    // leitor de campos SSH (uint32-len ‖ bytes)
+    static class Reader {
+        final byte[] b; int p;
+        Reader(byte[] b) { this.b = b; this.p = 0; }
+        void skip(int n) { p += n; }
+        int u32() { int v = ((b[p]&0xFF)<<24)|((b[p+1]&0xFF)<<16)|((b[p+2]&0xFF)<<8)|(b[p+3]&0xFF); p += 4; return v; }
+        byte[] bytes() { int n = u32(); byte[] r = java.util.Arrays.copyOfRange(b, p, p + n); p += n; return r; }
+        String str() { return new String(bytes(), java.nio.charset.StandardCharsets.UTF_8); }
     }
 }
