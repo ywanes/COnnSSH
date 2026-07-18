@@ -5,6 +5,10 @@
 //   java SSHMini.java admin,admin123@localhost -P 333    cliente para o alvo, porta 333
 //   java SSHMini.java -server admin,admin123@localhost           servidor (usuario/senha do arg)
 //   java SSHMini.java -server admin,admin123@localhost -P 333    servidor na porta 333
+//   java SSHMini.java -server admin,admin123@192.168.0.100 -P 333   servidor escutando SO nessa interface (o host do alvo agora VALE)
+//   java SSHMini.java -server admin,admin123@127.0.0.1 -bind 192.168.0.100 -P 333   escuta em VARIAS: loopback E a NIC
+//   (o host de usuario,senha@host define a 1a interface; -bind <ip> ADICIONA outras e pode REPETIR;
+//    @localhost = so loopback; @0.0.0.0 / @all (ou sem alvo) = TODAS as interfaces)
 //   java SSHMini.java -test                                      auto-teste: sobe servidor local na 3004 so p/ o teste
 //   java SSHMini.java -test admin,admin123@localhost             auto-teste
 //   java SSHMini.java -test -P 333                               auto-teste na porta 333
@@ -38,6 +42,7 @@ public class SSHMini {
         int port = -1;
         String statusFile = null;
         String passphrase = null, identityFile = null, hostKeyFile = null, authKeysFile = null, comentario = null;
+        java.util.List<String> bindAddrs = new java.util.ArrayList<String>();   // -bind (repetivel): interfaces extras p/ escutar
         java.util.List<String> pos = new java.util.ArrayList<String>();   // args posicionais (alvo, ou tipo/nome do -sshgen)
         java.util.List<String> hostPubFiles = new java.util.ArrayList<String>();   // -hostpub (pode repetir): host keys pinadas
         for (int i = 0; i < args.length; i++) {
@@ -63,6 +68,9 @@ public class SSHMini {
             } else if (a.equals("-authkeys")) { // servidor: authorized_keys aceitos no login por chave
                 if (i + 1 >= args.length) { erro("-authkeys exige o caminho do authorized_keys"); return; }
                 authKeysFile = args[++i];
+            } else if (a.equals("-bind")) {     // servidor: IP/host de bind ADICIONAL (repetivel); soma-se ao host do alvo
+                if (i + 1 >= args.length) { erro("-bind exige o IP/host de bind"); return; }
+                bindAddrs.add(args[++i]);
             } else if (a.equals("-hostpub")) {  // cliente: pino da host key (.pub) — pode repetir p/ aceitar varias
                 if (i + 1 >= args.length) { erro("-hostpub exige o caminho do .pub da host key"); return; }
                 hostPubFiles.add(args[++i]);
@@ -94,8 +102,13 @@ public class SSHMini {
         if (mode.equals("server")) {
             if (port <= 0) port = 22;                 // servidor de teste
             String user = "admin", pass = "admin123";
+            java.util.List<String> binds = new java.util.ArrayList<String>();
             String[] p = parseAccess(access);
-            if (p != null) { user = p[0]; pass = p[1]; }
+            if (p != null) {
+                user = p[0]; pass = p[1];
+                if (p[2] != null && !p[2].isEmpty()) binds.add(p[2]);   // o host de usuario,senha@host agora VALE como 1a interface
+            }
+            binds.addAll(bindAddrs);   // -bind adiciona outras interfaces (pode repetir)
             // Privilege drop AUTOMATICO (sem flag): se o servidor foi iniciado via sudo, o 'sudo' define
             // SUDO_USER com o seu usuario original -> a sessao do cliente cai NELE em vez de root. Assim
             // "sudo java ... -server -P 333" mantem a porta baixa (root) mas quem conecta entra como voce,
@@ -107,7 +120,7 @@ public class SSHMini {
             System.out.println("Sessao dos clientes cai no usuario: "
                 + (Session.shellUser == null ? "(mesmo do servidor)" : Session.shellUser));
             if (authKeysFile != null) System.out.println("Login por chave habilitado (authorized_keys: " + authKeysFile + ")");
-            new SSHServerMini(port, user, pass);
+            new SSHServerMini(port, user, pass, binds);
         } else if (mode.equals("test")) {
             if (access == null && port == -1) {
                 // "-test" sozinho -> auto-teste: sobe um servidor local SO durante o teste (porta 3004),
@@ -916,19 +929,62 @@ class SSHClientMini {
 
 class SSHServerMini {
     public SSHServerMini(int port, String username, String password) throws Exception {
-        java.net.ServerSocket serverSocket = new java.net.ServerSocket(port);
-        System.out.println("SSH Server listening on port " + port);
+        this(port, username, password, null);   // sem binds: escuta em todas as interfaces (comportamento legado)
+    }
+    // binds: IPs/hosts a escutar (vem do host do alvo e/ou dos -bind). Vazio/null ou curinga
+    // (0.0.0.0, ::, *, all, any) => TODAS as interfaces. Varios enderecos distintos => varios
+    // ServerSockets no MESMO port, um por interface, cada um com sua thread de accept.
+    public SSHServerMini(int port, String username, String password, java.util.List<String> binds) throws Exception {
+        java.util.LinkedHashSet<String> alvos = new java.util.LinkedHashSet<String>();   // dedup, ordem preservada
+        boolean curinga = (binds == null || binds.isEmpty());
+        if (binds != null)
+            for (String b : binds) {
+                if (b == null) continue;
+                String t = b.trim();
+                if (t.isEmpty() || t.equals("0.0.0.0") || t.equals("::") || t.equals("*")
+                        || t.equalsIgnoreCase("all") || t.equalsIgnoreCase("any")) { curinga = true; continue; }
+                alvos.add(t);
+            }
+        if (curinga && !alvos.isEmpty()) {
+            System.out.println("Aviso: curinga (todas as interfaces) pedido junto de IPs especificos; escutando em TODAS.");
+            alvos.clear();   // 0.0.0.0 ja cobre tudo; ligar tambem um IP especifico no mesmo port so daria conflito
+        }
+        if (alvos.isEmpty()) curinga = true;
+
+        java.util.List<java.net.ServerSocket> sockets = new java.util.ArrayList<java.net.ServerSocket>();
+        try {
+            if (curinga) {
+                sockets.add(new java.net.ServerSocket(port));                                   // 0.0.0.0
+            } else {
+                for (String a : alvos)
+                    sockets.add(new java.net.ServerSocket(port, 50, java.net.InetAddress.getByName(a)));
+            }
+        } catch (Exception e) {
+            for (java.net.ServerSocket s : sockets) try { s.close(); } catch (Exception ign) {}
+            throw e;   // se UM bind falhar, fecha os que ja abriram (nao deixa socket meio-aberto)
+        }
+        for (java.net.ServerSocket s : sockets)
+            System.out.println("SSH Server listening on " + s.getLocalSocketAddress());
         System.out.println("Credentials: " + username + " / " + password);
         System.out.println("Server ready for multiple connections...\n");
-        while (true) {
-            try {
-                java.net.Socket clientSocket = serverSocket.accept();
-                System.out.println("New connection from: " + clientSocket.getInetAddress());
-                Session session = new Session(clientSocket, username, password);
-                new Thread(session).start();
-            } catch (Exception e) {
-                System.err.println("Accept error: " + e.getMessage());
-            }
+
+        final String fu = username, fp = password;
+        // Uma thread de accept por socket; a ULTIMA roda na thread do construtor (mantem o "nunca retorna").
+        for (int i = 0; i < sockets.size(); i++) {
+            final java.net.ServerSocket s = sockets.get(i);
+            Runnable loop = () -> {
+                while (true) {
+                    try {
+                        java.net.Socket clientSocket = s.accept();
+                        System.out.println("New connection from: " + clientSocket.getInetAddress() + " (em " + s.getLocalSocketAddress() + ")");
+                        new Thread(new Session(clientSocket, fu, fp)).start();
+                    } catch (Exception e) {
+                        System.err.println("Accept error: " + e.getMessage());
+                    }
+                }
+            };
+            if (i < sockets.size() - 1) { Thread t = new Thread(loop); t.setDaemon(true); t.start(); }
+            else loop.run();
         }
     }
 
