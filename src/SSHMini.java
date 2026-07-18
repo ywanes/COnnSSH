@@ -5,10 +5,10 @@
 //   java SSHMini.java admin,admin123@localhost -P 333    cliente para o alvo, porta 333
 //   java SSHMini.java -server admin,admin123@localhost           servidor (usuario/senha do arg)
 //   java SSHMini.java -server admin,admin123@localhost -P 333    servidor na porta 333
-//   java SSHMini.java -server admin,admin123@192.168.0.100 -P 333   servidor escutando SO nessa interface (o host do alvo agora VALE)
-//   java SSHMini.java -server admin,admin123@127.0.0.1 -bind 192.168.0.100 -P 333   escuta em VARIAS: loopback E a NIC
-//   (o host de usuario,senha@host define a 1a interface; -bind <ip> ADICIONA outras e pode REPETIR;
-//    @localhost = so loopback; @0.0.0.0 / @all (ou sem alvo) = TODAS as interfaces)
+//   java SSHMini.java -server admin,admin123@localhost -bind 127.0.0.1 -P 333            escuta SO no loopback
+//   java SSHMini.java -server admin,admin123@localhost -bind 127.0.0.1 -bind 10.0.0.5 -P 333   varias interfaces (multi-bind)
+//   (o host de usuario,senha@host NAO afeta o bind; SEM -bind => escuta em TODAS as interfaces (0.0.0.0).
+//    -bind <ip> restringe/adiciona interfaces e pode REPETIR; @0.0.0.0 / @all tambem = todas)
 //   java SSHMini.java -test                                      auto-teste: sobe servidor local na 3004 so p/ o teste
 //   java SSHMini.java -test admin,admin123@localhost             auto-teste
 //   java SSHMini.java -test -P 333                               auto-teste na porta 333
@@ -104,11 +104,8 @@ public class SSHMini {
             String user = "admin", pass = "admin123";
             java.util.List<String> binds = new java.util.ArrayList<String>();
             String[] p = parseAccess(access);
-            if (p != null) {
-                user = p[0]; pass = p[1];
-                if (p[2] != null && !p[2].isEmpty()) binds.add(p[2]);   // o host de usuario,senha@host agora VALE como 1a interface
-            }
-            binds.addAll(bindAddrs);   // -bind adiciona outras interfaces (pode repetir)
+            if (p != null) { user = p[0]; pass = p[1]; }   // o host do alvo NAO afeta o bind (compat: -server ...@localhost escuta em TODAS)
+            binds.addAll(bindAddrs);   // bind controlado SO pelo -bind <ip> (repetivel); lista vazia => todas as interfaces
             // Privilege drop AUTOMATICO (sem flag): se o servidor foi iniciado via sudo, o 'sudo' define
             // SUDO_USER com o seu usuario original -> a sessao do cliente cai NELE em vez de root. Assim
             // "sudo java ... -server -P 333" mantem a porta baixa (root) mas quem conecta entra como voce,
