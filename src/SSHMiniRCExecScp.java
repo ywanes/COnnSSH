@@ -44,7 +44,7 @@
 //     GRAALVM
 //     1) javac SSHMini.java
 //     2) java -agentlib:native-image-agent=config-output-dir=nic -cp . SSHMini -test   (captura a config)
-//     3) native-image --no-fallback -H:ConfigurationFileDirectories=nic --initialize-at-run-time=Session -cp . SSHMini -o sshmini
+//     3) native-image --no-fallback -H:ConfigurationFileDirectories=nic --initialize-at-run-time=Session -J-Xmx2g -cp . SSHMini -o sshmini
 //
 public class SSHMini {
     public static void main(String[] args) throws Exception {
