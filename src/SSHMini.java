@@ -30,6 +30,17 @@
 //   ssh -p 333 user1@10.0.0.1
 //   ssh -i id_ed25519 -p 333 admin@10.0.0.1                      cliente OpenSSH nativo usando a chave gerada (ed25519)
 //
+//     --- copia de arquivo (SCP; protocolo rcp classico sobre um canal 'exec') ---
+//   java SSHMini.java -scp ./local.txt admin,admin123@10.0.0.1:/tmp/ -P 333       envia (local -> remoto)
+//   java SSHMini.java -scp admin,admin123@10.0.0.1:/tmp/x.txt ./x.txt -P 333      recebe (remoto -> local)
+//   java SSHMini.java -scp ./l.txt admin@10.0.0.1:/tmp/ -i id_ed25519 -P 333      idem, login por chave (pede nada)
+//   java SSHMini.java -scp -r ./dir admin,admin123@10.0.0.1:/tmp/ -P 333          envia a ARVORE inteira (recursivo)
+//   java SSHMini.java -scp -r admin,admin123@10.0.0.1:/tmp/dir ./local -P 333      recebe a ARVORE inteira (recursivo)
+//   (um lado e remoto = user[,senha]@host:/caminho; o outro e local. Sem senha embutida e sem -i, pergunta no console.
+//    O servidor SSHMini agora atende 'exec' — entao 'ssh host cmd' e o scp funcionam contra ele e contra sshd OpenSSH.
+//    -r copia diretorios (arvore inteira, nos dois sentidos). Sem -r e 1 arquivo. -p preserva timestamps
+//    (mtime/atime); flags curtas combinam estilo scp (-rp). Multiplas origens (f1 f2 host:/dir) nao suportado.)
+//
 //     GRAALVM
 //     1) javac SSHMini.java
 //     2) java -agentlib:native-image-agent=config-output-dir=nic -cp . SSHMini -test   (captura a config)
@@ -40,6 +51,8 @@ public class SSHMini {
         String mode = "client";
         String access = null;
         int port = -1;
+        boolean recurse = false;            // -scp -r: copia diretorios recursivamente (arvore inteira)
+        boolean preservar = false;          // -scp -p: preserva timestamps (mtime/atime) na copia
         String statusFile = null;
         String passphrase = null, identityFile = null, hostKeyFile = null, authKeysFile = null, comentario = null;
         java.util.List<String> bindAddrs = new java.util.ArrayList<String>();   // -bind (repetivel): interfaces extras p/ escutar
@@ -51,6 +64,8 @@ public class SSHMini {
                 mode = "server";
             } else if (a.equals("-test")) {
                 mode = "test";
+            } else if (a.equals("-scp")) {      // copia de arquivo (envia/recebe) via canal exec
+                mode = "scp";
             } else if (a.equals("-sshgen")) {   // gera par de chaves (ed25519 ou mldsa44-ed25519)
                 mode = "sshgen";
             } else if (a.equals("-pass")) {     // passphrase p/ geracao deterministica (-sshgen)
@@ -84,6 +99,10 @@ public class SSHMini {
             } else if (a.equals("-killlog")) {   // debug (servidor): loga o que o Ctrl+C ve/mata no cmd
                 if (i + 1 >= args.length) { erro("-killlog exige o caminho do arquivo"); return; }
                 Session.KILLLOG = args[++i];
+            } else if (a.equals("-r")) {        // -scp: copia recursiva de diretorio (arvore inteira)
+                recurse = true;
+            } else if (a.equals("-p")) {        // -scp: preserva timestamps (mtime/atime), como scp -p
+                preservar = true;
             } else if (a.equals("-P")) {
                 if (i + 1 >= args.length) { erro("-P exige um numero de porta"); return; }
                 try {
@@ -91,6 +110,9 @@ public class SSHMini {
                 } catch (Exception e) {
                     erro("porta invalida: " + args[i]); return;
                 }
+            } else if (a.matches("-[rp]+")) {   // -scp: flags curtas combinadas, estilo scp (-rp, -pr)
+                if (a.indexOf('r') >= 0) recurse = true;
+                if (a.indexOf('p') >= 0) preservar = true;
             } else if (!a.startsWith("-")) {
                 pos.add(a);
             } else {
@@ -153,6 +175,44 @@ public class SSHMini {
             if (alvo == null) return;
             String _jar = "java \"" + caminhoFonte(args) + "\" " + alvo + " -P " + port;   // caminho real do fonte: roda de qualquer dir
             TesteSSH.run(_jar);
+        } else if (mode.equals("scp")) {
+            // Copia de UM arquivo. Um lado e remoto (user[,senha]@host:/caminho) e o outro local.
+            //   -scp <local> user,senha@host:/dir        envia   (local -> remoto)
+            //   -scp user,senha@host:/arq <local>        recebe  (remoto -> local)
+            // Aceita -i (chave), -P (porta) e -hostpub (pino da host key), como o cliente normal.
+            if (pos.size() < 2) { erro("-scp exige origem e destino (um deles remoto: user[,senha]@host:/caminho)"); return; }
+            if (port <= 0) port = 22;
+            SSHClientMini.HOSTPUB = hostPubFiles;
+            String a1 = pos.get(0), a2 = pos.get(1);
+            boolean upload;
+            String remoteSpec, localPath;
+            if (ehRemoto(a2) && !ehRemoto(a1)) { upload = true;  localPath = a1; remoteSpec = a2; }
+            else if (ehRemoto(a1) && !ehRemoto(a2)) { upload = false; localPath = a2; remoteSpec = a1; }
+            else { erro("exatamente um lado deve ser remoto: user[,senha]@host:/caminho"); return; }
+            int at = remoteSpec.lastIndexOf('@');
+            int colon = remoteSpec.indexOf(':', at);
+            String userpass = remoteSpec.substring(0, at);
+            String rhost = remoteSpec.substring(at + 1, colon);
+            String remotePath = remoteSpec.substring(colon + 1);
+            if (remotePath.isEmpty()) remotePath = ".";
+            int vc = userpass.indexOf(',');
+            String ruser = (vc >= 0) ? userpass.substring(0, vc) : userpass;
+            String rpass = (vc >= 0) ? userpass.substring(vc + 1) : null;
+            if (identityFile == null && rpass == null) {   // sem senha embutida e sem chave: pede no console
+                java.io.Console con = System.console();
+                if (con == null) { erro("alvo sem senha e sem console para digita-la"); return; }
+                char[] pc = con.readPassword(ruser + "@" + rhost + "'s password: ");
+                rpass = (pc != null) ? new String(pc) : "";
+            }
+            if (upload && !recurse && new java.io.File(localPath).isDirectory()) {
+                erro("origem e um diretorio: use -r para copiar recursivamente"); return;
+            }
+            try {
+                new SSHClientMini(rhost, ruser, port, rpass, identityFile, true, upload, localPath, remotePath, recurse, preservar);
+            } catch (Exception e) {
+                System.err.println(e.toString().contains("UserAuth Fail") ? "UserAuth Fail!!" : e.toString());
+            }
+            System.exit(0);
         } else if (mode.equals("sshgen")) {
             // Gera par de chaves em caminho DINAMICO (nome/dir informado; nada hardcoded).
             //   -sshgen <tipo> <nome>   grava <nome> e <nome>.pub
@@ -252,6 +312,13 @@ public class SSHMini {
         return user + "," + pass + "@" + host;
     }
 
+    // Token do -scp e REMOTO? (formato user[,senha]@host:/caminho). Exige '@' e um ':' depois dele —
+    // assim um caminho local do Windows como C:\dir (tem ':' mas nao '@') continua sendo local.
+    static boolean ehRemoto(String s) {
+        int at = s.indexOf('@');
+        return at >= 0 && s.indexOf(':', at) > at;
+    }
+
     // "usuario,senha@host" -> {usuario, senha, host}; null se invalido/nulo
     static String[] parseAccess(String access) {
         if (access == null) return null;
@@ -298,8 +365,10 @@ class SSHClientMini {
               SSH_MSG_SERVICE_REQUEST = 5, SSH_MSG_KEXINIT = 20, SSH_MSG_NEWKEYS = 21, SSH_MSG_KEXDH_INIT = 30,
               SSH_MSG_USERAUTH_REQUEST = 50, SSH_MSG_USERAUTH_FAILURE = 51, SSH_MSG_USERAUTH_BANNER = 53,
               SSH_MSG_USERAUTH_PASSWD_CHANGEREQ = 60, SSH_MSG_GLOBAL_REQUEST = 80, SSH_MSG_REQUEST_FAILURE = 82,
-              SSH_MSG_CHANNEL_OPEN = 90, SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91, SSH_MSG_CHANNEL_WINDOW_ADJUST = 93,
-              SSH_MSG_CHANNEL_DATA = 94, SSH_MSG_CHANNEL_EOF = 96, SSH_MSG_CHANNEL_REQUEST = 98;
+              SSH_MSG_CHANNEL_OPEN = 90, SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91, SSH_MSG_CHANNEL_OPEN_FAILURE = 92,
+              SSH_MSG_CHANNEL_WINDOW_ADJUST = 93, SSH_MSG_CHANNEL_DATA = 94, SSH_MSG_CHANNEL_EXTENDED_DATA = 95,
+              SSH_MSG_CHANNEL_EOF = 96, SSH_MSG_CHANNEL_CLOSE = 97, SSH_MSG_CHANNEL_REQUEST = 98,
+              SSH_MSG_CHANNEL_SUCCESS = 99, SSH_MSG_CHANNEL_FAILURE = 100;
     // Limite defensivo: um packet_length corrompido/malicioso nao deve tentar alocar GBs.
     private static final int MAX_PACKET = 1 << 20;
     private byte[] V_C, V_S, I_C, I_S;
@@ -338,6 +407,15 @@ class SSHClientMini {
     static java.util.List<String> HOSTPUB = new java.util.ArrayList<String>();
     private ECDH kex = null;
     private java.security.SecureRandom random = null;
+    // --- estado do modo SCP (protocolo rcp classico sobre um canal 'exec') ---
+    // remoteChan: id de canal do PEER (do OPEN_CONFIRMATION) — destinatario dos nossos pacotes.
+    // remoteMaxPacket: teto de payload por CHANNEL_DATA que o peer aceita (fatiamos por ele).
+    private int remoteChan = 0, remoteMaxPacket = 0;
+    // Buffer de bytes ja recebidos do canal e ainda nao consumidos pelo protocolo scp (scpPos = cursor).
+    private byte[] scpBuf = new byte[0];
+    private int scpPos = 0;
+    private boolean scpRecurse = false;   // -scp -r: copia arvore de diretorio (mensagens D/E)
+    private boolean scpPreserva = false;  // -scp -p: preserva timestamps (mensagem T antes de C/D)
 
     public static void main(String[] args) throws Exception {
         if (args.length != 4) {
@@ -409,6 +487,34 @@ class SSHClientMini {
         try { Thread.sleep(10000); } catch (Exception e) {}    // fica vivo p/ o sinal chegar e ser tratado
         sctMark("EXIT");
         System.exit(0);
+    }
+
+    // Modo SCP: copia UM arquivo por um canal 'exec' falando o protocolo rcp classico. Reusa
+    // connect_stream (kex+auth), read()/write() e Buf, mas NAO sobe a reading_stream interativa —
+    // o protocolo scp e sincrono e roda neste mesmo thread. upload=true: local->remoto (exec
+    // 'scp -t'); false: remoto->local (exec 'scp -f'). identityFile != null => login por chave.
+    // O boolean 'scp' desambigua este construtor dos demais.
+    public SSHClientMini(String host, String username, int port, String password, String identityFile,
+                         boolean scp, boolean upload, String localPath, String remotePath) throws Exception {
+        this(host, username, port, password, identityFile, scp, upload, localPath, remotePath, false);
+    }
+    // recurse=true: copia recursiva de diretorio (upload 'scp -rt' / download 'scp -rf', com D/E na arvore).
+    public SSHClientMini(String host, String username, int port, String password, String identityFile,
+                         boolean scp, boolean upload, String localPath, String remotePath, boolean recurse) throws Exception {
+        this(host, username, port, password, identityFile, scp, upload, localPath, remotePath, recurse, false);
+    }
+    // preservar=true: preserva timestamps (envia/aplica a mensagem T do protocolo rcp, como 'scp -p').
+    public SSHClientMini(String host, String username, int port, String password, String identityFile,
+                         boolean scp, boolean upload, String localPath, String remotePath, boolean recurse, boolean preservar) throws Exception {
+        this.identityFile = identityFile;
+        this.scpRecurse = recurse;
+        this.scpPreserva = preservar;
+        marcaClienteVivo();
+        V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
+        kex = new ECDH();
+        connect_stream(host, username, port, password);
+        if (upload) scpUpload(localPath, remotePath);
+        else        scpDownload(remotePath, localPath);
     }
 
     // Acrescenta uma linha ao statusFile do auto-teste (linhas curtas em append; o -test faz polling).
@@ -851,6 +957,345 @@ class SSHClientMini {
             });
         } catch (Throwable t) { /* VM/plataforma sem esse sinal (ex.: BREAK no linux): ignora */ }
     }
+
+    // ===== Cliente EXEC SINCRONO (in-process) =====
+    // Conecta + autentica (senha ou -i, e verifica a host key se HOSTPUB estiver setado), roda UM
+    // comando via canal 'exec', junta o stdout ate o EOF, fecha e RETORNA a saida. NAO sobe a
+    // reading_stream/writing_stdin, NAO usa System.in/out e NAO chama System.exit (ao contrario da
+    // sessao interativa) — logo pode rodar dentro do proprio JVM (automacao/teste). 'execMode' desambigua.
+    public SSHClientMini(String host, String username, int port, String password, String identityFile, boolean execMode) throws Exception {
+        this.identityFile = identityFile;
+        V_C = "SSH-2.0-CUSTOM".getBytes("UTF-8");
+        kex = new ECDH();
+        connect_stream(host, username, port, password);   // kex + auth (+ verifica host key se HOSTPUB)
+    }
+    // Roda 'comando' pelo canal exec e devolve o stdout (stderr e descartado). Bloqueia ate o canal fechar.
+    public String exec(String comando) throws Exception {
+        int remoteChan = 0;
+        Buf buf = new Buf();
+        buf.reset_command(SSH_MSG_CHANNEL_OPEN);
+        buf.putString("session");
+        buf.putInt(0); buf.putInt(0x100000); buf.putInt(0x4000);
+        write(buf);
+        while (true) {
+            Buf r = read(); int t = r.getCommand();
+            if (t == SSH_MSG_CHANNEL_OPEN_CONFIRMATION) { r.add_i_get(6); r.getInt(); remoteChan = r.getInt(); break; }
+            if (t == SSH_MSG_CHANNEL_OPEN_FAILURE) throw new Exception("canal recusado pelo servidor");
+        }
+        Buf req = new Buf();
+        req.reset_command(SSH_MSG_CHANNEL_REQUEST);
+        req.putInt(remoteChan); req.putString("exec"); req.putByte((byte) 1); req.putString(comando);
+        write(req);
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        while (true) {
+            Buf r;
+            try { r = read(); } catch (Exception e) { break; }   // socket fechou = fim
+            int t = r.getCommand();
+            if (t == SSH_MSG_CHANNEL_DATA) { r.add_i_get(10); byte[] d = r.getValue(); out.write(d, 0, d.length); }
+            else if (t == SSH_MSG_CHANNEL_EXTENDED_DATA) { r.add_i_get(10); r.getInt(); r.getValue(); }   // stderr: descarta
+            else if (t == SSH_MSG_CHANNEL_EOF || t == SSH_MSG_CHANNEL_CLOSE) break;
+            // SUCCESS/FAILURE (resposta do exec) e CHANNEL_REQUEST (exit-status): ignora e segue
+        }
+        try {
+            Buf e = new Buf(); e.reset_command(SSH_MSG_CHANNEL_EOF);   e.putInt(remoteChan); write(e);
+            Buf c = new Buf(); c.reset_command(SSH_MSG_CHANNEL_CLOSE); c.putInt(remoteChan); write(c);
+        } catch (Exception ex) {}
+        return out.toString("UTF-8");
+    }
+
+    // ======================= SCP (protocolo rcp classico sobre canal 'exec') =======================
+    // Abre um canal 'session' e pede exec do comando dado ('scp -t'/'scp -f'). Guarda o id de canal
+    // do peer (remoteChan) e o max packet dele. Anuncia janela GIGANTE (0x7fffffff): assim recebemos
+    // arquivos grandes sem depender de CHANNEL_WINDOW_ADJUST (que o nosso read() ja ignora de qualquer
+    // forma). Espera a resposta do exec (SUCCESS) — CHANNEL_DATA que chegue antes fica no scpBuf.
+    private void scpChannelOpenExec(String comando) throws Exception {
+        Buf buf = new Buf();
+        buf.reset_command(SSH_MSG_CHANNEL_OPEN);
+        buf.putString("session");
+        buf.putInt(0);            // nosso id de canal
+        buf.putInt(0x7fffffff);   // janela de recepcao (grande de proposito)
+        buf.putInt(0x8000);       // nosso max packet
+        write(buf);
+        while (true) {
+            Buf r = read();
+            int t = r.getCommand();
+            if (t == SSH_MSG_CHANNEL_OPEN_CONFIRMATION) {
+                r.add_i_get(6);                 // pula len(4)+pad(1)+type(1)
+                r.getInt();                     // recipient (nosso canal)
+                remoteChan = r.getInt();        // sender (canal do peer) = destino dos nossos pacotes
+                r.getInt();                     // janela inicial do peer (ignorada; ver acima)
+                remoteMaxPacket = r.getInt();   // max packet do peer (usado p/ fatiar o envio)
+                break;
+            }
+            if (t == SSH_MSG_CHANNEL_OPEN_FAILURE)
+                throw new Exception("servidor recusou a abertura do canal");
+        }
+        Buf req = new Buf();
+        req.reset_command(SSH_MSG_CHANNEL_REQUEST);
+        req.putInt(remoteChan);
+        req.putString("exec");
+        req.putByte((byte) 1);      // want_reply
+        req.putString(comando);
+        write(req);
+        while (true) {              // aguarda SUCCESS; DATA precoce vai pro scpBuf
+            Buf r = read();
+            int t = r.getCommand();
+            if (t == SSH_MSG_CHANNEL_SUCCESS) return;
+            if (t == SSH_MSG_CHANNEL_FAILURE)
+                throw new Exception("exec recusado (o 'scp' existe no host remoto?)");
+            if (t == SSH_MSG_CHANNEL_DATA) { r.add_i_get(10); scpFeed(r.getValue()); return; }
+            if (t == SSH_MSG_CHANNEL_EOF || t == SSH_MSG_CHANNEL_CLOSE)
+                throw new Exception("canal encerrou antes de o exec responder");
+        }
+    }
+
+    // Fatia 'data' em CHANNEL_DATA respeitando o max packet do peer (com teto que cabe no Buf padrao).
+    private void scpWrite(byte[] data) throws Exception { scpWrite(data, 0, data.length); }
+    private void scpWrite(byte[] data, int off, int len) throws Exception {
+        int limite = (remoteMaxPacket > 0) ? Math.min(16384, remoteMaxPacket) : 16384;
+        int i = 0;
+        while (i < len) {
+            int n = Math.min(limite, len - i);
+            Buf b = new Buf();
+            b.reset_command(SSH_MSG_CHANNEL_DATA);
+            b.putInt(remoteChan);
+            b.putInt(n);
+            b.putBytes(java.util.Arrays.copyOfRange(data, off + i, off + i + n));
+            write(b);
+            i += n;
+        }
+    }
+
+    // Acrescenta bytes recebidos ao scpBuf, compactando o que ja foi consumido (scpPos).
+    private void scpFeed(byte[] d) {
+        int rem = scpBuf.length - scpPos;
+        byte[] nb = new byte[rem + d.length];
+        System.arraycopy(scpBuf, scpPos, nb, 0, rem);
+        System.arraycopy(d, 0, nb, rem, d.length);
+        scpBuf = nb; scpPos = 0;
+    }
+
+    // Proximo CHANNEL_DATA (>=1 byte) do canal. EXTENDED_DATA (stderr do comando) ecoa no nosso
+    // stderr; exit-status e guardado; EOF/CLOSE lancam EOFException (fim do fluxo). WINDOW_ADJUST
+    // ja e filtrado dentro do read().
+    private byte[] scpNextData() throws Exception {
+        while (true) {
+            Buf r = read();
+            int t = r.getCommand();
+            if (t == SSH_MSG_CHANNEL_DATA) {
+                r.add_i_get(10);
+                byte[] d = r.getValue();
+                if (d.length == 0) continue;
+                return d;
+            }
+            if (t == SSH_MSG_CHANNEL_EXTENDED_DATA) {
+                r.add_i_get(10);
+                r.getInt();                       // data_type_code
+                byte[] d = r.getValue();
+                System.err.write(d); System.err.flush();
+                continue;
+            }
+            if (t == SSH_MSG_CHANNEL_REQUEST) {   // provavelmente exit-status: consome e segue
+                r.add_i_get(6);
+                r.getValue(); r.getByte();
+                continue;
+            }
+            if (t == SSH_MSG_CHANNEL_EOF || t == SSH_MSG_CHANNEL_CLOSE)
+                throw new java.io.EOFException("canal encerrado");
+        }
+    }
+
+    private int scpReadByte() throws Exception {
+        while (scpPos >= scpBuf.length) scpFeed(scpNextData());
+        return scpBuf[scpPos++] & 0xff;
+    }
+    private void scpReadFully(byte[] dst, int off, int len) throws Exception {
+        int i = 0;
+        while (i < len) {
+            if (scpPos >= scpBuf.length) scpFeed(scpNextData());
+            int n = Math.min(len - i, scpBuf.length - scpPos);
+            System.arraycopy(scpBuf, scpPos, dst, off + i, n);
+            scpPos += n; i += n;
+        }
+    }
+
+    // Le a resposta do outro lado: 0 = OK; 1 = aviso (segue); 2 = erro fatal (lanca). O texto vai ate \n.
+    private void scpReadAck() throws Exception {
+        int b = scpReadByte();
+        if (b == 0) return;
+        if (b == 1 || b == 2) {
+            String m = scpReadLine();
+            if (b == 2) throw new Exception("scp remoto: " + m);
+            System.err.println("scp (aviso): " + m);
+            return;
+        }
+        throw new Exception("resposta scp inesperada: byte " + b);
+    }
+    private String scpReadLine() throws Exception {
+        StringBuilder s = new StringBuilder();
+        int c;
+        while ((c = scpReadByte()) != '\n') s.append((char) c);
+        return s.toString();
+    }
+
+    // Fecha o canal do nosso lado (EOF + CLOSE) ao terminar a transferencia.
+    private void scpEncerra() {
+        try {
+            Buf e = new Buf(); e.reset_command(SSH_MSG_CHANNEL_EOF);   e.putInt(remoteChan); write(e);
+            Buf c = new Buf(); c.reset_command(SSH_MSG_CHANNEL_CLOSE); c.putInt(remoteChan); write(c);
+        } catch (Exception ex) {}
+    }
+
+    // Aspas simples p/ /bin/sh: fecha ', escapa a ' com '\'' e reabre. Protege caminhos com espacos.
+    private static String shq(String s) {
+        return "'" + s.replace("'", "'\\''") + "'";
+    }
+
+    // UPLOAD (local -> remoto): somos o SOURCE; o remoto roda 'scp -t <dest>' (SINK) ou 'scp -rt' (-r).
+    // Arquivo: "C<modo> <tam> <nome>\n" -> \0 -> bytes -> \0 -> \0. Diretorio (-r): "D<modo> 0 <nome>\n"
+    // -> filhos (C/D recursivo) -> "E\n". O sink manda \0 antes de cada mensagem que aceita.
+    private void scpUpload(String local, String remote) throws Exception {
+        java.io.File f = new java.io.File(local);
+        if (!f.exists()) throw new Exception("origem local nao encontrada: " + local);
+        if (f.isDirectory() && !scpRecurse) throw new Exception("origem e um diretorio: use -r");
+        scpChannelOpenExec(scpCmd('t') + shq(remote));
+        scpReadAck();                                        // \0 inicial do sink
+        if (f.isDirectory()) { scpSendDir(f); scpEncerra(); System.out.println("enviada arvore: " + local + " -> " + remote); }
+        else                 { scpSendFile(f); scpEncerra(); System.out.println("enviado: " + local + " -> " + remote + " (" + f.length() + " bytes)"); }
+    }
+
+    // Monta o comando exec do scp: "scp -[p][r]<modo> " (modo 't' = sink/recebe, 'f' = source/envia).
+    private String scpCmd(char modo) {
+        return "scp -" + (scpPreserva ? "p" : "") + (scpRecurse ? "r" : "") + modo + " ";
+    }
+    // Com -p, envia "T<mtime> 0 <atime> 0\n" (segundos) antes do C/D e espera o ack.
+    private void scpEnviaT(java.io.File f) throws Exception {
+        java.nio.file.attribute.BasicFileAttributes at =
+            java.nio.file.Files.readAttributes(f.toPath(), java.nio.file.attribute.BasicFileAttributes.class);
+        long mtime = at.lastModifiedTime().to(java.util.concurrent.TimeUnit.SECONDS);
+        long atime = at.lastAccessTime().to(java.util.concurrent.TimeUnit.SECONDS);
+        scpWrite(("T" + mtime + " 0 " + atime + " 0\n").getBytes("UTF-8"));
+        scpReadAck();
+    }
+
+    // Envia UM arquivo comum (canal ja aberto e o \0 anterior ja consumido pelo chamador).
+    private void scpSendFile(java.io.File f) throws Exception {
+        if (scpPreserva) scpEnviaT(f);
+        long size = f.length();
+        scpWrite(("C0644 " + size + " " + f.getName() + "\n").getBytes("UTF-8"));
+        scpReadAck();
+        try (java.io.InputStream fin = new java.io.FileInputStream(f)) {
+            byte[] buffer = new byte[32768];
+            int n;
+            while ((n = fin.read(buffer)) > 0) scpWrite(buffer, 0, n);
+        }
+        scpWrite(new byte[] { 0 });                          // fim do conteudo
+        scpReadAck();
+    }
+
+    // Envia um diretorio recursivamente: [T] D<modo> 0 <nome> -> filhos (ordem estavel) -> E.
+    private void scpSendDir(java.io.File d) throws Exception {
+        if (scpPreserva) scpEnviaT(d);
+        scpWrite(("D0755 0 " + d.getName() + "\n").getBytes("UTF-8"));
+        scpReadAck();
+        java.io.File[] filhos = d.listFiles();
+        if (filhos != null) {
+            java.util.Arrays.sort(filhos, (a, b) -> a.getName().compareTo(b.getName()));
+            for (java.io.File c : filhos) {
+                if (c.isDirectory()) scpSendDir(c);
+                else if (c.isFile()) scpSendFile(c);
+            }
+        }
+        scpWrite("E\n".getBytes("UTF-8"));
+        scpReadAck();
+    }
+
+    // DOWNLOAD (remoto -> local): somos o SINK; o remoto roda 'scp -f <orig>' (SOURCE) ou 'scp -rf' (-r).
+    // Arquivo: mandamos \0 -> "C<modo> <tam> <nome>\n" -> \0 -> bytes -> le \0 do source -> \0. Diretorio
+    // (-r): "D<modo> 0 <nome>\n" empilha (mkdir) e "E\n" desempilha; os C caem no dir do topo da pilha.
+    private void scpDownload(String remote, String local) throws Exception {
+        scpChannelOpenExec(scpCmd('f') + shq(remote));
+        scpWrite(new byte[] { 0 });                          // pronto p/ receber
+        java.io.File base = new java.io.File(local);
+        java.util.ArrayDeque<java.io.File> pilha = new java.util.ArrayDeque<java.io.File>();   // dirs abertos (D...E)
+        java.util.ArrayDeque<long[]> tPilha = new java.util.ArrayDeque<long[]>();   // T de cada dir (aplicado no E)
+        final long[] SEM_T = new long[0];                    // sentinela: dir sem T (ArrayDeque nao aceita null)
+        long[] tPend = null;                                 // T recebido, aguardando o proximo C/D (-p)
+        boolean primeiroD = true;
+        while (true) {
+            int first;
+            try { first = scpReadByte(); }
+            catch (java.io.EOFException e) { break; }        // source terminou (canal fechou)
+            if (first == 1 || first == 2) {
+                String m = scpReadLine();
+                if (first == 2) throw new Exception("scp remoto: " + m);
+                System.err.println("scp (aviso): " + m);
+                continue;
+            }
+            if (first == 'T') {                              // "T<mtime> 0 <atime> 0": guarda p/ o proximo C/D
+                String[] p = scpReadLine().trim().split("\\s+");
+                try { tPend = new long[]{ Long.parseLong(p[0]), Long.parseLong(p[2]) }; } catch (Exception e) { tPend = null; }
+                scpWrite(new byte[] { 0 });
+                continue;
+            }
+            if (first == 'D') {                              // entra num diretorio: cria e empilha (com seu T)
+                String[] p = scpReadLine().trim().split("\\s+", 3);   // "<modo> 0 <nome>"
+                String nome = (p.length > 2) ? p[2] : "dir";
+                java.io.File dir;
+                if (primeiroD) { dir = base.isDirectory() ? new java.io.File(base, nome) : base; primeiroD = false; }
+                else           { dir = new java.io.File(pilha.peek(), nome); }
+                dir.mkdirs();
+                pilha.push(dir);
+                tPilha.push(tPend != null ? tPend : SEM_T); tPend = null;   // T do dir so vale ao sair (E); SEM_T se nao houver
+                scpWrite(new byte[] { 0 });
+                continue;
+            }
+            if (first == 'E') {                              // sai do diretorio: desempilha e aplica o T do dir
+                scpReadLine();
+                java.io.File dir = pilha.isEmpty() ? null : pilha.pop();
+                long[] td = tPilha.isEmpty() ? null : tPilha.pop();
+                if (dir != null && td != null && td.length == 2) aplicaT(dir, td);   // td==SEM_T (len 0) => sem T
+                scpWrite(new byte[] { 0 });
+                continue;
+            }
+            if (first == 'C') {
+                String[] p = scpReadLine().trim().split("\\s+", 3);   // "<modo> <tam> <nome>"
+                long size = Long.parseLong(p[1]);
+                String nome = (p.length > 2) ? p[2] : "arquivo";
+                java.io.File parent = pilha.isEmpty() ? base : pilha.peek();
+                java.io.File dst = parent.isDirectory() ? new java.io.File(parent, nome) : parent;
+                scpWrite(new byte[] { 0 });                  // ack do cabecalho -> libera os bytes
+                try (java.io.OutputStream fo = new java.io.FileOutputStream(dst)) {
+                    long restante = size;
+                    byte[] buffer = new byte[32768];
+                    while (restante > 0) {
+                        int quer = (int) Math.min(buffer.length, restante);
+                        scpReadFully(buffer, 0, quer);
+                        fo.write(buffer, 0, quer);
+                        restante -= quer;
+                    }
+                }
+                int status = scpReadByte();                  // \0 (ou 1/2 + msg) apos os bytes
+                if (status != 0) throw new Exception("scp: " + scpReadLine());
+                if (tPend != null) { aplicaT(dst, tPend); tPend = null; }   // -p: mtime/atime do arquivo
+                scpWrite(new byte[] { 0 });                  // ack final do arquivo
+                System.out.println("recebido: " + remote + " -> " + dst.getPath() + " (" + size + " bytes)");
+            }
+        }
+        scpEncerra();
+    }
+
+    // Aplica timestamps (segundos) num arquivo/dir; best-effort (nao falha a copia se o FS nao aceitar).
+    private void aplicaT(java.io.File f, long[] t) {
+        if (t == null) return;
+        try {
+            java.nio.file.attribute.FileTime m = java.nio.file.attribute.FileTime.from(t[0], java.util.concurrent.TimeUnit.SECONDS);
+            java.nio.file.attribute.FileTime a = java.nio.file.attribute.FileTime.from(t[1], java.util.concurrent.TimeUnit.SECONDS);
+            java.nio.file.Files.getFileAttributeView(f.toPath(), java.nio.file.attribute.BasicFileAttributeView.class).setTimes(m, a, null);
+        } catch (Exception e) { /* best-effort: preservacao de tempo e cosmetica */ }
+    }
+    // ============================================================================================
+
     private void writing_stdin() throws Exception {
         instalaCtrlC();   // Ctrl+C passa a interromper o comando REMOTO, sem matar o cliente
         Buf buf = new Buf(new byte[rmpsize]);
@@ -1007,8 +1452,8 @@ class Session implements Runnable {
             SSH_MSG_KEXDH_INIT = 30, SSH_MSG_KEXDH_REPLY = 31, SSH_MSG_USERAUTH_REQUEST = 50,
             SSH_MSG_USERAUTH_FAILURE = 51, SSH_MSG_USERAUTH_SUCCESS = 52, SSH_MSG_USERAUTH_PK_OK = 60,
             SSH_MSG_CHANNEL_OPEN = 90, SSH_MSG_CHANNEL_OPEN_CONFIRMATION = 91,
-            SSH_MSG_CHANNEL_DATA = 94, SSH_MSG_CHANNEL_EOF = 96, SSH_MSG_CHANNEL_CLOSE = 97,
-            SSH_MSG_CHANNEL_REQUEST = 98, SSH_MSG_CHANNEL_SUCCESS = 99;
+            SSH_MSG_CHANNEL_DATA = 94, SSH_MSG_CHANNEL_EXTENDED_DATA = 95, SSH_MSG_CHANNEL_EOF = 96, SSH_MSG_CHANNEL_CLOSE = 97,
+            SSH_MSG_CHANNEL_REQUEST = 98, SSH_MSG_CHANNEL_SUCCESS = 99, SSH_MSG_CHANNEL_FAILURE = 100;
 
     // Limite defensivo: um packet_length corrompido/malicioso nao deve tentar alocar GBs.
     private static final int MAX_PACKET = 1 << 20;
@@ -1318,6 +1763,22 @@ class Session implements Runnable {
                 if (req.equals("shell")) {
                     startShell();
                 }
+                if (req.equals("exec")) {
+                    // 'ssh host cmd' (e o scp) usam exec: roda UM comando nao-interativo. Se nem sobe
+                    // (ex.: binario ausente), responde CHANNEL_FAILURE em vez de SUCCESS.
+                    String cmd = new String(buf.getValue(), "UTF-8");
+                    try {
+                        startExec(cmd);
+                    } catch (Exception ex) {
+                        if (wantReply != 0) {
+                            Buf rep = new Buf();
+                            rep.reset_command(SSH_MSG_CHANNEL_FAILURE);
+                            rep.putInt(clientChannel);
+                            write(rep);
+                        }
+                        continue;
+                    }
+                }
 
                 if (wantReply != 0) {
                     buf = new Buf();
@@ -1330,7 +1791,12 @@ class Session implements Runnable {
                 buf.getInt(); buf.getByte(); buf.getByte();
                 buf.getInt();
                 byte[] data = buf.getValue();
-                if (shellInput != null) {
+                if (shellInput != null && execCru) {
+                    // Canal 'exec' (scp / 'ssh host cmd'): stdin CRU direto no processo — sem eco, sem
+                    // traducao CR/LF, sem line editing (o protocolo do scp e binario). O fim (CHANNEL_EOF)
+                    // fecha o shellInput no ramo la embaixo.
+                    try { shellInput.write(data); shellInput.flush(); } catch (Exception e) {}
+                } else if (shellInput != null) {
                     // Sessao interativa (ssh com pty) manda CR (\r) no Enter, mas o shell le de um pipe
                     // e precisa de LF (\n) pra fechar a linha. Sem traduzir, o cmd.exe/bash fica esperando
                     // o fim de linha e a sessao TRAVA. Aqui: CR e CRLF -> LF para o shell; CR/LF -> CRLF no
@@ -1411,6 +1877,9 @@ class Session implements Runnable {
     // entao o servidor intercepta o VINTR e mata o processo em foreground do shell (o comando em
     // execucao), deixando o shell vivo. No linux isso fica desligado — quem gera o SIGINT e o pty.
     private boolean interrompeMatando = false;
+    // Canal 'exec' em curso (nao-interativo: scp ou 'ssh host cmd'). Liga o repasse CRU do stdin
+    // no handleChannel (sem eco/CR-LF/line editing) — senao o protocolo BINARIO do scp corromperia.
+    private boolean execCru = false;
     // TERM anunciado pelo cliente no pty-req (ex.: xterm-256color); repassado ao shell do pty
     // para o readline/cores usarem as sequencias certas do terminal do cliente.
     private String termCliente = null;
@@ -1563,6 +2032,72 @@ class Session implements Runnable {
                 synchronized(this) {
                     // Fecha o canal como o protocolo exige: EOF + exit-status + CLOSE. Sem o exit-status
                     // e o CLOSE, o cliente OpenSSH real fica esperando e nao encerra a sessao (trava no exit).
+                    Buf eof = new Buf(); eof.reset_command(SSH_MSG_CHANNEL_EOF); eof.putInt(clientChannel); write(eof);
+                    Buf st = new Buf(); st.reset_command(SSH_MSG_CHANNEL_REQUEST); st.putInt(clientChannel);
+                    st.putString("exit-status"); st.putByte((byte) 0); st.putInt(ec); write(st);
+                    Buf cl = new Buf(); cl.reset_command(SSH_MSG_CHANNEL_CLOSE); cl.putInt(clientChannel); write(cl);
+                }
+            } catch (Exception e) {}
+        }).start();
+    }
+
+    // Canal 'exec' (RFC 4254 §6.5): roda UM comando NAO-interativo e devolve a saida. Usado por
+    // 'ssh host cmd' e pelo scp. Diferente do shell: SEM pty, e stdin/stdout do processo trafegam
+    // CRUS (execCru, ver handleChannel) — sem eco/CR-LF/line editing. stderr vai como EXTENDED_DATA
+    // (fora do stdout). Ao fim: EOF + exit-status + CLOSE, igual ao startShell.
+    private void startExec(String comando) throws Exception {
+        execCru = true;
+        String os = System.getProperty("os.name").toLowerCase();
+        ProcessBuilder pb;
+        if (os.contains("win"))
+            pb = new ProcessBuilder("cmd.exe", "/c", comando);
+        else if (shellUser != null)   // privilege drop: roda o comando COMO o usuario alvo (mesmo criterio do shell)
+            pb = new ProcessBuilder("runuser", "-l", shellUser, "-c", comando);
+        else
+            pb = new ProcessBuilder("/bin/sh", "-c", comando);
+        shellProcess = pb.start();   // stdout e stderr SEPARADOS de proposito (nao redirectErrorStream)
+        ultimoShellPid = shellProcess.pid();
+        shellOutput = shellProcess.getInputStream();
+        shellInput  = shellProcess.getOutputStream();
+        final java.io.InputStream errStream = shellProcess.getErrorStream();
+
+        // stderr -> EXTENDED_DATA (type 1): diagnosticos do comando sem sujar o stdout do scp.
+        new Thread(() -> {
+            try {
+                byte[] b = new byte[4096]; int len;
+                while ((len = errStream.read(b)) != -1) {
+                    if (len <= 0) continue;
+                    synchronized (this) {
+                        Buf e = new Buf();
+                        e.reset_command(SSH_MSG_CHANNEL_EXTENDED_DATA);
+                        e.putInt(clientChannel);
+                        e.putInt(1);   // SSH_EXTENDED_DATA_STDERR
+                        e.putInt(len);
+                        e.putBytes(java.util.Arrays.copyOf(b, len));
+                        write(e);
+                    }
+                }
+            } catch (Exception e) {}
+        }).start();
+
+        // stdout -> CHANNEL_DATA (cru); ao esgotar o pipe, fecha o canal (EOF + exit-status + CLOSE).
+        new Thread(() -> {
+            try {
+                byte[] b = new byte[4096]; int len;
+                while ((len = shellOutput.read(b)) != -1) {
+                    if (len <= 0) continue;
+                    synchronized (this) {
+                        Buf d = new Buf();
+                        d.reset_command(SSH_MSG_CHANNEL_DATA);
+                        d.putInt(clientChannel);
+                        d.putInt(len);
+                        d.putBytes(java.util.Arrays.copyOf(b, len));
+                        write(d);
+                    }
+                }
+                int ec = 0;
+                try { ec = shellProcess.waitFor(); } catch (Exception e) {}
+                synchronized (this) {
                     Buf eof = new Buf(); eof.reset_command(SSH_MSG_CHANNEL_EOF); eof.putInt(clientChannel); write(eof);
                     Buf st = new Buf(); st.reset_command(SSH_MSG_CHANNEL_REQUEST); st.putInt(clientChannel);
                     st.putString("exit-status"); st.putByte((byte) 0); st.putInt(ec); write(st);
@@ -1910,6 +2445,10 @@ class TesteSSH {
         // com o ssh nativo participando onde o host permite (ed25519). Tudo em dir temp dinamico.
         int[] rKeys = runAutoKeys(fonteJava, porta);
         ok += rKeys[0]; total += rKeys[1];
+        // bateria de EXEC + SCP: canal 'exec' do servidor e o cliente -scp (envia/recebe), com o
+        // scp/ssh nativos participando (interop) onde existirem no host.
+        int[] rScp = runAutoExecScp(fonteJava, porta);
+        ok += rScp[0]; total += rScp[1];
         // resumo
         System.out.println("---- " + ok + "/" + total + " checks OK"
             + (ok == total ? "  => AUTO-TESTE OK (" + (win ? "windows/cmd" : "linux/bash") + ")" : "  => FALHOU") + " ----");
@@ -1979,7 +2518,7 @@ class TesteSSH {
             else {
                 total++; boolean c1 = sessaoMarcador(cliMini(fonteJava, uEd, hEd + ".pub", pEd));
                 if (c1) ok++; System.out.println((c1 ? "[OK]    " : "[FALHA] ") + "chaves: SSHMini cliente ed25519 (conexao por file) + verifica host key");
-                total++; boolean c2 = sessaoMarcador(cliMini(fonteJava, uPq, hEd + ".pub", pEd));
+                total++; boolean c2 = execMarcador(uPq, hEd + ".pub", pEd);   // IN-PROCESS (ML-DSA lento -> sem spawn/timeout)
                 if (c2) ok++; System.out.println((c2 ? "[OK]    " : "[FALHA] ") + "chaves: SSHMini cliente mldsa44 (conexao por file, POS-QUANTICO)");
                 total++; boolean c3 = !sessaoMarcador(cliMini(fonteJava, uEd, uEd + ".pub", pEd));
                 if (c3) ok++; System.out.println((c3 ? "[OK]    " : "[FALHA] ") + "chaves: SSHMini RECUSA host key errada (pino -hostpub incorreto)");
@@ -1995,7 +2534,7 @@ class TesteSSH {
             // ---- servidor com host key MLDSA (porta pPq): SSHMini verifica host key pos-quantica ----
             Session.hostKeyFile = hPq;
             if (sobeServidor(pPq)) {
-                total++; boolean c6 = sessaoMarcador(cliMini(fonteJava, uEd, hPq + ".pub", pPq));
+                total++; boolean c6 = execMarcador(uEd, hPq + ".pub", pPq);   // IN-PROCESS (verifica host key mldsa)
                 if (c6) ok++; System.out.println((c6 ? "[OK]    " : "[FALHA] ") + "chaves: SSHMini verifica host key mldsa44 (POS-QUANTICA) + auth");
             }
         } catch (Exception e) {
@@ -2036,6 +2575,20 @@ class TesteSSH {
             "-o", "PreferredAuthentications=publickey", "-p", "" + porta, "admin@localhost");
     }
     // Conecta, espera o prompt assentar, manda um marcador anti-eco e confere que a EXECUCAO apareceu.
+    // Igual ao sessaoMarcador, mas IN-PROCESS via canal exec (sem spawnar 'java' externo nem esperar
+    // prompt). Login por chave 'priv' + pino de host key 'hostpub'. Deterministico — resolve a flakiness
+    // dos checks de ML-DSA (lento) que, por spawn+timeout, davam "Broken pipe"/timeout esporadico.
+    // Retorna true se 'echo SSHMINIMARK' voltou -> prova auth por chave + verificacao de host key + exec.
+    static boolean execMarcador(String priv, String hostpub, int porta) {
+        java.util.List<String> salvo = SSHClientMini.HOSTPUB;
+        try {
+            SSHClientMini.HOSTPUB = new java.util.ArrayList<String>(java.util.Arrays.asList(hostpub));
+            String out = new SSHClientMini("localhost", "admin", porta, null, priv, true).exec("echo SSHMINIMARK");
+            return out.contains("SSHMINIMARK");
+        } catch (Throwable e) { System.out.println("        (mldsa exec in-process: " + e + ")"); return false; }
+        finally { SSHClientMini.HOSTPUB = salvo; }
+    }
+
     static boolean sessaoMarcador(ProcessBuilder pb) {
         final String MARK = "SSHMINIMARK";
         try {
@@ -2065,6 +2618,227 @@ class TesteSSH {
     static void apagaDir(java.io.File d) {
         java.io.File[] fs = d.listFiles(); if (fs != null) for (java.io.File f : fs) { if (f.isDirectory()) apagaDir(f); else f.delete(); }
         d.delete();
+    }
+
+    // ===== Bateria de EXEC + SCP: canal 'exec' do servidor e o cliente '-scp' (envia/recebe) =====
+    // Sobe um servidor (porta+3) com login por chave (host key ed25519 + authorized_keys) e roda:
+    //   A) round-trip do cliente SSHMini -scp: envia orig -> remoto, recebe de volta e compara byte
+    //      a byte (exerce exec no servidor + scp nos DOIS sentidos, > 1 pacote de dados).
+    //   B) 'ssh host cmd' com o OpenSSH NATIVO: confere stdout e o exit-status (7) — valida o exec e
+    //      a resposta de status contra um cliente de verdade.
+    //   C) 'scp -O' NATIVO (protocolo legado sobre exec) round-trip -> servidor SSHMini (interop).
+    // B/C so rodam se ssh/scp existirem no host; A so se 'scp' existir (o servidor exec-uta 'scp -t/-f').
+    static int[] runAutoExecScp(String fonteJava, int porta) {
+        int ok = 0, total = 0;
+        boolean temSsh = false, temScp = false;
+        try { Process v = new ProcessBuilder("ssh", "-V").redirectErrorStream(true).start(); v.getInputStream().readAllBytes(); temSsh = (v.waitFor() == 0); } catch (Exception e) {}
+        try { Process v = new ProcessBuilder("scp").redirectErrorStream(true).start(); v.getInputStream().readAllBytes(); v.waitFor(); temScp = true; } catch (Exception e) {}
+        int pExec = porta + 3;
+        java.io.File tmp = null;
+        try {
+            tmp = java.nio.file.Files.createTempDirectory("sshmini_scp_").toFile();
+            SshKeys keys = new SshKeys();
+            String uEd = novoPar(keys, "ed25519", tmp, "scp_user");
+            String hEd = novoPar(keys, "ed25519", tmp, "scp_host");
+            java.io.File authkeys = new java.io.File(tmp, "authorized_keys");
+            java.nio.file.Files.writeString(authkeys.toPath(), java.nio.file.Files.readString(java.nio.file.Path.of(uEd + ".pub")));
+            // origem com conteudo determinístico e > 1 pacote (detecta troca/queda de bytes).
+            byte[] conteudo = new byte[100000];
+            for (int i = 0; i < conteudo.length; i++) conteudo[i] = (byte) ((i * 31 + 7) & 0xff);
+            java.io.File orig = new java.io.File(tmp, "orig.bin");
+            java.nio.file.Files.write(orig.toPath(), conteudo);
+
+            System.out.println("exec+scp: canal exec + cliente -scp (envia/recebe)  [dir temp dinamico]");
+            Session.authKeysFile = authkeys.getAbsolutePath();
+            Session.hostKeyFile  = hEd;
+            if (!sobeServidor(pExec)) { total++; System.out.println("[FALHA] exec+scp: servidor de teste nao subiu na " + pExec); }
+            else {
+                String alvo = "admin@localhost";
+                java.io.File kh = new java.io.File(tmp, "known_hosts");
+                // ---- A) round-trip do cliente SSHMini -scp (upload -> download), IN-PROCESS ----
+                // Roda o cliente no proprio JVM (em thread com join): deterministico, sem os races de
+                // spawnar 'java' externo (o que dava "Connection reset" esporadico). Mesma tecnica do check D.
+                if (temScp) {
+                    java.io.File up = new java.io.File(tmp, "remoto_up.bin");
+                    java.io.File back = new java.io.File(tmp, "back.bin");
+                    final boolean[] done = { false };
+                    Thread ct = new Thread(() -> {
+                        try {
+                            SSHClientMini.HOSTPUB = new java.util.ArrayList<String>();   // sem pino (login por chave)
+                            new SSHClientMini("127.0.0.1", "admin", pExec, null, uEd, true, true,  orig.getAbsolutePath(), up.getAbsolutePath());
+                            new SSHClientMini("127.0.0.1", "admin", pExec, null, uEd, true, false, back.getAbsolutePath(), up.getAbsolutePath());
+                            done[0] = true;
+                        } catch (Throwable e) { System.out.println("        (scp mini: " + e + ")"); }
+                    });
+                    ct.setDaemon(true); ct.start(); ct.join(40000);
+                    boolean c = done[0] && java.util.Arrays.equals(conteudo, lerTudo(up)) && java.util.Arrays.equals(conteudo, lerTudo(back));
+                    total++; if (c) ok++; System.out.println((c ? "[OK]    " : "[FALHA] ") + "exec+scp (scp mini): cliente -scp round-trip envia + recebe (100000 bytes)");
+                    // ---- A2) round-trip RECURSIVO do cliente -scp -r (arvore: dirs aninhados + arquivos + dir vazio) ----
+                    java.io.File tsrc = new java.io.File(tmp, "arv");
+                    montaArvore(tsrc, conteudo);
+                    java.io.File tup = new java.io.File(tmp, "arv_up");   // destino remoto EXISTENTE -> arv_up/arv
+                    java.io.File tdn = new java.io.File(tmp, "arv_dn");
+                    tup.mkdirs(); tdn.mkdirs();
+                    final boolean[] doneR = { false };
+                    Thread ctr = new Thread(() -> {
+                        try {
+                            SSHClientMini.HOSTPUB = new java.util.ArrayList<String>();
+                            new SSHClientMini("127.0.0.1", "admin", pExec, null, uEd, true, true,  tsrc.getAbsolutePath(), tup.getAbsolutePath(), true);
+                            new SSHClientMini("127.0.0.1", "admin", pExec, null, uEd, true, false, tdn.getAbsolutePath(), new java.io.File(tup, "arv").getAbsolutePath(), true);
+                            doneR[0] = true;
+                        } catch (Throwable e) { System.out.println("        (scp -r mini: " + e + ")"); }
+                    });
+                    ctr.setDaemon(true); ctr.start(); ctr.join(40000);
+                    boolean cr = doneR[0] && arvoreIgual(tsrc, new java.io.File(tup, "arv")) && arvoreIgual(tsrc, new java.io.File(tdn, "arv"));
+                    total++; if (cr) ok++; System.out.println((cr ? "[OK]    " : "[FALHA] ") + "exec+scp (scp -r mini): round-trip recursivo de arvore (dirs+arquivos+vazio)");
+                    // ---- A3) preservacao de timestamp (-p): round-trip mini↔mini confere o mtime (mensagem T) ----
+                    java.io.File pf = new java.io.File(tmp, "ptime.bin");
+                    java.nio.file.Files.write(pf.toPath(), java.util.Arrays.copyOf(conteudo, 4096));
+                    final long tfix = 1300000000L;   // epoch fixo (2011); em segundos, como no protocolo T
+                    java.nio.file.Files.setLastModifiedTime(pf.toPath(), java.nio.file.attribute.FileTime.from(tfix, java.util.concurrent.TimeUnit.SECONDS));
+                    java.io.File pup = new java.io.File(tmp, "ptime_up"); java.io.File pdn = new java.io.File(tmp, "ptime_dn");
+                    pup.mkdirs(); pdn.mkdirs();
+                    final boolean[] doneP = { false };
+                    Thread ctp = new Thread(() -> {
+                        try {
+                            SSHClientMini.HOSTPUB = new java.util.ArrayList<String>();
+                            new SSHClientMini("127.0.0.1", "admin", pExec, null, uEd, true, true,  pf.getAbsolutePath(), pup.getAbsolutePath(), false, true);
+                            new SSHClientMini("127.0.0.1", "admin", pExec, null, uEd, true, false, pdn.getAbsolutePath(), new java.io.File(pup, "ptime.bin").getAbsolutePath(), false, true);
+                            doneP[0] = true;
+                        } catch (Throwable e) { System.out.println("        (scp -p mini: " + e + ")"); }
+                    });
+                    ctp.setDaemon(true); ctp.start(); ctp.join(40000);
+                    long tbaixado = -1;
+                    try { tbaixado = java.nio.file.Files.getLastModifiedTime(new java.io.File(pdn, "ptime.bin").toPath()).to(java.util.concurrent.TimeUnit.SECONDS); } catch (Exception e) {}
+                    boolean cp = doneP[0] && tbaixado == tfix;
+                    total++; if (cp) ok++; System.out.println((cp ? "[OK]    " : "[FALHA] ") + "exec+scp (scp -p mini): round-trip preserva o mtime (mensagem T; " + tbaixado + "==" + tfix + ")");
+                } else System.out.println("        exec+scp: 'scp' ausente no host -> pulando os checks de scp");
+                // ---- B) exec via ssh NATIVO: stdout + exit-status ----
+                if (temSsh) {
+                    int[] r = sshExec(uEd, kh.getAbsolutePath(), pExec, alvo, "echo SSHMINIMARK; echo ERRO123 1>&2; exit 7");
+                    boolean c = r != null && r[0] == 1 && r[1] == 7;
+                    total++; if (c) ok++; System.out.println((c ? "[OK]    " : "[FALHA] ") + "exec+scp (ssh puro): exec 'host cmd' -> stdout + exit-status 7");
+                    // ---- C) scp -O NATIVO round-trip (protocolo legado sobre exec) ----
+                    if (temScp) {
+                        java.io.File up2 = new java.io.File(tmp, "oup.bin");
+                        java.io.File back2 = new java.io.File(tmp, "oback.bin");
+                        boolean eUp = spawnOk(scpNativo(uEd, kh.getAbsolutePath(), pExec, orig.getAbsolutePath(), alvo + ":" + up2.getAbsolutePath()));
+                        boolean eDn = spawnOk(scpNativo(uEd, kh.getAbsolutePath(), pExec, alvo + ":" + up2.getAbsolutePath(), back2.getAbsolutePath()));
+                        boolean c2 = eUp && eDn && java.util.Arrays.equals(conteudo, lerTudo(back2));
+                        total++; if (c2) ok++; System.out.println((c2 ? "[OK]    " : "[FALHA] ") + "exec+scp (scp puro): scp -O round-trip -> servidor SSHMini (interop)");
+                    }
+                }
+            }
+            // ---- D) cliente SSHMini -scp -> servidor OpenSSH sshd REAL (ssh puro como SERVIDOR) ----
+            // Espelho de B/C: aqui o servidor e um sshd de verdade e o cliente e o nosso. Sobe um sshd
+            // efemero (porta+4, so loopback, host key ECDSA — o unico alg de host key que o cliente
+            // oferece — login por chave com a MESMA authorized_keys). O cliente roda IN-PROCESS numa
+            // thread com join(timeout): se travar, vira [FALHA] em vez de emperrar a bateria.
+            String sshdBin = acheSshd();
+            if (sshdBin != null && temSsh && temScp) {
+                int pSshd = porta + 4;
+                Process sd = null;
+                try {
+                    java.io.File hk = new java.io.File(tmp, "sshd_ecdsa");
+                    new ProcessBuilder("ssh-keygen", "-t", "ecdsa", "-b", "256", "-f", hk.getAbsolutePath(), "-N", "", "-q").redirectErrorStream(true).start().waitFor();
+                    java.io.File cfg = new java.io.File(tmp, "sshd_config");
+                    java.nio.file.Files.writeString(cfg.toPath(),
+                        "Port " + pSshd + "\nListenAddress 127.0.0.1\nHostKey " + hk.getAbsolutePath()
+                      + "\nAuthorizedKeysFile " + authkeys.getAbsolutePath()
+                      + "\nPasswordAuthentication no\nPubkeyAuthentication yes\nUsePAM no\nStrictModes no\n");
+                    // -D: sshd fica em foreground, entao este Process E o daemon (destroy o mata direto).
+                    sd = new ProcessBuilder(sshdBin, "-D", "-f", cfg.getAbsolutePath(), "-E", new java.io.File(tmp, "sshd.log").getAbsolutePath()).redirectErrorStream(true).start();
+                    boolean up = false;
+                    for (int k = 0; k < 30 && !up; k++) { try (java.net.Socket s = new java.net.Socket("127.0.0.1", pSshd)) { up = true; } catch (Exception e) { Thread.sleep(200); } }
+                    if (!up) { System.out.println("        exec+scp: sshd de teste nao subiu na " + pSshd + " -> pulando o check contra sshd real (ambiente)"); }
+                    else {
+                        String u = System.getProperty("user.name");
+                        java.io.File up1 = new java.io.File(tmp, "sshd_up.bin");
+                        java.io.File bk1 = new java.io.File(tmp, "sshd_back.bin");
+                        final boolean[] done = { false };
+                        Thread ct = new Thread(() -> {
+                            try {
+                                SSHClientMini.HOSTPUB = new java.util.ArrayList<String>();   // sem pino: nao verifica a host key do sshd
+                                new SSHClientMini("127.0.0.1", u, pSshd, null, uEd, true, true,  orig.getAbsolutePath(), up1.getAbsolutePath());
+                                new SSHClientMini("127.0.0.1", u, pSshd, null, uEd, true, false, bk1.getAbsolutePath(), up1.getAbsolutePath());
+                                done[0] = true;
+                            } catch (Throwable e) { System.out.println("        (scp mini -> sshd puro: " + e + ")"); }
+                        });
+                        ct.setDaemon(true); ct.start(); ct.join(40000);
+                        boolean okd = done[0] && java.util.Arrays.equals(conteudo, lerTudo(up1)) && java.util.Arrays.equals(conteudo, lerTudo(bk1));
+                        total++; if (okd) ok++; System.out.println((okd ? "[OK]    " : "[FALHA] ") + "exec+scp (scp mini -> sshd puro): -scp round-trip contra OpenSSH sshd REAL");
+                    }
+                } finally { if (sd != null) sd.destroyForcibly(); }
+            } else System.out.println("        exec+scp: sshd/ssh/scp ausentes -> pulando o check contra sshd OpenSSH real");
+        } catch (Exception e) {
+            total++; System.out.println("[FALHA] exec+scp: excecao na bateria: " + e);
+        } finally {
+            Session.hostKeyFile = null; Session.authKeysFile = null;   // nao vaza p/ os outros servidores de teste
+            if (tmp != null) apagaDir(tmp);
+        }
+        return new int[]{ ok, total };
+    }
+    // scp NATIVO forçando o protocolo legado (-O), sobre exec, com login por chave no servidor SSHMini.
+    static ProcessBuilder scpNativo(String priv, String knownHosts, int porta, String origem, String destino) {
+        return new ProcessBuilder("scp", "-O", "-i", priv, "-o", "StrictHostKeyChecking=accept-new",
+            "-o", "UserKnownHostsFile=" + knownHosts, "-o", "IdentitiesOnly=yes",
+            "-o", "PreferredAuthentications=publickey", "-P", "" + porta, origem, destino);
+    }
+    // Roda 'ssh ... alvo cmd' e devolve {stdout contem SSHMINIMARK ? 1 : 0, exit-code}. null em erro.
+    static int[] sshExec(String priv, String knownHosts, int porta, String alvo, String cmd) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder("ssh", "-i", priv, "-o", "StrictHostKeyChecking=accept-new",
+                "-o", "UserKnownHostsFile=" + knownHosts, "-o", "IdentitiesOnly=yes",
+                "-o", "PreferredAuthentications=publickey", "-o", "LogLevel=ERROR", "-p", "" + porta, alvo, cmd);
+            Process p = pb.start();
+            byte[] saida = p.getInputStream().readAllBytes();   // stdout (stderr fica separado; e curto, nao trava)
+            p.getErrorStream().readAllBytes();
+            int ec = p.waitFor();
+            return new int[]{ new String(saida, java.nio.charset.StandardCharsets.UTF_8).contains("SSHMINIMARK") ? 1 : 0, ec };
+        } catch (Exception e) { return null; }
+    }
+    // Roda o ProcessBuilder (drenando a saida p/ nao travar) e diz se terminou com exit 0 dentro do prazo.
+    static boolean spawnOk(ProcessBuilder pb) {
+        try {
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            Thread dr = new Thread(() -> { try { p.getInputStream().readAllBytes(); } catch (Exception e) {} });
+            dr.start();
+            if (!p.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) { p.destroyForcibly(); return false; }
+            dr.join(2000);
+            return p.exitValue() == 0;
+        } catch (Exception e) { return false; }
+    }
+    static byte[] lerTudo(java.io.File f) {
+        try { return java.nio.file.Files.readAllBytes(f.toPath()); } catch (Exception e) { return new byte[0]; }
+    }
+    // Monta uma arvore pequena determinista p/ o teste de -r: dirs aninhados, arquivos de tamanhos
+    // variados (fatias do 'conteudo') e um diretorio VAZIO (exercita o par D/E sem filhos).
+    static void montaArvore(java.io.File base, byte[] conteudo) throws Exception {
+        new java.io.File(base, "sub/mais").mkdirs();
+        new java.io.File(base, "vazio").mkdirs();
+        java.nio.file.Files.write(new java.io.File(base, "a.bin").toPath(), conteudo);
+        java.nio.file.Files.write(new java.io.File(base, "sub/b.bin").toPath(), java.util.Arrays.copyOf(conteudo, 1234));
+        java.nio.file.Files.write(new java.io.File(base, "sub/mais/c.bin").toPath(), java.util.Arrays.copyOf(conteudo, 50000));
+        java.nio.file.Files.writeString(new java.io.File(base, "sub/t.txt").toPath(), "ola mundo\n");
+    }
+    // Compara duas arvores byte a byte (nomes + tipo dir/arquivo + conteudo), ignorando a ordem.
+    static boolean arvoreIgual(java.io.File a, java.io.File b) {
+        if (a.isDirectory() != b.isDirectory()) return false;
+        if (a.isFile()) return java.util.Arrays.equals(lerTudo(a), lerTudo(b));
+        java.util.TreeSet<String> na = new java.util.TreeSet<String>(), nb = new java.util.TreeSet<String>();
+        java.io.File[] fa = a.listFiles(), fb = b.listFiles();
+        if (fa != null) for (java.io.File f : fa) na.add(f.getName());
+        if (fb != null) for (java.io.File f : fb) nb.add(f.getName());
+        if (!na.equals(nb)) return false;
+        for (String n : na) if (!arvoreIgual(new java.io.File(a, n), new java.io.File(b, n))) return false;
+        return true;
+    }
+    // Caminho do binario do sshd (OpenSSH) p/ o check contra servidor real; null se nao houver.
+    static String acheSshd() {
+        for (String p : new String[]{ "/usr/sbin/sshd", "/usr/local/sbin/sshd", "/sbin/sshd" })
+            if (new java.io.File(p).canExecute()) return p;
+        return null;
     }
 
     // Teste contra servidor EXTERNO (alvo informado): confere so o round-trip remoto -> volta ao local.
@@ -2350,7 +3124,11 @@ class TesteSSH {
             // conversao, quem imprime so \n desenha escadinha. Removidos os \r\n corretos, nao pode
             // sobrar \n orfao; e \r\r acusaria conversao dupla. ----
             total++;
-            boolean escadaOk = !saida.replace("\r\n", "").contains("\n") && !saida.contains("\r\r");
+            // Normaliza o \r\r\n que o readline do bash emite no Ctrl+C do prompt OCIOSO (redraw com
+            // bracketed-paste) -> \r\n. O ONLCR do servidor nunca produz \r\r; logo um \r\r que sobre
+            // (NAO seguido de \n) ainda acusa conversao dupla de verdade. So tolera o \r\r\n do readline.
+            String saidaN = saida.replaceAll("\r+\n", "\r\n");
+            boolean escadaOk = !saidaN.replace("\r\n", "").contains("\n") && !saidaN.contains("\r\r");
             if (escadaOk) ok++; System.out.println((escadaOk ? "[OK]    " : "[FALHA] ") + nome + ": sem escadinha (todo \\n chegou como \\r\\n)" + tempo(0));
             // ---- PID ANTES do Ctrl+C: a sessao roda num PROCESSO SEPARADO do host e VIVO (o shell
             // do servidor tem PID proprio, != do JVM de teste). ----
