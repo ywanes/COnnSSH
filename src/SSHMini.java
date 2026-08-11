@@ -44,7 +44,7 @@
 //     GRAALVM
 //     1) javac SSHMini.java
 //     2) java -agentlib:native-image-agent=config-output-dir=nic -cp . SSHMini -test   (captura a config)
-//     3) native-image --no-fallback -H:ConfigurationFileDirectories=nic --initialize-at-run-time=Session -J-Xmx2g -cp . SSHMini -o sshmini
+//     3) native-image -Ob --no-fallback -H:ConfigurationFileDirectories=nic --initialize-at-run-time=Session -J-Xmx2g -cp . SSHMini -o sshmini
 //
 //     parametro -Ob do native-image compila mais rapido(ele desativa melhorias profundas e performance e tamanho do binario final)
 //     graalvm 25 tem melhorias.
